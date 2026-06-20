@@ -400,7 +400,7 @@ namespace Plant3DCatalogComposer.Services
         private static int DeploySharedFiles(string genSrc, string customScripts)
         {
             int count = 0;
-            foreach (string name in new[] { "pipe_sizes.py", "sw_fitting_geom.py" })
+            foreach (string name in new[] { "pipe_sizes.py", "sw_fitting_geom.py", "stubend_geom.py", "lj_stud_bolts.py" })
             {
                 string src = Path.Combine(genSrc, name);
                 if (!File.Exists(src))

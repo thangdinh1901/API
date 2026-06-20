@@ -5,9 +5,9 @@ from STUBEND_LJ_A_BW_SCH40.CUST_STUBEND_LJ_A_BW_SCH40 import STUBENDLJABWSCH40
 
 
 @activate(  # type: ignore
-    Group="Fitting",
+    Group="Fastener",
     TooltipShort="Stub End LJ A BW",
-    TooltipLong="ASME B16.9 Type A long-pattern lap-joint stub end Sch-40",
+    TooltipLong="ASME B16.9 Type A long pattern (standard) lap-joint stub end Sch-40",
     FirstPortEndtypes="LAP,BV",
     LengthUnit="mm",
     Ports="2",

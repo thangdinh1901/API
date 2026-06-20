@@ -14,6 +14,7 @@ namespace Plant3DCatalogComposer.Services
                 "WN_FLRF_CL150" => "FLANGE WN",
                 "SO_FLRF_CL150" => "FLANGE SO",
                 "GSK_RF_CL150" => "GASKET RF",
+                "GSK_FF_CL150" => "GASKET FF",
                 "ELBOW_45_LR_BW_SCH40" => "ELL 45 LR",
                 "ELBOW_90_LR_BW_SCH40" => "ELL 90 LR",
                 "ELBOW_90_SR_BW_SCH40" => "ELL 90 SR",
@@ -26,7 +27,8 @@ namespace Plant3DCatalogComposer.Services
                 "REDUCER_CONC_BW_SCH40" => "REDUCER (CONC)",
                 "REDUCER_ECC_BW_SCH40" => "REDUCER (ECC)",
                 "STUBEND_LJ_A_BW_SCH40" => "STUB-END FOR LAP FLANGE",
-                "LJ_RING_CL150_RF" => "LJ RING RF",
+                "STUBEND_LJ_A_SH_BW_SCH40" => "STUB-END SH LAP",
+                "LJ_RING_CL150_RF" => "FLANGE LJ",
                 _ => part.Id,
             };
         }

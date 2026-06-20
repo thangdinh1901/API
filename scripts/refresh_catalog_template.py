@@ -116,8 +116,8 @@ def fill_stud_sheet(ws) -> int:
     return updated
 
 
-def set_flange_facing(ws) -> None:
-    """S1/FL ports = RF (matches working pre-valve catalog). BV/SO ports = blank."""
+def set_gasket_facing(ws, facing: str = "RF") -> None:
+    """FL ports on gasket sheets — RF or FF."""
     hdr = header_map(ws)
     for row in range(3, ws.max_row + 1):
         if not ws.cell(row, hdr.get("Sizes", 2)).value:
@@ -129,9 +129,13 @@ def set_flange_facing(ws) -> None:
             end_col = hdr.get(f"EndType_{suffix}") or hdr.get(f"End Type_{suffix}")
             end_type = ws.cell(row, end_col).value if end_col else None
             if end_type and str(end_type).upper() == "FL":
-                ws.cell(row, col, value="RF")
+                ws.cell(row, col, value=facing)
             else:
                 ws.cell(row, col, value=None)
+
+
+def set_flange_facing(ws) -> None:
+    set_gasket_facing(ws, "RF")
 
 
 def main() -> None:
@@ -150,10 +154,14 @@ def main() -> None:
         upper = name.upper()
         if upper.startswith("STUD_RF"):
             fill_stud_sheet(ws)
+        elif upper.startswith("STUD_LJ"):
+            fill_stud_sheet(ws)
         elif any(upper.startswith(p) for p in ("WN_", "SO_", "BLD_", "ELBOW_", "TEE_", "REDUCER_")):
             set_flange_facing(ws)
+        elif upper.startswith("GSK_FF"):
+            set_gasket_facing(ws, "FF")
         elif upper.startswith("GSK_"):
-            set_flange_facing(ws)
+            set_gasket_facing(ws, "RF")
 
     wb.save(TEMPLATE)
     wb.close()

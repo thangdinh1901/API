@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ArrayOfScript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	<Script Name="CUST_GSK_FF_CL150" LDesId="CUST_GSK_FF_CL150_L" SDesId="CUST_GSK_FF_CL150" ConnPortNum="2" LengthUnit="mm" >
+		<Params>
+			<Param Name="DN" LDesId="CUST_GSK_FF_CL150.DN" SDesId="CUST_GSK_FF_CL150.DN" Type="INT" Ask4Dist="false" Value="100" />
+			<Param Name="T" LDesId="CUST_GSK_FF_CL150.T" SDesId="CUST_GSK_FF_CL150.T" Type="LENGTH0" Ask4Dist="false" Value="1.5" />
+		</Params>
+	</Script>
+</ArrayOfScript>

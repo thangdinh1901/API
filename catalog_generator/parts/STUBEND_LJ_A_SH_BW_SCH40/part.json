@@ -1,12 +1,14 @@
 {
   "role": "standard",
-  "id": "LJ_RING_CL150_RF",
-  "displayName": "Lap Joint Backing Ring FF",
-  "category": "Flange",
-  "group": "Flange",
+  "id": "STUBEND_LJ_A_SH_BW_SCH40",
+  "displayName": "Stub End LJ A SH BW",
+  "category": "Buttwelded",
+  "group": "Fastener",
   "catalogParams": [{ "name": "DN", "label": "DN", "useSkeletonDN": true, "default": 100 }],
   "defaultDN": 100,
   "pressureClass": "150",
+  "standardSet": "BW_SCH40",
+  "pipeSchedule": "40",
   "parametricDN": true,
   "catalogFrameRotation": { "axis": "Y", "degrees": 90 }
 }

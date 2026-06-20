@@ -36,6 +36,11 @@
 		<FirstPortEndtypes>FL,FL</FirstPortEndtypes>
 	</ScriptGroup>
 	<ScriptGroup>
+		<ScriptName>CUST_GSK_FF_CL150</ScriptName>
+		<Group>Gasket</Group>
+		<FirstPortEndtypes>FL,FL</FirstPortEndtypes>
+	</ScriptGroup>
+	<ScriptGroup>
 		<ScriptName>CUST_GSK_RF_CL150</ScriptName>
 		<Group>Gasket</Group>
 		<FirstPortEndtypes>FL,FL</FirstPortEndtypes>
@@ -62,7 +67,12 @@
 	</ScriptGroup>
 	<ScriptGroup>
 		<ScriptName>CUST_STUBEND_LJ_A_BW_SCH40</ScriptName>
-		<Group>Fitting</Group>
+		<Group>Fastener</Group>
+		<FirstPortEndtypes>LAP,BV</FirstPortEndtypes>
+	</ScriptGroup>
+	<ScriptGroup>
+		<ScriptName>CUST_STUBEND_LJ_A_SH_BW_SCH40</ScriptName>
+		<Group>Fastener</Group>
 		<FirstPortEndtypes>LAP,BV</FirstPortEndtypes>
 	</ScriptGroup>
 	<ScriptGroup>

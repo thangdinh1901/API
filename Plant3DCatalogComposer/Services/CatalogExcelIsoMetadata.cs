@@ -37,7 +37,14 @@ namespace Plant3DCatalogComposer.Services
                 };
 
             if (id.StartsWith("LJ_RING_", StringComparison.Ordinal))
-                return Flange("ASME B16.5", "B16.5", "FLANGE", "FLLJ");
+                return new CatalogExcelIsoMetadata
+                {
+                    CompatibleStandard = "ASME B16.5",
+                    DesignStd = "B16.5",
+                    IsoType = "FLANGE",
+                    IsoSkey = "FFLB",
+                    ContentIsoSymbolDefinition = "TYPE=FLANGE,SKEY=FFLB",
+                };
 
             if (id.StartsWith("STUBEND_", StringComparison.Ordinal))
                 return new CatalogExcelIsoMetadata

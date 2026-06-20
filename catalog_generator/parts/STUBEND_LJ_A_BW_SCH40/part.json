@@ -1,9 +1,9 @@
 {
   "role": "standard",
   "id": "STUBEND_LJ_A_BW_SCH40",
-  "displayName": "Stub End LJ Type A BW",
+  "displayName": "Stub End LJ A Long BW",
   "category": "Buttwelded",
-  "group": "Fitting",
+  "group": "Fastener",
   "catalogParams": [{ "name": "DN", "label": "DN", "useSkeletonDN": true, "default": 100 }],
   "defaultDN": 100,
   "pressureClass": "150",

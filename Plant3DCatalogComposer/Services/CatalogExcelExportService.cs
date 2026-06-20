@@ -199,7 +199,8 @@ namespace Plant3DCatalogComposer.Services
         private static void FillStaticTemplateSheets(XLWorkbook workbook)
         {
             FillPipeSheet(workbook);
-            FillStudBoltSheet(workbook);
+            FillStudRfSheet(workbook);
+            FillStudLjSheet(workbook);
         }
 
         private static void FillPipeSheet(XLWorkbook workbook)
@@ -213,7 +214,7 @@ namespace Plant3DCatalogComposer.Services
                 endType: "PL");
         }
 
-        private static void FillStudBoltSheet(XLWorkbook workbook)
+        private static void FillStudRfSheet(XLWorkbook workbook)
         {
             IXLWorksheet? sheet = FindStaticSheet(workbook, "STUD_RF");
             if (sheet == null)
@@ -264,6 +265,61 @@ namespace Plant3DCatalogComposer.Services
                 Set(sheet, header, rowIndex, "IsLugSet", "0");
                 Set(sheet, header, rowIndex, "StudTypeDescription", "Stud Bolt");
                 Set(sheet, header, rowIndex, "StudDescription", "Lg, ASTM A193, B7");
+                Set(sheet, header, rowIndex, "BoltCompatibleStd", "ASTM A193");
+            }
+        }
+
+        private static void FillStudLjSheet(XLWorkbook workbook)
+        {
+            IXLWorksheet? sheet = FindStaticSheet(workbook, "STUD_LJ");
+            if (sheet == null)
+                return;
+
+            var header = ReadHeaderMap(sheet, HeaderRow);
+            const string familyDesc = "Studbolt lap joint CL150 FF ASTM A193-B7";
+            const string shortDesc = "Bolt set LJ";
+            Guid familyId = CatalogExcelPartResolver.StableFamilyId("STUD_LJ_CL150");
+            CatalogExcelIsoMetadata iso = CatalogExcelIsoMetadata.StudBoltRf();
+
+            int lastRow = sheet.LastRowUsed()?.RowNumber() ?? DataStartRow;
+
+            for (int rowIndex = DataStartRow; rowIndex <= lastRow; rowIndex++)
+            {
+                string sizes = GetString(sheet, header, rowIndex, "Sizes");
+                if (string.IsNullOrWhiteSpace(sizes) || !int.TryParse(sizes, out int dn))
+                    continue;
+
+                if (!CatalogFlangeBoltingCatalog.TryGetLjFfCl150(dn, out FlangeBoltingSpec bolting))
+                    continue;
+
+                Guid sizeRecordId = CatalogExcelPartResolver.StableSizeRecordId("STUD_LJ_CL150", dn);
+
+                ApplyIsoMetadata(sheet, header, rowIndex, iso, new CatalogExcelTemplateMetadata());
+                Set(sheet, header, rowIndex, "PartFamilyLongDesc", familyDesc);
+                Set(sheet, header, rowIndex, "PartSizeLongDesc", $"Studbolt LJ DN{dn} CL150 FF ASTM A193-B7");
+                Set(sheet, header, rowIndex, "ShortDescription", shortDesc);
+                Set(sheet, header, rowIndex, "PartFamilyId", familyId.ToString("D"));
+                Set(sheet, header, rowIndex, "CatalogPartFamilyId", familyId.ToString("D"));
+                Set(sheet, header, rowIndex, "PnPClassName", "BoltSet");
+                Set(sheet, header, rowIndex, "PartCategory", "Fasteners");
+                Set(sheet, header, rowIndex, "ConnectionPortCount", "1");
+                Set(sheet, header, rowIndex, "SizeRecordId_S-ALL", sizeRecordId.ToString("D"));
+                Set(sheet, header, rowIndex, "PortName_S-ALL", "ALL");
+                Set(sheet, header, rowIndex, "NominalDiameter_S-ALL", dn.ToString(CultureInfo.InvariantCulture));
+                Set(sheet, header, rowIndex, "NominalUnit_S-ALL", "mm");
+                Set(sheet, header, rowIndex, "MatchingPipeOd_S-ALL", FormatOd(PipeSizeCatalog.OdSch40Mm(dn)));
+                Clear(sheet, header, rowIndex, "EndType_S-ALL");
+                Set(sheet, header, rowIndex, "Facing_S-ALL", "FF");
+                Set(sheet, header, rowIndex, "PressureClass_S-ALL", "150");
+                Set(sheet, header, rowIndex, "WallThickness_S-ALL", "0");
+                Set(sheet, header, rowIndex, "EngagementLength_S-ALL", "0");
+                Set(sheet, header, rowIndex, "LengthUnit_S-ALL", "mm");
+                Set(sheet, header, rowIndex, "BoltSize", bolting.BoltSize);
+                Set(sheet, header, rowIndex, "NumberInSet", bolting.NumberInSet);
+                Set(sheet, header, rowIndex, "Length", bolting.LengthInches);
+                Set(sheet, header, rowIndex, "IsLugSet", "0");
+                Set(sheet, header, rowIndex, "StudTypeDescription", "Stud Bolt");
+                Set(sheet, header, rowIndex, "StudDescription", "Lg, ASTM A193, B7, LJ");
                 Set(sheet, header, rowIndex, "BoltCompatibleStd", "ASTM A193");
             }
         }
@@ -380,7 +436,7 @@ namespace Plant3DCatalogComposer.Services
             int dn = size.Dn;
             double od = PipeSizeCatalog.OdSch40Mm(dn);
 
-            Set(sheet, header, rowIndex, "Sizes", BuildCatalogSizesLabel(size));
+            Set(sheet, header, rowIndex, "Sizes", BuildCatalogSizesLabel(row.Part.Id, size));
             Set(sheet, header, rowIndex, "DN", dn);
 
             Set(sheet, header, rowIndex, "Shape Name", row.Part.CatalogFunctionName);
@@ -396,14 +452,18 @@ namespace Plant3DCatalogComposer.Services
             Set(sheet, header, rowIndex, "ContentGeometryParamDefinition", paramDef);
 
             if (row.Part.Id.StartsWith("STUBEND_", StringComparison.OrdinalIgnoreCase)
-                && CatalogStubEndTable.TryGet(dn, out CatalogStubEndTable.StubEndDims stub))
+                && CatalogStubEndTable.TryGet(
+                    dn,
+                    CatalogStubEndTable.ResolvePattern(row.Part.Id),
+                    out CatalogStubEndTable.StubEndDims stubMeta))
             {
-                Set(sheet, header, rowIndex, "L", FormatOd(stub.L));
-                Set(sheet, header, rowIndex, "B", FormatOd(stub.B));
-                Set(sheet, header, rowIndex, "D1", FormatOd(stub.D1));
-                Set(sheet, header, rowIndex, "D2", FormatOd(stub.D2));
+                ClearNativeParametricColumns(sheet, header, rowIndex, row.Part.Id);
                 Set(sheet, header, rowIndex, "OF", "-1");
-                Set(sheet, header, rowIndex, "FlangeOffset", FormatOd(stub.B));
+                Set(sheet, header, rowIndex, "FlangeOffset", FormatOd(stubMeta.B));
+            }
+            else if (row.Part.Id.StartsWith("LJ_RING_", StringComparison.OrdinalIgnoreCase))
+            {
+                ClearNativeParametricColumns(sheet, header, rowIndex, row.Part.Id);
             }
 
             WritePorts(sheet, header, rowIndex, row, size, dn, od);
@@ -540,6 +600,12 @@ namespace Plant3DCatalogComposer.Services
                 return;
             }
 
+            if (row.Part.Id.StartsWith("LJ_RING_", StringComparison.OrdinalIgnoreCase))
+            {
+                WriteLjRingPortExtras(sheet, header, rowIndex, row, dn);
+                return;
+            }
+
             switch (row.PortLayout)
             {
                 case CatalogExcelPortLayout.DualFlange:
@@ -565,6 +631,32 @@ namespace Plant3DCatalogComposer.Services
             SetPortLengthExtras(sheet, header, rowIndex, "S-ALL");
         }
 
+        private static void WriteLjRingPortExtras(
+            IXLWorksheet sheet,
+            Dictionary<string, int> header,
+            int rowIndex,
+            CatalogExcelPartRow row,
+            int dn)
+        {
+            SetFlangePortExtras(sheet, header, rowIndex, row.PressureClass, "S1");
+            foreach (string suffix in new[] { "S1", "S2" })
+            {
+                if (CatalogLjRingCl150Table.TryGet(dn, out CatalogLjRingCl150Table.LjRingDims lj))
+                    Set(sheet, header, rowIndex, $"FlangeThickness_{suffix}", FormatOd(lj.Tf));
+            }
+
+            Set(sheet, header, rowIndex, "Facing_S1", "FF");
+            Clear(sheet, header, rowIndex, "Facing_S2");
+
+            if (CatalogStubEndTable.TryGetLapThickness(dn, out double lapB))
+                Set(sheet, header, rowIndex, "EngagementLength_S2", FormatOd(lapB));
+
+            Set(sheet, header, rowIndex, "EngagementLength_S1", "0");
+            Set(sheet, header, rowIndex, "WallThickness_S2", "0");
+            Set(sheet, header, rowIndex, "LengthUnit_S1", "mm");
+            Set(sheet, header, rowIndex, "LengthUnit_S2", "mm");
+        }
+
         private static void WriteStubEndPortExtras(
             IXLWorksheet sheet,
             Dictionary<string, int> header,
@@ -573,7 +665,10 @@ namespace Plant3DCatalogComposer.Services
             int dn)
         {
             string wall = "0";
-            if (CatalogStubEndTable.TryGet(dn, out CatalogStubEndTable.StubEndDims stub))
+            if (CatalogStubEndTable.TryGet(
+                dn,
+                CatalogStubEndTable.ResolvePattern(row.Part.Id),
+                out CatalogStubEndTable.StubEndDims stub))
                 wall = FormatOd(stub.B);
 
             foreach (string suffix in new[] { "S1", "S2" })
@@ -657,10 +752,24 @@ namespace Plant3DCatalogComposer.Services
 
             if (id.StartsWith("STUBEND_", StringComparison.Ordinal))
             {
-                string lg = CatalogStubEndTable.TryGet(size.Dn, out CatalogStubEndTable.StubEndDims stub)
+                var pat = CatalogStubEndTable.ResolvePattern(part.Id);
+                string patLabel = pat == CatalogStubEndTable.Pattern.Short
+                    ? "Short Pattern"
+                    : "Long Pattern (Standard)";
+                string lg = CatalogStubEndTable.TryGet(
+                    size.Dn,
+                    pat,
+                    out CatalogStubEndTable.StubEndDims stub)
                     ? $"{stub.L:0.#}mm LG"
                     : "LG";
-                return $"STUB-END FOR LAP FLANGE, {dnTag}, SCH 40, {lg}, ASME B16.9";
+                return $"STUB-END FOR LAP FLANGE, {dnTag}, SCH 40, {patLabel}, {lg}, ASME B16.9";
+            }
+
+            if (id.StartsWith("LJ_RING_", StringComparison.Ordinal))
+            {
+                if (CatalogLjRingCl150Table.TryGet(size.Dn, out CatalogLjRingCl150Table.LjRingDims lj))
+                    return $"FLANGE LJ, {dnTag}, 150 LB, FF, ASME B16.5";
+                return $"FLANGE LJ, {dnTag}, 150 LB, FF, ASME B16.5";
             }
 
             if (id.StartsWith("GSK_", StringComparison.Ordinal))
@@ -694,11 +803,6 @@ namespace Plant3DCatalogComposer.Services
             bool hasCel,
             bool hasT)
         {
-            if (partId.StartsWith("STUBEND_", StringComparison.OrdinalIgnoreCase)
-                && header.ContainsKey("L")
-                && header.ContainsKey("D1"))
-                return "L,B,D1,D2,OF,";
-
             if (hasDn2)
                 return "DN,DN2";
             if (hasCel)
@@ -720,17 +824,39 @@ namespace Plant3DCatalogComposer.Services
 
             Set(sheet, header, rowIndex, $"NominalDiameter_{port.Suffix}", port.Dn.ToString(CultureInfo.InvariantCulture));
             Set(sheet, header, rowIndex, $"NominalUnit_{port.Suffix}", "mm");
-            Set(sheet, header, rowIndex, $"MatchingPipeOd_{port.Suffix}", FormatOd(port.Od));
+            Set(sheet, header, rowIndex, $"MatchingPipeOd_{port.Suffix}", FormatOd(ResolveMatchingPipeOdMm(row.Part.Id, port.Dn)));
 
             Set(sheet, header, rowIndex, $"EndType_{port.Suffix}", port.Port.EndType);
-            Set(sheet, header, rowIndex, $"PressureClass_{port.Suffix}", row.PressureClass);
 
-            // RF only on FL ports (S1 raised face). BV/SO ports must stay blank — RF on S2 was a publish bug.
+            // LAP/BV collar ports — no pressure class (Plant CollarLapped matches on ND + Collar class).
             if (port.Port.EndType.Equals("FL", StringComparison.OrdinalIgnoreCase)
-                || row.Part.Group.Equals("Gasket", StringComparison.OrdinalIgnoreCase))
+                || port.Port.EndType.Equals("SO", StringComparison.OrdinalIgnoreCase))
             {
-                Set(sheet, header, rowIndex, $"Facing_{port.Suffix}", "RF");
+                Set(sheet, header, rowIndex, $"PressureClass_{port.Suffix}", row.PressureClass);
             }
+
+            // RF on WN/BLD/gasket FL ports; LJ backing ring is FF; LAP/BV have no facing.
+            string? facing = ResolvePortFacing(row.Part.Id, port.Port.EndType);
+            if (facing != null)
+                Set(sheet, header, rowIndex, $"Facing_{port.Suffix}", facing);
+        }
+
+        private static string? ResolvePortFacing(string partId, string endType)
+        {
+            if (partId.StartsWith("GSK_FF_", StringComparison.OrdinalIgnoreCase))
+                return "FF";
+
+            if (partId.StartsWith("GSK_", StringComparison.OrdinalIgnoreCase))
+                return "RF";
+
+            if (partId.StartsWith("LJ_RING_", StringComparison.OrdinalIgnoreCase)
+                && endType.Equals("FL", StringComparison.OrdinalIgnoreCase))
+                return "FF";
+
+            if (endType.Equals("FL", StringComparison.OrdinalIgnoreCase))
+                return "RF";
+
+            return null;
         }
 
         private static string ResolveScriptPath(string partId, List<string> warnings)
@@ -776,7 +902,7 @@ namespace Plant3DCatalogComposer.Services
         /// <summary>
         /// Catalog Builder reducing size key (ASME export uses NPS combo e.g. 4"x3").
         /// </summary>
-        private static string BuildCatalogSizesLabel(CatalogExcelSizeVariant size)
+        private static string BuildCatalogSizesLabel(string partId, CatalogExcelSizeVariant size)
         {
             if (!size.Dn2.HasValue)
                 return size.Dn.ToString(CultureInfo.InvariantCulture);
@@ -787,6 +913,31 @@ namespace Plant3DCatalogComposer.Services
                 return $"{large.NpsLabel}\"x{small.NpsLabel}\"";
 
             return $"{size.Dn}x{size.Dn2.Value}";
+        }
+
+        private static double ResolveMatchingPipeOdMm(string partId, int dn)
+        {
+            // Native Plant lap-joint rows use stub do (weld end) on every port — not ring catalog D2.
+            if (partId.StartsWith("STUBEND_", StringComparison.OrdinalIgnoreCase)
+                || partId.StartsWith("LJ_RING_", StringComparison.OrdinalIgnoreCase))
+            {
+                if (CatalogStubEndTable.TryGetWeldDo(dn, out double weldDo))
+                    return weldDo;
+            }
+
+            return PipeSizeCatalog.OdSch40Mm(dn);
+        }
+
+        private static void ClearNativeParametricColumns(
+            IXLWorksheet sheet,
+            Dictionary<string, int> header,
+            int rowIndex,
+            string partId)
+        {
+            foreach (string column in partId.StartsWith("STUBEND_", StringComparison.OrdinalIgnoreCase)
+                ? new[] { "L", "B", "D1", "D2" }
+                : new[] { "L", "D1", "D2" })
+                Clear(sheet, header, rowIndex, column);
         }
 
         private static string GetString(
@@ -840,5 +991,6 @@ namespace Plant3DCatalogComposer.Services
 
         private static string FormatOd(double od) =>
             od.ToString("0.##", CultureInfo.InvariantCulture);
+
     }
 }

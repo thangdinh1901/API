@@ -42,6 +42,25 @@ namespace Plant3DCatalogComposer.Services
         public static bool TryGetRfCl150(int dn, out FlangeBoltingSpec spec) =>
             Class150RfByDn.TryGetValue(dn, out spec!);
 
+        /// <summary>Lap-joint CL150 — same bolt as RF, longer grip (RF + 2× stub lap thickness).</summary>
+        public static bool TryGetLjFfCl150(int dn, out FlangeBoltingSpec spec)
+        {
+            spec = null!;
+            if (!Class150RfByDn.TryGetValue(dn, out FlangeBoltingSpec rf))
+                return false;
+
+            if (!CatalogStubEndTable.TryGet(dn, CatalogStubEndTable.Pattern.Long, out CatalogStubEndTable.StubEndDims stub))
+                return false;
+
+            spec = new FlangeBoltingSpec
+            {
+                BoltSize = rf.BoltSize,
+                NumberInSet = rf.NumberInSet,
+                LengthMm = rf.LengthMm + 2.0 * stub.B,
+            };
+            return true;
+        }
+
         private static FlangeBoltingSpec Spec(string boltInches, int count, double lengthMm) =>
             new()
             {

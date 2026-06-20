@@ -21,6 +21,7 @@ namespace Plant3DCatalogComposer.Services
             "TEE_EQ_BW_SCH40",
             "TEE_REDUCE_BW_SCH40",
             "STUBEND_LJ_A_BW_SCH40",
+            "STUBEND_LJ_A_SH_BW_SCH40",
         ];
 
         public static bool IsStandardPart(string? partId) =>

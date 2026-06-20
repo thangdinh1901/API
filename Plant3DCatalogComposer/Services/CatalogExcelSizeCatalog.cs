@@ -27,6 +27,22 @@ namespace Plant3DCatalogComposer.Services
             if (IsReducingPart(part.Id))
                 return BuildReducingSizes(part);
 
+            if (part.Id.StartsWith("LJ_RING_", StringComparison.OrdinalIgnoreCase))
+            {
+                return CatalogLjRingCl150Table.AllDns
+                    .Select(dn => new CatalogExcelSizeVariant { Dn = dn })
+                    .ToList();
+            }
+
+            if (part.Id.StartsWith("STUBEND_", StringComparison.OrdinalIgnoreCase))
+            {
+                var allowed = ResolveNominalDns(part).ToHashSet();
+                return CatalogStubEndTable.AllDns
+                    .Where(allowed.Contains)
+                    .Select(dn => new CatalogExcelSizeVariant { Dn = dn })
+                    .ToList();
+            }
+
             IReadOnlyList<int> dns = ResolveNominalDns(part);
             if (part.Id.StartsWith("SO_", StringComparison.OrdinalIgnoreCase))
             {

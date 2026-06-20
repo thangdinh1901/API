@@ -183,6 +183,9 @@ namespace Plant3DCatalogComposer.Services
             if (part.Group.Equals("Gasket", StringComparison.OrdinalIgnoreCase))
                 return true;
 
+            if (part.Group.Equals("Fastener", StringComparison.OrdinalIgnoreCase))
+                return true;
+
             if (part.Group.Equals("Flange", StringComparison.OrdinalIgnoreCase))
                 return true;
 
@@ -245,23 +248,32 @@ namespace Plant3DCatalogComposer.Services
                     "Reducer Ecc. BW Welded CS ASTM A234-WPB. Dims to ASME B16.9",
                 _ when id.Contains("REDUCER_CONC", StringComparison.Ordinal) =>
                     "Reducer Conc. BW Welded CS ASTM A234-WPB. Dims to ASME B16.9",
+                _ when id.StartsWith("STUBEND_", StringComparison.Ordinal) && id.Contains("_SH_", StringComparison.Ordinal) =>
+                    "STUB-END FOR LAP FLANGE, SCH 40, Short Pattern, ASME B16.9",
                 _ when id.StartsWith("STUBEND_", StringComparison.Ordinal) =>
-                    "STUB-END FOR LAP FLANGE, SCH 40, ASME B16.9",
+                    "STUB-END FOR LAP FLANGE, SCH 40, Long Pattern (Standard), ASME B16.9",
                 _ when id.StartsWith("LJ_RING_", StringComparison.Ordinal) =>
-                    "Flange. LJ backing ring CL150 RF smooth (3.2-6.3 um) CS ASTM A105N Dims to ASME B16.5",
+                    "FLANGE LJ, 150 LB, FF, ASME B16.5",
                 _ => part.DisplayName,
             };
         }
 
-        private static string ResolvePartCategory(CustomPartDefinition part) =>
-            part.Group switch
+        private static string ResolvePartCategory(CustomPartDefinition part)
+        {
+            string id = part.Id.ToUpperInvariant();
+            if (id.StartsWith("STUBEND_", StringComparison.Ordinal))
+                return "Fasteners";
+
+            return part.Group switch
             {
                 _ when part.Group.Equals("Gasket", StringComparison.OrdinalIgnoreCase) => "Fasteners",
+                _ when part.Group.Equals("Fastener", StringComparison.OrdinalIgnoreCase) => "Fasteners",
                 _ when part.Group.Equals("Flange", StringComparison.OrdinalIgnoreCase) => "Flanges",
                 _ when part.Group.Equals("Fitting", StringComparison.OrdinalIgnoreCase) => "Fittings",
                 _ when part.Group.Equals("Valve", StringComparison.OrdinalIgnoreCase) => "Valves",
                 _ => part.Category,
             };
+        }
 
         private static string ResolvePnPClassName(CustomPartDefinition part)
         {
@@ -270,10 +282,10 @@ namespace Plant3DCatalogComposer.Services
                 return "Gasket";
             if (id.StartsWith("BLD_", StringComparison.Ordinal))
                 return "BlindFlange";
-            if (id.StartsWith("LJ_RING_", StringComparison.Ordinal))
-                return "Flange";
             if (id.StartsWith("STUBEND_", StringComparison.Ordinal))
                 return "StubEnd";
+            if (id.StartsWith("LJ_RING_", StringComparison.Ordinal))
+                return "Flange";
             if (id.StartsWith("WN_", StringComparison.Ordinal) || id.StartsWith("SO_", StringComparison.Ordinal))
                 return "Flange";
             if (id.Contains("ELBOW", StringComparison.Ordinal))

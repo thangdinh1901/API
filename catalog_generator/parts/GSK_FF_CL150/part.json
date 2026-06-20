@@ -1,0 +1,15 @@
+{
+  "role": "standard",
+  "id": "GSK_FF_CL150",
+  "displayName": "Gasket FF + studs (LJ)",
+  "category": "Gasket",
+  "group": "Gasket",
+  "catalogParams": [
+    { "name": "DN", "label": "DN", "useSkeletonDN": true, "default": 100 },
+    { "name": "T", "label": "Thickness (mm)", "default": 1.5 }
+  ],
+  "defaultDN": 100,
+  "pressureClass": "150",
+  "parametricDN": true,
+  "catalogFrameRotation": { "axis": "Y", "degrees": 90 }
+}

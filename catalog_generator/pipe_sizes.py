@@ -656,45 +656,172 @@ def default_sw_tee_small_dn(dn_large: int) -> int:
     return options[0]
 
 
-# ASME B16.9 Type A lap-joint stub end — long pattern, Schedule STD/40 (mm).
-# G = max lap OD, F = overall length (lap face to weld end), R = outside fillet,
-# T = lap thickness (>= Sch-40 wall at bevel). Source: wermac.org B16.9 carbon steel.
-STUBEND_LJ_A_LONG_MM = {
-    15: {"G": 34.9, "F": 76.2, "R": 3.18, "T": 2.77},
-    20: {"G": 42.9, "F": 76.2, "R": 3.18, "T": 2.87},
-    25: {"G": 50.8, "F": 101.6, "R": 3.18, "T": 3.38},
-    32: {"G": 63.5, "F": 101.6, "R": 4.76, "T": 3.56},
-    40: {"G": 73.0, "F": 101.6, "R": 6.35, "T": 3.68},
-    50: {"G": 92.1, "F": 152.4, "R": 7.94, "T": 3.91},
-    65: {"G": 104.8, "F": 152.4, "R": 7.94, "T": 5.16},
-    80: {"G": 127.0, "F": 152.4, "R": 9.53, "T": 5.49},
-    90: {"G": 139.7, "F": 152.4, "R": 9.53, "T": 5.74},
-    100: {"G": 157.2, "F": 152.4, "R": 11.11, "T": 6.02},
-    125: {"G": 185.7, "F": 203.2, "R": 11.11, "T": 6.55},
-    150: {"G": 215.9, "F": 203.2, "R": 12.70, "T": 7.11},
-    200: {"G": 269.9, "F": 203.2, "R": 12.70, "T": 8.18},
-    250: {"G": 323.9, "F": 254.0, "R": 12.70, "T": 9.27},
-    300: {"G": 381.0, "F": 254.0, "R": 12.70, "T": 9.53},
-    350: {"G": 412.8, "F": 304.8, "R": 12.70, "T": 9.53},
-    400: {"G": 469.9, "F": 304.8, "R": 12.70, "T": 9.53},
-    450: {"G": 533.4, "F": 304.8, "R": 12.70, "T": 9.53},
+# STUBEND TABLE (mm) — reference STUBEND TABLE.xlsx
+#   do       = stub OD at pipe weld (BV end)
+#   F_sh     = total stub length, short pattern
+#   F_lg     = total stub length, long pattern (standard)
+#   G (OD)   = lap OD — gasket / backing-ring contact face (catalog D1)
+#   stub_thk = lap thickness (catalog B)
+STUBEND_LJ_A_MM = {
+    15: {"do": 21, "F_sh": 51, "F_lg": 76, "G": 35, "stub_thk": 2.77},
+    20: {"do": 27, "F_sh": 51, "F_lg": 76, "G": 49, "stub_thk": 2.87},
+    25: {"do": 33, "F_sh": 51, "F_lg": 102, "G": 51, "stub_thk": 3.38},
+    32: {"do": 42, "F_sh": 51, "F_lg": 102, "G": 64, "stub_thk": 3.56},
+    40: {"do": 48, "F_sh": 51, "F_lg": 102, "G": 73, "stub_thk": 3.68},
+    50: {"do": 60, "F_sh": 64, "F_lg": 152, "G": 92, "stub_thk": 3.91},
+    65: {"do": 73, "F_sh": 64, "F_lg": 152, "G": 105, "stub_thk": 5.16},
+    80: {"do": 89, "F_sh": 64, "F_lg": 152, "G": 127, "stub_thk": 5.49},
+    90: {"do": 102, "F_sh": 76, "F_lg": 152, "G": 140, "stub_thk": 5.74},
+    100: {"do": 114, "F_sh": 76, "F_lg": 152, "G": 157, "stub_thk": 6.02},
+    125: {"do": 141, "F_sh": 76, "F_lg": 203, "G": 186, "stub_thk": 6.55},
+    150: {"do": 168, "F_sh": 89, "F_lg": 203, "G": 216, "stub_thk": 7.11},
+    200: {"do": 219, "F_sh": 102, "F_lg": 203, "G": 270, "stub_thk": 8.18},
+    250: {"do": 273, "F_sh": 127, "F_lg": 254, "G": 324, "stub_thk": 9.27},
+    300: {"do": 324, "F_sh": 152, "F_lg": 254, "G": 381, "stub_thk": 9.53},
+    350: {"do": 356, "F_sh": 152, "F_lg": 305, "G": 413, "stub_thk": 9.53},
+    400: {"do": 406, "F_sh": 152, "F_lg": 305, "G": 470, "stub_thk": 9.53},
+    450: {"do": 457, "F_sh": 152, "F_lg": 305, "G": 533, "stub_thk": 9.53},
+    500: {"do": 508, "F_sh": 152, "F_lg": 305, "G": 584, "stub_thk": 9.53},
+    550: {"do": 559, "F_sh": 152, "F_lg": 305, "G": 641, "stub_thk": 9.53},
+    600: {"do": 610, "F_sh": 152, "F_lg": 305, "G": 692, "stub_thk": 9.53},
 }
+
+# Back-compat alias
+STUBEND_LJ_A_PIPEDATA_MM = STUBEND_LJ_A_MM
+
+
+def stubend_lj_a_dims_mm(dn: int, pattern: str = "long") -> dict[str, float]:
+    """Stub end envelope from STUBEND TABLE. pattern: 'long' (standard) or 'short'."""
+    dn = resolve_dn(dn)
+    try:
+        row = STUBEND_LJ_A_MM[dn]
+    except KeyError:
+        raise ValueError(f"No B16.9 stub end for DN {dn}.") from None
+
+    pat = pattern.strip().lower()
+    if pat in ("short", "sh", "s"):
+        f_len = float(row["F_sh"])
+    elif pat in ("long", "lg", "l", "standard"):
+        f_len = float(row["F_lg"])
+    else:
+        raise ValueError(f"Unknown stub end pattern '{pattern}' (use long or short).")
+
+    od = float(row["do"])
+    lap_t = float(row["stub_thk"])
+    pipe_wall = float(SCH40_WALL_MM.get(dn, lap_t))
+    return {
+        "G": float(row["G"]),
+        "F": f_len,
+        "T": lap_t,
+        "OD": od,
+        "ID": od - 2.0 * pipe_wall,
+    }
 
 
 def stubend_lj_a_long_dims_mm(dn: int) -> dict[str, float]:
-    """B16.9 Type A long-pattern lap stub end envelope (mm)."""
-    dn = resolve_dn(dn)
-    try:
-        return dict(STUBEND_LJ_A_LONG_MM[dn])
-    except KeyError:
-        raise ValueError(f"No B16.9 Type A long stub end for DN {dn}.") from None
+    return stubend_lj_a_dims_mm(dn, "long")
+
+
+def stubend_lj_a_short_dims_mm(dn: int) -> dict[str, float]:
+    return stubend_lj_a_dims_mm(dn, "short")
 
 
 def stubend_lj_a_long_length_mm(dn: int) -> float:
-    return stubend_lj_a_long_dims_mm(dn)["F"]
+    return stubend_lj_a_dims_mm(dn, "long")["F"]
+
+
+def stubend_lj_a_short_length_mm(dn: int) -> float:
+    return stubend_lj_a_dims_mm(dn, "short")["F"]
 
 
 def pipe_id_sch40_mm(dn: int) -> float:
     """Inside diameter (mm) from B36.10M Sch-40 OD and wall."""
     dn = int(dn)
     return pipe_od_sch40_mm(dn) - 2.0 * SCH40_WALL_MM[dn]
+
+
+# Plant catalog FLANGE LJ, 150 LB — inch export × 25.4 (mm). L,D1,D2 catalog geometry; tf = flange thickness.
+LJ_RING_CL150_PLANT_MM = {
+    15: {"L": 15.75, "D1": 88.9, "D2": 22.86, "tf": 11.18},
+    20: {"L": 15.75, "D1": 98.55, "D2": 28.19, "tf": 12.7},
+    25: {"L": 17.53, "D1": 107.95, "D2": 35.05, "tf": 14.22},
+    32: {"L": 20.57, "D1": 117.35, "D2": 43.69, "tf": 15.75},
+    40: {"L": 22.35, "D1": 127.0, "D2": 50.04, "tf": 17.53},
+    50: {"L": 25.4, "D1": 152.4, "D2": 62.48, "tf": 19.05},
+    65: {"L": 28.45, "D1": 177.8, "D2": 74.68, "tf": 22.35},
+    80: {"L": 30.23, "D1": 190.5, "D2": 91.44, "tf": 23.88},
+    90: {"L": 31.75, "D1": 215.9, "D2": 104.14, "tf": 23.88},
+    100: {"L": 33.27, "D1": 228.6, "D2": 116.84, "tf": 23.88},
+    125: {"L": 36.58, "D1": 254.0, "D2": 144.53, "tf": 23.88},
+    150: {"L": 39.62, "D1": 279.4, "D2": 171.45, "tf": 25.4},
+    200: {"L": 44.45, "D1": 342.9, "D2": 222.25, "tf": 28.45},
+    250: {"L": 49.28, "D1": 406.4, "D2": 277.37, "tf": 30.23},
+    300: {"L": 55.63, "D1": 482.6, "D2": 328.17, "tf": 31.75},
+    350: {"L": 79.25, "D1": 533.4, "D2": 360.17, "tf": 35.05},
+    400: {"L": 87.38, "D1": 596.9, "D2": 411.23, "tf": 36.58},
+    450: {"L": 96.77, "D1": 635.0, "D2": 462.28, "tf": 39.62},
+}
+
+# Iplex Pipelines — galvanised steel backing ring ANSI 150 (mm). L1=O, L2=ID, L3=tf.
+# Bolt hole diameter (hd) in mm per table "No. x Dia".
+IPLEX_BACKING_RING_CL150_BY_NPS = {
+    "1/2": {"O": 89, "pcd": 60.5, "id_l2": 22, "tf": 11.2, "n": 4, "hd": 16},
+    "3/4": {"O": 99, "pcd": 69.8, "id_l2": 28, "tf": 12.7, "n": 4, "hd": 16},
+    "1": {"O": 108, "pcd": 79.5, "id_l2": 44, "tf": 14.2, "n": 4, "hd": 16},
+    "1-1/4": {"O": 117, "pcd": 88.9, "id_l2": 56, "tf": 15.7, "n": 4, "hd": 16},
+    "1-1/2": {"O": 127, "pcd": 98.4, "id_l2": 64, "tf": 17.5, "n": 4, "hd": 16},
+    "2": {"O": 152, "pcd": 120.5, "id_l2": 78, "tf": 19.0, "n": 4, "hd": 20},
+    "2-1/2": {"O": 178, "pcd": 139.7, "id_l2": 95, "tf": 22.4, "n": 4, "hd": 20},
+    "3": {"O": 191, "pcd": 152.0, "id_l2": 108, "tf": 23.9, "n": 4, "hd": 20},
+    "3-1/2": {"O": 216, "pcd": 177.8, "id_l2": 124, "tf": 23.9, "n": 8, "hd": 20},
+    "4": {"O": 229, "pcd": 190.5, "id_l2": 128, "tf": 23.9, "n": 8, "hd": 20},
+    "5": {"O": 254, "pcd": 215.9, "id_l2": 158, "tf": 23.9, "n": 8, "hd": 22},
+    "6": {"O": 279, "pcd": 241.0, "id_l2": 178, "tf": 25.4, "n": 8, "hd": 23},
+    "8": {"O": 343, "pcd": 298.5, "id_l2": 235, "tf": 28.4, "n": 8, "hd": 23},
+    "10": {"O": 406, "pcd": 362.0, "id_l2": 292, "tf": 30.2, "n": 12, "hd": 25},
+    "12": {"O": 483, "pcd": 432.0, "id_l2": 345, "tf": 31.8, "n": 12, "hd": 26},
+    "14": {"O": 533, "pcd": 476.2, "id_l2": 381, "tf": 35.1, "n": 12, "hd": 26},
+    "16": {"O": 597, "pcd": 539.8, "id_l2": 432, "tf": 36.6, "n": 16, "hd": 26},
+    "18": {"O": 635, "pcd": 577.8, "id_l2": 488, "tf": 39.6, "n": 16, "hd": 28},
+}
+
+
+def iplex_backing_ring_cl150_mm(dn: int) -> dict[str, float]:
+    """Iplex ANSI 150 backing ring row for catalog DN."""
+    dn = resolve_dn(dn)
+    nps = dn_to_nps(dn)
+    try:
+        row = IPLEX_BACKING_RING_CL150_BY_NPS[nps]
+    except KeyError:
+        raise ValueError(f"No Iplex CL150 backing ring for DN {dn} (NPS {nps}).") from None
+    return {k: float(v) for k, v in row.items()}
+
+
+def lj_ring_cl150_dims_mm(dn: int) -> dict[str, float]:
+    """Iplex ANSI 150 backing ring + Plant catalog L,D2 + bore over stub lap G."""
+    dn = resolve_dn(dn)
+    try:
+        catalog = dict(LJ_RING_CL150_PLANT_MM[dn])
+        iplex = iplex_backing_ring_cl150_mm(dn)
+        stub_g = float(STUBEND_LJ_A_MM[dn]["G"])
+    except KeyError:
+        raise ValueError(f"No CL150 LJ backing ring for DN {dn}.") from None
+
+    tf = iplex["tf"]
+    stub_lap_t = float(stubend_lj_a_dims_mm(dn, "long")["T"])
+    model_bore = max(stub_g + 1.5, iplex["id_l2"])
+
+    return {
+        **catalog,
+        "O": iplex["O"],
+        "tf": tf,
+        "bcd": iplex["pcd"],
+        "n": int(iplex["n"]),
+        "hd": iplex["hd"],
+        "D1": iplex["O"],
+        "D2": catalog["D2"],
+        "model_bore": model_bore,
+        "port_len": tf,
+        "stub_lap_t": stub_lap_t,
+    }
+

@@ -13,7 +13,8 @@
       "REDUCER_ECC_BW_SCH40",
       "TEE_EQ_BW_SCH40",
       "TEE_REDUCE_BW_SCH40",
-      "STUBEND_LJ_A_BW_SCH40"
+      "STUBEND_LJ_A_BW_SCH40",
+      "STUBEND_LJ_A_SH_BW_SCH40"
     ]
   },
   "LAP_JOINT_CL150": {
@@ -21,10 +22,12 @@
     "pressureClass": "150",
     "category": "Flange",
     "standards": ["ASME B16.9", "ASME B16.5", "ASME B36.10M"],
-    "notes": "Stub end Type A long pattern (B16.9 Sch-40) + loose backing ring (B16.5 CL150 RF). Mate LJ ports; bolt FL face with gasket/studs.",
+    "notes": "Stub end Type A long/short pattern (Pipedata Pro B16.9 Sch-40) + loose backing ring FF (B16.5 CL150 / Iplex L3). Mate LAP ports; bolt FL with gasket/studs (FF, longer grip).",
     "partIds": [
       "STUBEND_LJ_A_BW_SCH40",
-      "LJ_RING_CL150_RF"
+      "STUBEND_LJ_A_SH_BW_SCH40",
+      "LJ_RING_CL150_RF",
+      "GSK_FF_CL150"
     ]
   },
   "SW_CL3000": {
