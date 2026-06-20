@@ -1,0 +1,15 @@
+{
+  "role": "standard",
+  "id": "SO_FLRF_CL150",
+  "displayName": "Flange SO RF",
+  "category": "Flange",
+  "group": "Flange",
+  "catalogParams": [
+    { "name": "DN", "label": "DN", "useSkeletonDN": true, "default": 100 },
+    { "name": "CEL", "label": "CEL (mm)", "default": 0 }
+  ],
+  "defaultDN": 100,
+  "pressureClass": "150",
+  "parametricDN": true,
+  "catalogFrameRotation": { "axis": "Y", "degrees": 90 }
+}

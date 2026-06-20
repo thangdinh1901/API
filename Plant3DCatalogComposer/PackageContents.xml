@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage
+  SchemaVersion="1.0"
+  AutodeskProduct="AutoCAD"
+  ProductType="Application"
+  Name="Plant3DCatalogComposer"
+  AppVersion="1.0.0"
+  Description="Visual scene graph composer for Plant 3D catalog geometry"
+  Author="Plant3D Catalog Composer"
+  ProductCode="{a4c8e2f1-9b3d-4e7a-8c1f-2d6b5e9a0f3c}">
+  <CompanyDetails Name="" Email="" Url="" Phone="" />
+  <Components Description="AutoCAD / Plant 3D 2026 (.NET 8)">
+    <ComponentEntry
+      AppName="Plant3DCatalogComposer"
+      Version="1.0.0"
+      ModuleName="Contents/Plant3DCatalogComposer.dll"
+      AppDescription="Compose Plant 3D catalog primitives visually"
+      AppType=".Net"
+      LoadOnAutoCADStartup="True"
+      LoadOnCommandInvocation="True">
+      <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R25.1" SeriesMax="R25.1" />
+      <Commands GroupName="P3DCOMPOSER_GRP">
+        <Command Global="P3DCOMPOSER" Local="P3DCOMPOSER" />
+        <Command Global="P3DREBUILD" Local="P3DREBUILD" />
+        <Command Global="P3DCOMPWRAP" Local="P3DCOMPWRAP" />
+        <Command Global="P3DCOMPPUBLISH" Local="P3DCOMPPUBLISH" />
+        <Command Global="P3DCOMPTEST" Local="P3DCOMPTEST" />
+        <Command Global="P3DCOMPBACKUP" Local="P3DCOMPBACKUP" />
+        <Command Global="P3DCOMPRESTORE" Local="P3DCOMPRESTORE" />
+      </Commands>
+    </ComponentEntry>
+  </Components>
+</ApplicationPackage>

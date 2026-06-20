@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ArrayOfScript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	<Script Name="p3d_composer_rebuild" LDesId="p3d_composer_rebuild_L" SDesId="p3d_composer_rebuild" LengthUnit="mm" >
+		<Params>
+			<Param Name="K" LDesId="p3d_composer_rebuild.K" SDesId="p3d_composer_rebuild.K" Type="INT" Ask4Dist="false" Value="1" />
+		</Params>
+	</Script>
+</ArrayOfScript>

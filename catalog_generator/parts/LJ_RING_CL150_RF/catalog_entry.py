@@ -1,0 +1,17 @@
+"""Catalog entry — geometry in LJ_RING_CL150_RF/CUST_LJ_RING_CL150_RF.py."""
+from varmain.custom import *  # type: ignore
+
+from LJ_RING_CL150_RF.CUST_LJ_RING_CL150_RF import LJRINGCL150RF
+
+
+@activate(  # type: ignore
+    Group="Flange",
+    TooltipShort="LJ Ring CL150 RF",
+    TooltipLong="Lap-joint backing ring raised face ASME B16.5 Class 150",
+    FirstPortEndtypes="FL,LAP",
+    LengthUnit="mm",
+    Ports="2",
+)
+def CUST_LJ_RING_CL150_RF(s, DN=100, **kw):
+    preview = bool(kw.get("preview", False))
+    return LJRINGCL150RF(s, int(DN), add_ports=not preview)

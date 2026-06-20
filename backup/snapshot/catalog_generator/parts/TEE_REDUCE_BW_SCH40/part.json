@@ -1,0 +1,17 @@
+{
+  "role": "standard",
+  "id": "TEE_REDUCE_BW_SCH40",
+  "displayName": "Tee Reducing BW",
+  "category": "Buttwelded",
+  "group": "Fitting",
+  "catalogParams": [
+    { "name": "DN", "label": "DN run", "useSkeletonDN": true, "default": 100 },
+    { "name": "DN2", "label": "DN branch", "useSkeletonDN2": true, "default": 80 }
+  ],
+  "defaultDN": 100,
+  "pressureClass": "150",
+  "standardSet": "BW_SCH40",
+  "pipeSchedule": "40",
+  "parametricDN": true,
+  "catalogFrameRotation": { "axis": "Y", "degrees": 90 }
+}

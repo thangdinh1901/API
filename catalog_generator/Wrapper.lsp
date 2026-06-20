@@ -1,0 +1,57 @@
+;; Wrapper.lsp — Plant 3D catalog preview helpers (load once per session).
+;;
+;; CLEANWRAP  — erase all + purge + wrapper  (full reset)
+;; COMPWRAP   — wrapper only                 (P3D Catalog Composer rebuild)
+;;
+;; Tool palette macro (proven):  ^C^CCOMPWRAP
+
+(defun c:COMPWRAP (/ oldCmdecho)
+  (vl-load-com)
+  (if (not (member "PnP3dACPAdapter" (arx))
+    (arxload "PnP3dACPAdapter")
+  )
+  (testacpscript "wrapper")
+  (princ "\nP3D Composer: COMPWRAP finished (check command line for scene_builder messages).")
+  (princ)
+)
+
+;; Full reset: erase then wrapper (manual 2nd+ rebuild).
+(defun c:COMPWRAPFRESH (/ oldCmdecho)
+  (vl-load-com)
+  (if (not (member "PnP3dACPAdapter" (arx))
+    (arxload "PnP3dACPAdapter")
+  )
+  (setq oldCmdecho (getvar "CMDECHO"))
+  (setvar "CMDECHO" 0)
+  (command "_.ERASE" "ALL" "")
+  (setvar "CMDECHO" oldCmdecho)
+  (while (> (getvar "CMDACTIVE") 0))
+  (testacpscript "wrapper" "K" "99")
+  (princ "\nP3D Composer: COMPWRAPFRESH finished.")
+  (princ)
+)
+
+(defun c:CLEANWRAP (/ oldCmdecho *error*)
+  (defun *error* (msg)
+    (if oldCmdecho (setvar "CMDECHO" oldCmdecho))
+    (command "_.UNDO" "_END")
+    (if (and msg (not (wcmatch (strcase msg) "*CANCEL*,*QUIT*")))
+      (princ (strcat "\nError: " msg))
+    )
+    (princ)
+  )
+  (setq oldCmdecho (getvar "CMDECHO"))
+  (setvar "CMDECHO" 0)
+  (command-s "_.UNDO" "_GROUP")
+  (command "_.ERASE" "ALL" "")
+  (repeat 3
+    (command "_.-PURGE" "_ALL" "*" "_N")
+  )
+  (testacpscript "wrapper")
+  (command "_.UNDO" "_END")
+  (setvar "CMDECHO" oldCmdecho)
+  (princ "\nDrawing cleaned and wrapper executed.")
+  (princ)
+)
+
+(princ "\nWrapper.lsp loaded — commands: COMPWRAP, CLEANWRAP")

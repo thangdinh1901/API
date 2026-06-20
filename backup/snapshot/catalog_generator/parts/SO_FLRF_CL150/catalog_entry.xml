@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<ArrayOfScript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	<Script Name="CUST_SO_FLRF_CL150" LDesId="CUST_SO_FLRF_CL150_L" SDesId="CUST_SO_FLRF_CL150" ConnPortNum="2" LengthUnit="mm" >
+		<Params>
+			<Param Name="DN" LDesId="CUST_SO_FLRF_CL150.DN" SDesId="CUST_SO_FLRF_CL150.DN" Type="INT" Ask4Dist="false" Value="100" />
+			<Param Name="CEL" LDesId="CUST_SO_FLRF_CL150.CEL" SDesId="CUST_SO_FLRF_CL150.CEL" Type="LENGTH0" Ask4Dist="false" Value="0.0" />
+		</Params>
+	</Script>
+</ArrayOfScript>

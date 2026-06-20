@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ArrayOfScript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	<Script Name="CUST_GATEVALVE_DN50_150" LDesId="CUST_GATEVALVE_DN50_150_L" SDesId="CUST_GATEVALVE_DN50_150" ConnPortNum="2" LengthUnit="mm" >
+		<Params>
+			<Param Name="DN" LDesId="CUST_GATEVALVE_DN50_150.DN" SDesId="CUST_GATEVALVE_DN50_150.DN" Type="INT" Ask4Dist="false" Value="50" />
+		</Params>
+	</Script>
+</ArrayOfScript>

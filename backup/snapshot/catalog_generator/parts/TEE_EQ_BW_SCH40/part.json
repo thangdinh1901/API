@@ -1,0 +1,16 @@
+{
+  "role": "standard",
+  "id": "TEE_EQ_BW_SCH40",
+  "displayName": "Tee Equal BW",
+  "category": "Buttwelded",
+  "group": "Fitting",
+  "catalogParams": [
+    { "name": "DN", "label": "DN", "useSkeletonDN": true, "default": 100 }
+  ],
+  "defaultDN": 100,
+  "pressureClass": "150",
+  "standardSet": "BW_SCH40",
+  "pipeSchedule": "40",
+  "parametricDN": true,
+  "catalogFrameRotation": { "axis": "Y", "degrees": 90 }
+}

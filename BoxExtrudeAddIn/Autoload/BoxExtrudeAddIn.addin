@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Addin Type="Standard">
+  <ClassId>{b2c3d4e5-f6a7-8901-bcde-f12345678901}</ClassId>
+  <ClientId>{b2c3d4e5-f6a7-8901-bcde-f12345678901}</ClientId>
+  <DisplayName>Box Extrude AddIn</DisplayName>
+  <Description>Form API tao khoi box bang Extrude tren Inventor</Description>
+  <Assembly>BoxExtrudeAddIn.dll</Assembly>
+  <LoadOnStartUp>1</LoadOnStartUp>
+  <UserUnloadable>1</UserUnloadable>
+  <Hidden>0</Hidden>
+  <SupportedSoftwareVersionGreaterThan>24..</SupportedSoftwareVersionGreaterThan>
+  <DataVersion>1</DataVersion>
+  <UserInterfaceVersion>1</UserInterfaceVersion>
+</Addin>

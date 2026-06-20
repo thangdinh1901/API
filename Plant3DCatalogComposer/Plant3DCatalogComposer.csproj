@@ -1,0 +1,79 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>Plant3DCatalogComposer</RootNamespace>
+    <AssemblyName>Plant3DCatalogComposer</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- Override if AutoCAD is installed elsewhere: dotnet build -p:AcadDir="..." -->
+    <AcadDir Condition="'$(AcadDir)' == ''">C:\Program Files\Autodesk\AutoCAD 2026</AcadDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="AcCoreMgd">
+      <HintPath>$(AcadDir)\AcCoreMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AcDbMgd">
+      <HintPath>$(AcadDir)\AcDbMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AcMgd">
+      <HintPath>$(AcadDir)\AcMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AdWindows">
+      <HintPath>$(AcadDir)\AdWindows.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Shared scene-graph domain (no Inventor / AutoCAD references) -->
+  <ItemGroup>
+    <Compile Include="..\Plant3DSkeletonManager\Core\BooleanGraph.cs" Link="Core\BooleanGraph.cs" />
+    <Compile Include="..\Plant3DSkeletonManager\Core\ExpressionEvaluator.cs" Link="Core\ExpressionEvaluator.cs" />
+    <Compile Include="..\Plant3DSkeletonManager\Core\JsonCodec.cs" Link="Core\JsonCodec.cs" />
+    <Compile Include="..\Plant3DSkeletonManager\Core\Model.cs" Link="Core\Model.cs" />
+    <Compile Include="..\Plant3DSkeletonManager\Core\PortConnectionTypeHelper.cs" Link="Core\PortConnectionTypeHelper.cs" />
+    <Compile Include="..\Plant3DSkeletonManager\Core\PortConnectionTypeJsonConverter.cs" Link="Core\PortConnectionTypeJsonConverter.cs" />
+    <Compile Include="..\Plant3DSkeletonManager\Core\PrimitiveParameterUnits.cs" Link="Core\PrimitiveParameterUnits.cs" />
+    <Compile Include="..\Plant3DSkeletonManager\Core\ProjectValidator.cs" Link="Core\ProjectValidator.cs" />
+    <Compile Include="..\Plant3DSkeletonManager\Core\SceneGraphHelpers.cs" Link="Core\SceneGraphHelpers.cs" />
+    <Compile Include="..\Plant3DSkeletonManager\Core\PortTransformMath.cs" Link="Core\PortTransformMath.cs" />
+    <Compile Include="..\Plant3DSkeletonManager\Core\TransformMath.cs" Link="Core\TransformMath.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Resources\*.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Resources\CatalogBuilderTemplate.xlsx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <!-- After Release/Debug build, copy DLL to ApplicationPlugins + CustomScripts (NETLOAD path). -->
+  <Target Name="DeployPlant3DCatalogComposer" AfterTargets="Build" Condition="'$(SkipComposerDeploy)' != 'true'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\scripts\Install-Plant3DCatalogComposer.ps1&quot; -Configuration $(Configuration)"
+          IgnoreExitCode="false" />
+  </Target>
+
+  <ItemGroup>
+    <None Include="..\catalog_generator\p3d_composer\**\*" CopyToOutputDirectory="PreserveNewest" Link="catalog_generator\p3d_composer\%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="..\catalog_generator\pipe_sizes.py" CopyToOutputDirectory="PreserveNewest" Link="catalog_generator\pipe_sizes.py" />
+    <None Include="..\catalog_generator\standard_sets.json" CopyToOutputDirectory="PreserveNewest" Link="catalog_generator\standard_sets.json" />
+    <None Include="..\catalog_generator\sw_fitting_geom.py" CopyToOutputDirectory="PreserveNewest" Link="catalog_generator\sw_fitting_geom.py" />
+    <None Include="..\catalog_generator\Wrapper.lsp" CopyToOutputDirectory="PreserveNewest" Link="catalog_generator\Wrapper.lsp" />
+    <None Include="..\Plant3DSkeletonManager\primitives.py" CopyToOutputDirectory="PreserveNewest" Link="primitives.py" />
+  </ItemGroup>
+
+</Project>

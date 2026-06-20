@@ -1,0 +1,31 @@
+{
+  "BW_SCH40": {
+    "displayName": "Butt weld fittings — Schedule 40 (standard)",
+    "pipeSchedule": "40",
+    "category": "Buttwelded",
+    "standards": ["ASME B16.9", "ASME B36.10M"],
+    "notes": "Envelope dimensions per B16.9 by NPS; OD at bevel from B36.10. No separate Sch80/40S parts until a future set is added.",
+    "partIds": [
+      "ELBOW_90_LR_BW_SCH40",
+      "ELBOW_45_LR_BW_SCH40",
+      "ELBOW_90_SR_BW_SCH40",
+      "REDUCER_CONC_BW_SCH40",
+      "REDUCER_ECC_BW_SCH40",
+      "TEE_EQ_BW_SCH40",
+      "TEE_REDUCE_BW_SCH40"
+    ]
+  },
+  "SW_CL3000": {
+    "displayName": "Socket weld fittings — Class 3000 (standard)",
+    "pressureClass": "3000",
+    "category": "Socketwelded",
+    "standards": ["ASME B16.11", "ASME B36.10M"],
+    "notes": "B16.11 Class 3000: A center-to-socket, B socket bore, J socket depth, C socket wall, D flow bore; forging OD = B+2C. Pipe stub OD per B36.10M. Reducing tee C/M per §6.5. NPS 1/8\"–4\".",
+    "partIds": [
+      "ELBOW_90_SW_CL3000",
+      "ELBOW_45_SW_CL3000",
+      "TEE_EQ_SW_CL3000",
+      "TEE_REDUCE_SW_CL3000"
+    ]
+  }
+}

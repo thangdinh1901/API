@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Addin Type="Standard">
+  <ClassId>{9d2e6b1c-4f8a-4d37-b5a9-c3e7f2148a60}</ClassId>
+  <ClientId>{9d2e6b1c-4f8a-4d37-b5a9-c3e7f2148a60}</ClientId>
+  <DisplayName>Plant3D Skeleton Manager</DisplayName>
+  <Description>Creates valve skeleton user parameters in the active assembly</Description>
+  <Assembly>Plant3DSkeletonManager.dll</Assembly>
+  <LoadOnStartUp>1</LoadOnStartUp>
+  <UserUnloadable>1</UserUnloadable>
+  <Hidden>0</Hidden>
+  <SupportedSoftwareVersionGreaterThan>24..</SupportedSoftwareVersionGreaterThan>
+  <DataVersion>1</DataVersion>
+  <UserInterfaceVersion>1</UserInterfaceVersion>
+</Addin>

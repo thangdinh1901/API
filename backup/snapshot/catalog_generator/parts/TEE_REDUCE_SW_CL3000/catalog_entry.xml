@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ArrayOfScript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+	<Script Name="CUST_TEE_REDUCE_SW_CL3000" LDesId="CUST_TEE_REDUCE_SW_CL3000_L" SDesId="CUST_TEE_REDUCE_SW_CL3000" ConnPortNum="3" LengthUnit="mm" >
+		<Params>
+			<Param Name="DN" LDesId="CUST_TEE_REDUCE_SW_CL3000.DN" SDesId="CUST_TEE_REDUCE_SW_CL3000.DN" Type="INT" Ask4Dist="false" Value="50" />
+			<Param Name="DN2" LDesId="CUST_TEE_REDUCE_SW_CL3000.DN2" SDesId="CUST_TEE_REDUCE_SW_CL3000.DN2" Type="INT" Ask4Dist="false" Value="40" />
+		</Params>
+	</Script>
+</ArrayOfScript>

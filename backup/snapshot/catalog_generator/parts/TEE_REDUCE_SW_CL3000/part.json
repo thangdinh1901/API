@@ -1,0 +1,15 @@
+{
+  "role": "standard",
+  "id": "TEE_REDUCE_SW_CL3000",
+  "displayName": "Tee Reducing SW",
+  "category": "Socketwelded",
+  "group": "Fitting",
+  "catalogParams": [
+    { "name": "DN", "label": "DN run", "useSkeletonDN": true, "default": 50 },
+    { "name": "DN2", "label": "DN branch", "useSkeletonDN2": true, "default": 40 }
+  ],
+  "defaultDN": 50,
+  "pressureClass": "3000",
+  "standardSet": "SW_CL3000",
+  "parametricDN": true
+}

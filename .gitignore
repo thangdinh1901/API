@@ -1,0 +1,15 @@
+# Build output
+**/bin/
+**/obj/
+
+# IDE / OS
+.vs/
+*.user
+*.suo
+*.userosscache
+Thumbs.db
+.DS_Store
+
+# Local scene mirrors (generated at runtime)
+catalog_generator/.active_scene.json
+Plant3DCatalogComposer/catalog_generator/.active_scene.json
