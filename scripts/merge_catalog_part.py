@@ -6,6 +6,10 @@ import sys
 from pathlib import Path
 
 SUBFOLDER_IMPORT = re.compile(r"^from [A-Z0-9_]+\.CUST_[A-Z0-9_]+ import ")
+MODULE_IMPORT_CATALOG_PARAMS = re.compile(
+    r"^import catalog_params\s*$|^from catalog_params import ",
+    re.MULTILINE,
+)
 
 
 def merge(entry_path: Path, geometry_path: Path) -> str:
@@ -27,10 +31,19 @@ def merge(entry_path: Path, geometry_path: Path) -> str:
     geom = "\n".join(geom_lines).strip()
 
     varmain = [line for line in entry_lines if "varmain.custom" in line]
+    entry_imports = [
+        line
+        for line in entry_lines
+        if (line.startswith("import ") or line.startswith("from "))
+        and "varmain.custom" not in line
+        and not SUBFOLDER_IMPORT.match(line)
+    ]
     body = [
         line
         for line in entry_lines
-        if "varmain.custom" not in line and not SUBFOLDER_IMPORT.match(line)
+        if "varmain.custom" not in line
+        and not SUBFOLDER_IMPORT.match(line)
+        and not (line.startswith("import ") or line.startswith("from "))
     ]
     activate_idx = next((i for i, line in enumerate(body) if "@activate" in line), -1)
     if activate_idx >= 0:
@@ -39,12 +52,30 @@ def merge(entry_path: Path, geometry_path: Path) -> str:
     chunks = []
     if varmain:
         chunks.append("\n".join(varmain))
+    if entry_imports:
+        chunks.append("\n".join(entry_imports))
     if geom:
         chunks.append(geom)
     body_text = "\n".join(body).strip()
     if body_text:
         chunks.append(body_text)
-    return "\n\n".join(chunks).strip() + "\n"
+    return _ensure_support_imports("\n\n".join(chunks).strip() + "\n")
+
+
+def _ensure_support_imports(content: str) -> str:
+    if "catalog_params." not in content:
+        return content
+    if MODULE_IMPORT_CATALOG_PARAMS.search(content):
+        return content
+        marker = "varmain.custom"
+        idx = content.find(marker)
+        if idx >= 0:
+            line_end = content.find("\n", idx)
+            insert_at = len(content) if line_end < 0 else line_end + 1
+            content = content[:insert_at] + "\nimport catalog_params\n" + content[insert_at:]
+        else:
+            content = "import catalog_params\n\n" + content
+    return content
 
 
 def main() -> int:

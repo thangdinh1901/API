@@ -15,6 +15,9 @@ namespace Plant3DCatalogComposer.Services
         public int DeployedScriptCount { get; init; }
         public bool RegisterQueued { get; init; }
         public string PartFolder { get; init; } = string.Empty;
+        public string? ManifestPath { get; init; }
+        public bool PluginRestartRecommended { get; init; }
+        public PluginDeployResult? PluginDeploy { get; init; }
         public ValidationResult Preflight { get; init; } = new();
     }
 
@@ -86,13 +89,12 @@ namespace Plant3DCatalogComposer.Services
                     };
                 }
 
-                bool registered = CatalogDeployService.TryQueueRegisterCustomScripts(doc, deploy.ScriptCount);
-                string summary = project.Parts.Count > 0
-                    ? $"Deployed {Path.GetFileName(partFolder)}: {exportedFileCount} file(s) exported, " +
-                      $"{deploy.ScriptCount} script(s) copied." +
-                      (registered ? " PLANTREGISTERCUSTOMSCRIPTS queued." : " Run PLANTREGISTERCUSTOMSCRIPTS.")
-                    : deploy.Message +
-                      (registered ? " PLANTREGISTERCUSTOMSCRIPTS queued." : " Run PLANTREGISTERCUSTOMSCRIPTS.");
+                bool registered = CatalogDeployService.TryQueueRegisterCustomScripts(doc, deploy);
+                string summary = CatalogDeployGuidance.BuildSummary(deploy.ScriptCount, registered);
+                if (project.Parts.Count > 0)
+                {
+                    summary = $"Deployed {Path.GetFileName(partFolder)}: {exportedFileCount} file(s) exported.{Environment.NewLine}{summary}";
+                }
 
                 return new CatalogDeployFullResult
                 {
@@ -102,6 +104,9 @@ namespace Plant3DCatalogComposer.Services
                     DeployedScriptCount = deploy.ScriptCount,
                     RegisterQueued = registered,
                     PartFolder = partFolder,
+                    ManifestPath = deploy.ManifestPath,
+                    PluginRestartRecommended = deploy.PluginDeploy?.RestartRecommended ?? false,
+                    PluginDeploy = deploy.PluginDeploy,
                     Message = summary,
                 };
             }

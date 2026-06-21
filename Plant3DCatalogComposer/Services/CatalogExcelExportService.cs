@@ -161,8 +161,8 @@ namespace Plant3DCatalogComposer.Services
                 SkippedPartIds = skipped.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                 Warnings = warnings,
                 Message =
-                    $"Exported {filledSheets.Count} sheet(s), {totalRows} size row(s) → {outputPath}"
-                    + (skippedNote.Length > 0 ? Environment.NewLine + skippedNote : ""),
+                    $"Published {filledSheets.Count} sheet(s), {totalRows} size row(s)."
+                    + (skippedNote.Length > 0 ? " " + skippedNote.Trim() : ""),
             };
         }
 
@@ -386,13 +386,13 @@ namespace Plant3DCatalogComposer.Services
             bool hasDn2 = header.ContainsKey("DN2");
             bool hasCel = header.ContainsKey("CEL");
             bool hasT = header.ContainsKey("T");
-            string paramDef = BuildContentGeometryParamDefinition(row.Part.Id, header, hasDn2, hasCel, hasT);
 
             string familyDesc = IsUsableFamilyLongDesc(metadata.FamilyLongDesc)
                 ? metadata.FamilyLongDesc
                 : row.FamilyLongDesc;
             string material = string.IsNullOrWhiteSpace(metadata.Material) ? row.Material : metadata.Material;
             CatalogExcelIsoMetadata iso = CatalogExcelIsoMetadata.Resolve(row.Part);
+            string paramDef = BuildContentGeometryParamDefinition(row.Part.Id, hasDn2, hasCel, hasT);
 
             int written = 0;
             int rowIndex = DataStartRow;
@@ -451,19 +451,28 @@ namespace Plant3DCatalogComposer.Services
                 Set(sheet, header, rowIndex, "T", size.T.Value);
             Set(sheet, header, rowIndex, "ContentGeometryParamDefinition", paramDef);
 
-            if (row.Part.Id.StartsWith("STUBEND_", StringComparison.OrdinalIgnoreCase)
+            if (CatalogLapJointIds.IsLjStubOrCollar(row.Part.Id)
                 && CatalogStubEndTable.TryGet(
                     dn,
                     CatalogStubEndTable.ResolvePattern(row.Part.Id),
                     out CatalogStubEndTable.StubEndDims stubMeta))
             {
-                ClearNativeParametricColumns(sheet, header, rowIndex, row.Part.Id);
+                // Plant CollarLapped reads L,B,D1,D2 from catalog — not just script ports.
+                Set(sheet, header, rowIndex, "L", FormatOd(stubMeta.L));
+                Set(sheet, header, rowIndex, "B", FormatOd(stubMeta.B));
+                Set(sheet, header, rowIndex, "D1", FormatOd(stubMeta.D1));
+                Set(sheet, header, rowIndex, "D2", FormatOd(PipeSizeCatalog.OdSch40Mm(dn)));
                 Set(sheet, header, rowIndex, "OF", "-1");
                 Set(sheet, header, rowIndex, "FlangeOffset", FormatOd(stubMeta.B));
             }
             else if (row.Part.Id.StartsWith("LJ_RING_", StringComparison.OrdinalIgnoreCase))
             {
-                ClearNativeParametricColumns(sheet, header, rowIndex, row.Part.Id);
+                if (CatalogLjRingCl150Table.TryGet(dn, out CatalogLjRingCl150Table.LjRingDims ljRing))
+                {
+                    Set(sheet, header, rowIndex, "L", FormatOd(ljRing.L));
+                    Set(sheet, header, rowIndex, "D1", FormatOd(ljRing.D1));
+                    Set(sheet, header, rowIndex, "D2", FormatOd(ljRing.D2));
+                }
             }
 
             WritePorts(sheet, header, rowIndex, row, size, dn, od);
@@ -529,15 +538,8 @@ namespace Plant3DCatalogComposer.Services
                     yield break;
 
                 default:
-                {
-                    string endType = row.Part.Group.Equals("Gasket", StringComparison.OrdinalIgnoreCase)
-                        ? "Undefined_ET"
-                        : row.Part.Group.Equals("Fitting", StringComparison.OrdinalIgnoreCase)
-                            ? row.FittingEndType
-                            : "FL";
-                    yield return new PortWriteSpec((endType, "ALL"), "S-ALL", dn, od, RecordId(1));
+                    yield return new PortWriteSpec(row.Port1, "S-ALL", dn, od, RecordId(1));
                     yield break;
-                }
             }
         }
 
@@ -594,7 +596,7 @@ namespace Plant3DCatalogComposer.Services
             CatalogExcelPartRow row,
             int dn)
         {
-            if (row.Part.Id.StartsWith("STUBEND_", StringComparison.OrdinalIgnoreCase))
+            if (CatalogLapJointIds.IsLjStubOrCollar(row.Part.Id))
             {
                 WriteStubEndPortExtras(sheet, header, rowIndex, row, dn);
                 return;
@@ -628,6 +630,12 @@ namespace Plant3DCatalogComposer.Services
             if (isBwFitting && !string.IsNullOrEmpty(row.PipeSchedule))
                 Set(sheet, header, rowIndex, "Schedule_S-ALL", row.PipeSchedule);
 
+            if (row.Part.Id.StartsWith("BLD_", StringComparison.OrdinalIgnoreCase)
+                && CatalogFlangeCl150RfTable.TryGetTf(dn, out double blindTf))
+            {
+                Set(sheet, header, rowIndex, "FlangeThickness_S-ALL", FormatOd(blindTf));
+            }
+
             SetPortLengthExtras(sheet, header, rowIndex, "S-ALL");
         }
 
@@ -648,10 +656,9 @@ namespace Plant3DCatalogComposer.Services
             Set(sheet, header, rowIndex, "Facing_S1", "FF");
             Clear(sheet, header, rowIndex, "Facing_S2");
 
-            if (CatalogStubEndTable.TryGetLapThickness(dn, out double lapB))
-                Set(sheet, header, rowIndex, "EngagementLength_S2", FormatOd(lapB));
-
+            // Native Plant FLANGE LJ — no EngagementLength; axial offset is catalog L + LAP port.
             Set(sheet, header, rowIndex, "EngagementLength_S1", "0");
+            Set(sheet, header, rowIndex, "EngagementLength_S2", "0");
             Set(sheet, header, rowIndex, "WallThickness_S2", "0");
             Set(sheet, header, rowIndex, "LengthUnit_S1", "mm");
             Set(sheet, header, rowIndex, "LengthUnit_S2", "mm");
@@ -664,18 +671,20 @@ namespace Plant3DCatalogComposer.Services
             CatalogExcelPartRow row,
             int dn)
         {
-            string wall = "0";
+            string lapWall = "0";
             if (CatalogStubEndTable.TryGet(
                 dn,
                 CatalogStubEndTable.ResolvePattern(row.Part.Id),
                 out CatalogStubEndTable.StubEndDims stub))
-                wall = FormatOd(stub.B);
+                lapWall = FormatOd(stub.B);
 
             foreach (string suffix in new[] { "S1", "S2" })
             {
                 if (!string.IsNullOrEmpty(row.PipeSchedule))
                     Set(sheet, header, rowIndex, $"Schedule_{suffix}", row.PipeSchedule);
-                Set(sheet, header, rowIndex, $"WallThickness_{suffix}", wall);
+                // S1 LAP = lap thickness; S2 BV = pipe end (no collar wall on weld port).
+                Set(sheet, header, rowIndex, $"WallThickness_{suffix}",
+                    suffix.Equals("S1", StringComparison.OrdinalIgnoreCase) ? lapWall : "0");
                 Set(sheet, header, rowIndex, $"EngagementLength_{suffix}", "0");
                 Set(sheet, header, rowIndex, $"LengthUnit_{suffix}", "mm");
             }
@@ -750,6 +759,21 @@ namespace Plant3DCatalogComposer.Services
             if (id.StartsWith("SO_", StringComparison.Ordinal) && trimmed.Contains("SO", StringComparison.Ordinal))
                 return InsertAfterFlangeKeyword(trimmed, "SO", dnTag);
 
+            if (CatalogLapJointIds.IsCollarExport(id))
+            {
+                var pat = CatalogStubEndTable.ResolvePattern(part.Id);
+                string patLabel = pat == CatalogStubEndTable.Pattern.Short
+                    ? "Short Pattern"
+                    : "Long Pattern (Standard)";
+                string lg = CatalogStubEndTable.TryGet(
+                    size.Dn,
+                    pat,
+                    out CatalogStubEndTable.StubEndDims stub)
+                    ? $"{stub.L:0.#}mm LG"
+                    : "LG";
+                return $"Collar, {dnTag}, SCH 40, {patLabel}, {lg}, ASME B16.9";
+            }
+
             if (id.StartsWith("STUBEND_", StringComparison.Ordinal))
             {
                 var pat = CatalogStubEndTable.ResolvePattern(part.Id);
@@ -798,17 +822,27 @@ namespace Plant3DCatalogComposer.Services
 
         private static string BuildContentGeometryParamDefinition(
             string partId,
-            Dictionary<string, int> header,
             bool hasDn2,
             bool hasCel,
             bool hasT)
         {
+            // Catalog Builder template: parameter NAMES in ContentGeometryParamDefinition;
+            // per-size VALUES go in DN / DN2 / CEL / T columns (PreviewLisp builds DN=15 at preview time).
+            if (partId.StartsWith("SO_", StringComparison.OrdinalIgnoreCase) && hasCel)
+                return "DN,CEL";
+
+            if (partId.StartsWith("GSK_", StringComparison.OrdinalIgnoreCase))
+                return hasT ? "DN,T" : "DN";
+
             if (hasDn2)
                 return "DN,DN2";
+
             if (hasCel)
                 return "DN,CEL";
+
             if (hasT)
                 return "DN,T";
+
             return "DN";
         }
 
@@ -824,7 +858,8 @@ namespace Plant3DCatalogComposer.Services
 
             Set(sheet, header, rowIndex, $"NominalDiameter_{port.Suffix}", port.Dn.ToString(CultureInfo.InvariantCulture));
             Set(sheet, header, rowIndex, $"NominalUnit_{port.Suffix}", "mm");
-            Set(sheet, header, rowIndex, $"MatchingPipeOd_{port.Suffix}", FormatOd(ResolveMatchingPipeOdMm(row.Part.Id, port.Dn)));
+            Set(sheet, header, rowIndex, $"MatchingPipeOd_{port.Suffix}", FormatOd(
+                ResolveMatchingPipeOdMm(row.Part.Id, port.Dn, port.Port.EndType)));
 
             Set(sheet, header, rowIndex, $"EndType_{port.Suffix}", port.Port.EndType);
 
@@ -861,12 +896,16 @@ namespace Plant3DCatalogComposer.Services
 
         private static string ResolveScriptPath(string partId, List<string> warnings)
         {
+            string scriptPartId = CatalogLapJointIds.IsCollarExport(partId)
+                ? CatalogLapJointIds.StubExportIdFromCollar(partId)
+                : partId;
+
             // Deploy writes flat CustomScripts/CUST_{partId}.py (no parts/<id>/ subfolders).
-            string flat = Path.Combine(ProjectPaths.CustomScriptsDir, $"CUST_{partId}.py");
+            string flat = Path.Combine(ProjectPaths.CustomScriptsDir, $"CUST_{scriptPartId}.py");
             if (File.Exists(flat))
                 return flat;
 
-            string? geometry = CatalogPortTemplates.TryLoadGeometryScriptPath(partId);
+            string? geometry = CatalogPortTemplates.TryLoadGeometryScriptPath(scriptPartId);
             if (!string.IsNullOrEmpty(geometry) && File.Exists(geometry))
             {
                 warnings.Add(
@@ -874,7 +913,7 @@ namespace Plant3DCatalogComposer.Services
                 return geometry;
             }
 
-            warnings.Add($"{partId}: CUST_{partId}.py not found in CustomScripts.");
+            warnings.Add($"{partId}: CUST_{scriptPartId}.py not found in CustomScripts.");
             return flat;
         }
 
@@ -915,15 +954,11 @@ namespace Plant3DCatalogComposer.Services
             return $"{size.Dn}x{size.Dn2.Value}";
         }
 
-        private static double ResolveMatchingPipeOdMm(string partId, int dn)
+        private static double ResolveMatchingPipeOdMm(string partId, int dn, string endType)
         {
-            // Native Plant lap-joint rows use stub do (weld end) on every port — not ring catalog D2.
-            if (partId.StartsWith("STUBEND_", StringComparison.OrdinalIgnoreCase)
+            if (CatalogLapJointIds.IsLjStubOrCollar(partId)
                 || partId.StartsWith("LJ_RING_", StringComparison.OrdinalIgnoreCase))
-            {
-                if (CatalogStubEndTable.TryGetWeldDo(dn, out double weldDo))
-                    return weldDo;
-            }
+                return PipeSizeCatalog.OdSch40Mm(dn);
 
             return PipeSizeCatalog.OdSch40Mm(dn);
         }
@@ -934,7 +969,7 @@ namespace Plant3DCatalogComposer.Services
             int rowIndex,
             string partId)
         {
-            foreach (string column in partId.StartsWith("STUBEND_", StringComparison.OrdinalIgnoreCase)
+            foreach (string column in CatalogLapJointIds.IsLjStubOrCollar(partId)
                 ? new[] { "L", "B", "D1", "D2" }
                 : new[] { "L", "D1", "D2" })
                 Clear(sheet, header, rowIndex, column);

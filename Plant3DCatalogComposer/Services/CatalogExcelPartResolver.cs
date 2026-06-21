@@ -99,10 +99,33 @@ namespace Plant3DCatalogComposer.Services
             {
                 if (seen.Add(part.Id))
                     TryAddPart(rows, part);
+
+                // CollarLapped joint resolves Fasteners/Collar from spec — mirror each LJ stub export.
+                string? collarId = CatalogLapJointIds.CollarExportIdFromStub(part.Id);
+                if (collarId != null && seen.Add(collarId))
+                    TryAddPart(rows, CloneAsCollarExport(part, collarId));
             }
 
             return OrderRows(rows);
         }
+
+        private static CustomPartDefinition CloneAsCollarExport(CustomPartDefinition stub, string collarId) =>
+            new()
+            {
+                Role = stub.Role,
+                Id = collarId,
+                DisplayName = "Lap-joint collar",
+                Group = stub.Group,
+                Category = stub.Category,
+                DefaultDN = stub.DefaultDN,
+                PressureClass = stub.PressureClass,
+                PipeSchedule = stub.PipeSchedule,
+                StandardSet = stub.StandardSet,
+                ParametricDN = stub.ParametricDN,
+                Skeleton = stub.Skeleton,
+                CatalogParams = stub.CatalogParams,
+                CatalogFrameRotation = stub.CatalogFrameRotation,
+            };
 
         private static IReadOnlyList<CatalogExcelPartRow> OrderRows(List<CatalogExcelPartRow> rows) =>
             rows
@@ -248,6 +271,10 @@ namespace Plant3DCatalogComposer.Services
                     "Reducer Ecc. BW Welded CS ASTM A234-WPB. Dims to ASME B16.9",
                 _ when id.Contains("REDUCER_CONC", StringComparison.Ordinal) =>
                     "Reducer Conc. BW Welded CS ASTM A234-WPB. Dims to ASME B16.9",
+                _ when id.StartsWith("COLLAR_LJ_", StringComparison.Ordinal) && id.Contains("_SH_", StringComparison.Ordinal) =>
+                    "Lap-joint collar (stub end), SCH 40, Short Pattern, ASME B16.9",
+                _ when id.StartsWith("COLLAR_LJ_", StringComparison.Ordinal) =>
+                    "Lap-joint collar (stub end), SCH 40, Long Pattern (Standard), ASME B16.9",
                 _ when id.StartsWith("STUBEND_", StringComparison.Ordinal) && id.Contains("_SH_", StringComparison.Ordinal) =>
                     "STUB-END FOR LAP FLANGE, SCH 40, Short Pattern, ASME B16.9",
                 _ when id.StartsWith("STUBEND_", StringComparison.Ordinal) =>
@@ -261,7 +288,8 @@ namespace Plant3DCatalogComposer.Services
         private static string ResolvePartCategory(CustomPartDefinition part)
         {
             string id = part.Id.ToUpperInvariant();
-            if (id.StartsWith("STUBEND_", StringComparison.Ordinal))
+            if (id.StartsWith("STUBEND_", StringComparison.Ordinal)
+                || id.StartsWith("COLLAR_LJ_", StringComparison.Ordinal))
                 return "Fasteners";
 
             return part.Group switch
@@ -282,6 +310,8 @@ namespace Plant3DCatalogComposer.Services
                 return "Gasket";
             if (id.StartsWith("BLD_", StringComparison.Ordinal))
                 return "BlindFlange";
+            if (id.StartsWith("COLLAR_LJ_", StringComparison.Ordinal))
+                return "Collar";
             if (id.StartsWith("STUBEND_", StringComparison.Ordinal))
                 return "StubEnd";
             if (id.StartsWith("LJ_RING_", StringComparison.Ordinal))
@@ -324,9 +354,13 @@ namespace Plant3DCatalogComposer.Services
             if (layout is CatalogExcelPortLayout.DualPortBv or CatalogExcelPortLayout.TriplePortBv)
                 return (ResolveFittingEndType(part), "S1");
 
-            if (part.Group.Equals("Fitting", StringComparison.OrdinalIgnoreCase)
-                || part.Group.Equals("Gasket", StringComparison.OrdinalIgnoreCase)
-                || part.Id.StartsWith("BLD_", StringComparison.OrdinalIgnoreCase))
+            if (flangePort1 != null)
+                return (flangePort1, "ALL");
+
+            if (part.Group.Equals("Gasket", StringComparison.OrdinalIgnoreCase))
+                return ("FL", "ALL");
+
+            if (part.Group.Equals("Fitting", StringComparison.OrdinalIgnoreCase))
             {
                 string endType = ResolveFittingEndType(part);
                 return (endType is "SW" or "BV" ? endType : "FL", "ALL");
@@ -392,10 +426,18 @@ namespace Plant3DCatalogComposer.Services
                 return true;
             }
 
-            if (id.StartsWith("STUBEND_", StringComparison.Ordinal))
+            if (id.StartsWith("STUBEND_", StringComparison.Ordinal)
+                || id.StartsWith("COLLAR_LJ_", StringComparison.Ordinal))
             {
                 port1EndType = "LAP";
                 port2EndType = "BV";
+                return true;
+            }
+
+            if (id.StartsWith("GSK_", StringComparison.Ordinal))
+            {
+                port1EndType = "FL";
+                port2EndType = "FL";
                 return true;
             }
 

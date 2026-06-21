@@ -1,6 +1,7 @@
 """Catalog entry — geometry in TEE_REDUCE_BW_SCH40/CUST_TEE_REDUCE_BW_SCH40.py."""
 from varmain.custom import *  # type: ignore
 
+import pipe_sizes
 from TEE_REDUCE_BW_SCH40.CUST_TEE_REDUCE_BW_SCH40 import TEEREDUCEBWSCH40
 
 
@@ -13,8 +14,6 @@ from TEE_REDUCE_BW_SCH40.CUST_TEE_REDUCE_BW_SCH40 import TEEREDUCEBWSCH40
     Ports="3",
 )
 def CUST_TEE_REDUCE_BW_SCH40(s, DN=100, DN2=80, **kw):
-    import pipe_sizes
-
     preview = bool(kw.get("preview", False))
     dn_r = int(DN)
     dn_b = int(DN2)

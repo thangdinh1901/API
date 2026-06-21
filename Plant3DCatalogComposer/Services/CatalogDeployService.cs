@@ -16,15 +16,13 @@ namespace Plant3DCatalogComposer.Services
         public int PartCount { get; init; }
         /// <summary>All .py files copied to CustomScripts (parts, libraries, shared).</summary>
         public int ScriptCount { get; init; }
+        public int PycacheFoldersCleared { get; init; }
         public bool RegisterCommandQueued { get; init; }
+        public string? ManifestPath { get; init; }
+        public PluginDeployResult? PluginDeploy { get; init; }
 
         public static string StatusLine(int scriptCount) =>
             $"{scriptCount} Python scripts deployed.";
-
-        public static string DialogText(int scriptCount, bool registerQueued) =>
-            registerQueued
-                ? $"{scriptCount} Python scripts deployed.{Environment.NewLine}Catalog registration queued."
-                : $"{scriptCount} Python scripts deployed.{Environment.NewLine}Run PLANTREGISTERCUSTOMSCRIPTS.";
     }
 
     /// <summary>Deploy catalog_generator from dev repo (or bundle) to Plant 3D CustomScripts.</summary>
@@ -58,6 +56,9 @@ namespace Plant3DCatalogComposer.Services
 
             try
             {
+                // Drop stale bytecode before and after copy so PLANTREGISTERCUSTOMSCRIPTS rebuilds .pyc.
+                int pycacheCleared = ClearPythonCache(ProjectPaths.CustomScriptsDir);
+
                 RemoveLegacySupportFolders(ProjectPaths.CustomScriptsDir);
                 int removed = RemoveOrphanedCatalogParts(partsSrc, ProjectPaths.CustomScriptsDir);
 
@@ -68,14 +69,29 @@ namespace Plant3DCatalogComposer.Services
                 scriptCount += DeployComposerLib(genSrc, ProjectPaths.CustomScriptsDir);
                 DeployMetadata(genSrc, ProjectPaths.CustomScriptsDir);
 
+                pycacheCleared += ClearPythonCache(ProjectPaths.CustomScriptsDir);
+
+                PluginDeployResult plugin = CatalogPluginDeployService.TryStagePluginDll();
+                string manifestPath = CatalogDeployManifestWriter.Write(
+                    ProjectPaths.CustomScriptsDir,
+                    scriptCount,
+                    pycacheCleared,
+                    registerQueued: false,
+                    plugin);
+
+                string message = CatalogDeployGuidance.BuildSummary(scriptCount, registerQueued: false);
+                if (removed > 0)
+                    message = $"Removed {removed} orphaned catalog part(s).{Environment.NewLine}{message}";
+
                 return new CatalogDeployResult
                 {
                     Success = true,
                     PartCount = partCount,
                     ScriptCount = scriptCount,
-                    Message = removed > 0
-                        ? $"{CatalogDeployResult.StatusLine(scriptCount)} Removed {removed} orphaned catalog part(s) from CustomScripts."
-                        : CatalogDeployResult.StatusLine(scriptCount),
+                    PycacheFoldersCleared = pycacheCleared,
+                    ManifestPath = manifestPath,
+                    PluginDeploy = plugin,
+                    Message = message,
                 };
             }
             catch (Exception ex)
@@ -91,13 +107,18 @@ namespace Plant3DCatalogComposer.Services
         /// Plant 3D compiles .py → .pyc and updates variant paths for Spec Editor.
         /// Creates CustomScripts/__pycache__ automatically — do not copy or create it manually.
         /// </summary>
-        public static bool TryQueueRegisterCustomScripts(Document? doc, int scriptCount)
+        public static bool TryQueueRegisterCustomScripts(
+            Document? doc,
+            CatalogDeployResult deploy)
         {
             if (doc == null)
                 return false;
 
+            if (!string.IsNullOrEmpty(deploy.ManifestPath))
+                CatalogDeployManifestWriter.MarkRegisterQueued(deploy.ManifestPath);
+
             doc.Editor.WriteMessage(
-                $"\nP3D Composer: {CatalogDeployResult.StatusLine(scriptCount)} Registering catalog...");
+                $"\nP3D Composer: deployed {deploy.ScriptCount} script(s).");
             doc.SendStringToExecute("PLANTREGISTERCUSTOMSCRIPTS\n", true, false, false);
             return true;
         }
@@ -226,6 +247,22 @@ namespace Plant3DCatalogComposer.Services
             return removed;
         }
 
+        /// <summary>Remove all __pycache__ folders under CustomScripts before PLANTREGISTERCUSTOMSCRIPTS.</summary>
+        internal static int ClearPythonCache(string customScripts)
+        {
+            if (!Directory.Exists(customScripts))
+                return 0;
+
+            int cleared = 0;
+            foreach (string dir in Directory.EnumerateDirectories(customScripts, "__pycache__", SearchOption.AllDirectories))
+            {
+                Directory.Delete(dir, recursive: true);
+                cleared++;
+            }
+
+            return cleared;
+        }
+
         private static int DeployCustomParts(string partsSrc, string customScripts)
         {
             int count = 0;
@@ -243,8 +280,8 @@ namespace Plant3DCatalogComposer.Services
                 string geometry = Path.Combine(partDir, partId, $"CUST_{partId}.py");
                 string destPy = Path.Combine(customScripts, $"CUST_{partId}.py");
                 string content = File.Exists(geometry)
-                    ? MergeCatalogPartPy(entry, geometry)
-                    : File.ReadAllText(entry, Encoding.UTF8);
+                    ? EnsureSupportImports(MergeCatalogPartPy(entry, geometry))
+                    : EnsureSupportImports(File.ReadAllText(entry, Encoding.UTF8));
                 File.WriteAllText(destPy, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
                 string entryXml = Path.Combine(partDir, "catalog_entry.xml");
@@ -264,9 +301,16 @@ namespace Plant3DCatalogComposer.Services
 
             IEnumerable<string> varmain = entryLines.Where(l =>
                 l.Contains("varmain.custom", StringComparison.Ordinal));
-            IEnumerable<string> body = entryLines.Where(l =>
+            IEnumerable<string> entryImports = entryLines.Where(l =>
+                (l.StartsWith("import ", StringComparison.Ordinal) ||
+                 l.StartsWith("from ", StringComparison.Ordinal)) &&
                 !l.Contains("varmain.custom", StringComparison.Ordinal) &&
                 !SubfolderImport.IsMatch(l));
+            IEnumerable<string> body = entryLines.Where(l =>
+                !l.Contains("varmain.custom", StringComparison.Ordinal) &&
+                !SubfolderImport.IsMatch(l) &&
+                !(l.StartsWith("import ", StringComparison.Ordinal) ||
+                  l.StartsWith("from ", StringComparison.Ordinal)));
 
             var bodyLines = body.ToList();
             int activateIdx = bodyLines.FindIndex(l => l.Contains("@activate", StringComparison.Ordinal));
@@ -277,14 +321,44 @@ namespace Plant3DCatalogComposer.Services
             string varmainText = string.Join(Environment.NewLine, varmain);
             if (!string.IsNullOrWhiteSpace(varmainText))
                 chunks.Add(varmainText);
+            string entryImportText = string.Join(Environment.NewLine, entryImports);
+            if (!string.IsNullOrWhiteSpace(entryImportText))
+                chunks.Add(entryImportText);
             if (!string.IsNullOrWhiteSpace(geom))
                 chunks.Add(geom);
             string bodyText = string.Join(Environment.NewLine, bodyLines).Trim();
             if (!string.IsNullOrWhiteSpace(bodyText))
                 chunks.Add(bodyText);
 
-            return string.Join(Environment.NewLine + Environment.NewLine, chunks).TrimEnd()
-                + Environment.NewLine;
+            return EnsureSupportImports(string.Join(Environment.NewLine + Environment.NewLine, chunks).TrimEnd()
+                + Environment.NewLine);
+        }
+
+        private static readonly Regex ModuleLevelCatalogParamsImport = new(
+            @"^import catalog_params\s*$|^from catalog_params import ",
+            RegexOptions.Compiled | RegexOptions.Multiline);
+
+        /// <summary>Hoist shared modules referenced by merged entry points (e.g. catalog_params).</summary>
+        internal static string EnsureSupportImports(string content)
+        {
+            if (content.Contains("catalog_params.", StringComparison.Ordinal)
+                && !ModuleLevelCatalogParamsImport.IsMatch(content))
+            {
+                const string importLine = "import catalog_params";
+                int varmainEnd = content.IndexOf("varmain.custom", StringComparison.Ordinal);
+                if (varmainEnd >= 0)
+                {
+                    int lineEnd = content.IndexOf('\n', varmainEnd);
+                    int insertAt = lineEnd >= 0 ? lineEnd + 1 : content.Length;
+                    content = content.Insert(insertAt, Environment.NewLine + importLine + Environment.NewLine);
+                }
+                else
+                {
+                    content = importLine + Environment.NewLine + Environment.NewLine + content;
+                }
+            }
+
+            return content;
         }
 
         private static readonly Regex PackageCatalogImport = new(
@@ -400,7 +474,7 @@ namespace Plant3DCatalogComposer.Services
         private static int DeploySharedFiles(string genSrc, string customScripts)
         {
             int count = 0;
-            foreach (string name in new[] { "pipe_sizes.py", "sw_fitting_geom.py", "stubend_geom.py", "lj_stud_bolts.py" })
+            foreach (string name in new[] { "pipe_sizes.py", "catalog_params.py", "sw_fitting_geom.py", "stubend_geom.py", "lj_stud_bolts.py" })
             {
                 string src = Path.Combine(genSrc, name);
                 if (!File.Exists(src))

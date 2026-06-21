@@ -1,7 +1,8 @@
 """Full-face FF gasket with lap-joint stud bolts (visual), ASME B16.5 Class 150.
 
-Part-local axis = +X. FF mating planes at x = 0 and x = T (no raised face).
-Gasket OD = flange OD (O); ID = pipe bore. Stud length = RF catalog + 2× stub lap thickness.
+Part-local axis = +X. FF mating planes at x = 0 and x = T.
+Stud OAL catalog = ceil(oal_raw); visual uses oal_raw for exact bearing fit.
+Inner nut bearing @ x=-tf-H (west) and x=-tf-H+gap (east); nut body H toward pipe.
 """
 
 import math
@@ -14,17 +15,6 @@ from STUD_BOLTS.StudBolt import StudBolt
 
 DEFAULT_GASKET_THICKNESS_MM = 1.5
 DEFAULT_STUD_THREAD_PROTRUSION = 3.0
-
-
-def _stud_bearing_inset(bolt_size):
-    d = StudBolt.DIMENSIONS[bolt_size]
-    protrusion = DEFAULT_STUD_THREAD_PROTRUSION * d["P"]
-    return protrusion + d["H"], protrusion
-
-
-def _ff_joint_nut_bearings(t, tf):
-    """Flat-face nut bearing planes for LJ backing ring thickness tf each side."""
-    return -tf, t + tf, t + 2.0 * tf
 
 
 class GSKFFCL150(prim.ShapeObject):
@@ -46,30 +36,37 @@ class GSKFFCL150(prim.ShapeObject):
         fd = WNFLRFCL150.DIMENSIONS[dn]
         ring_dims = pipe_sizes.lj_ring_cl150_dims_mm(dn)
         tf = ring_dims["tf"]
+        stub_lap_t = pipe_sizes.stubend_lj_a_dims_mm(dn, "long")["T"]
 
         self.dn = dn
         self.nps = pipe_sizes.dn_to_nps(dn)
         self.pressure_class = int(pressure_class)
         self.thickness = t
         self.tf = tf
+        self.stub_lap_t = stub_lap_t
         self.O = fd["O"]
         self.B = pipe_sizes.pipe_id_sch40_mm(dn)
         self.bcd = fd["bcd"]
         self.n_bolts = fd["n"]
 
-        bolt = lj_stud_bolts.lj_stud_length_mm(dn, pressure_class)
+        bolt = lj_stud_bolts.lj_stud_length_mm(dn, pressure_class, gasket_t=t)
         self.bolt_size = bolt["bolt"]
         self.catalog_stud_oal = bolt["L"]
+        self.stud_oal = float(bolt["oal_raw"])
 
-        bearing_inset, _ = _stud_bearing_inset(self.bolt_size)
-        x_west, x_east, grip_geom = _ff_joint_nut_bearings(t, tf)
+        x_west, x_east, grip_geom = lj_stud_bolts.lj_joint_nut_bearings_mm(
+            dn, self.bolt_size, gasket_t=t
+        )
         self.x_bearing_west = x_west
         self.x_bearing_east = x_east
         self.x_stud_center = t * 0.5
         self.stud_grip_geom = grip_geom
-        self.stud_grip_catalog = self.catalog_stud_oal - 2.0 * bearing_inset
-        self.stud_oal = grip_geom + 2.0 * bearing_inset
-        x_stud = x_west - bearing_inset
+        self.stud_grip_catalog = bolt["grip"]
+        x_stud = lj_stud_bolts.lj_stud_start_x_west(
+            x_west,
+            self.bolt_size,
+            thread_protrusion=DEFAULT_STUD_THREAD_PROTRUSION,
+        )
 
         ring = prim.Cylinder(s, diameter=self.O, height=t)
         bore = prim.Cylinder(s, diameter=self.B, height=t + 2.0).move(z=-1.0)

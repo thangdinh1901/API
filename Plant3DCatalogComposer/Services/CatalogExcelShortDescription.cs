@@ -28,6 +28,8 @@ namespace Plant3DCatalogComposer.Services
                 "REDUCER_ECC_BW_SCH40" => "REDUCER (ECC)",
                 "STUBEND_LJ_A_BW_SCH40" => "STUB-END FOR LAP FLANGE",
                 "STUBEND_LJ_A_SH_BW_SCH40" => "STUB-END SH LAP",
+                "COLLAR_LJ_A_BW_SCH40" => "Collar",
+                "COLLAR_LJ_A_SH_BW_SCH40" => "Collar",
                 "LJ_RING_CL150_RF" => "FLANGE LJ",
                 _ => part.Id,
             };

@@ -1,6 +1,7 @@
 """Catalog entry — geometry in TEE_REDUCE_SW_CL3000/CUST_TEE_REDUCE_SW_CL3000.py."""
 from varmain.custom import *  # type: ignore
 
+import pipe_sizes
 from TEE_REDUCE_SW_CL3000.CUST_TEE_REDUCE_SW_CL3000 import TEEREDUCESWCL3000
 
 
@@ -13,8 +14,6 @@ from TEE_REDUCE_SW_CL3000.CUST_TEE_REDUCE_SW_CL3000 import TEEREDUCESWCL3000
     Ports="3",
 )
 def CUST_TEE_REDUCE_SW_CL3000(s, DN=50, DN2=40, **kw):
-    import pipe_sizes
-
     preview = bool(kw.get("preview", False))
     dn_r = int(DN)
     dn_b = int(DN2)

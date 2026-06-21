@@ -25,8 +25,6 @@
         <Command Global="P3DCOMPWRAP" Local="P3DCOMPWRAP" />
         <Command Global="P3DCOMPPUBLISH" Local="P3DCOMPPUBLISH" />
         <Command Global="P3DCOMPTEST" Local="P3DCOMPTEST" />
-        <Command Global="P3DCOMPBACKUP" Local="P3DCOMPBACKUP" />
-        <Command Global="P3DCOMPRESTORE" Local="P3DCOMPRESTORE" />
       </Commands>
     </ComponentEntry>
   </Components>

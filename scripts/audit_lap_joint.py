@@ -81,9 +81,9 @@ def main() -> int:
         if st["G"] >= ring["O"]:
             blockers.append(f"DN{dn}: lap G >= ring OD")
             notes.append("G>=O")
-        if ring["model_bore"] <= st["G"]:
-            blockers.append(f"DN{dn}: ring bore <= lap G")
-            notes.append("bore")
+        if ring["model_bore"] >= st["G"]:
+            blockers.append(f"DN{dn}: ring bore >= lap G (collar cannot seat on shoulder)")
+            notes.append("bore>=G")
         if abs(st["T"] - ring["stub_lap_t"]) > 0.01:
             blockers.append(f"DN{dn}: lap T != ring stub_lap_t")
             notes.append("T mismatch")
@@ -101,9 +101,10 @@ def main() -> int:
     for w in warnings or ["none"]:
         print(f"  ? {w}")
 
-    print("\nExport rules (all DN):")
-    print("  Stub:  FlangeOffset=B, WallThickness=B, MatchingPipeOd=do, per-DN from table")
-    print("  Ring:  FlangeThickness=tf, EngagementLength_S2=B, MatchingPipeOd=do (stub weld OD)")
+    print("Export rules (all DN):")
+    print("  ContentGeometryParamDefinition: DN / DN,T / DN,DN2 / DN,CEL (names only); values in DN/T/... columns")
+    print("  Stub:  LAP port @ shoulder x=B; FlangeOffset=B; OF=-1 (native CPMUW)")
+    print("  Ring:  LAP port @ stub lap B; catalog L = overall ring depth only")
     print("  Run:   python scripts/sync_lap_joint_cs_tables.py  after editing pipe_sizes.py")
 
     return 1 if blockers else 0

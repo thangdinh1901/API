@@ -1,6 +1,7 @@
 """Catalog entry — geometry in REDUCER_CONC_BW_SCH40/CUST_REDUCER_CONC_BW_SCH40.py."""
 from varmain.custom import *  # type: ignore
 
+import pipe_sizes
 from REDUCER_CONC_BW_SCH40.CUST_REDUCER_CONC_BW_SCH40 import REDUCERCONCBWSCH40
 
 
@@ -13,8 +14,6 @@ from REDUCER_CONC_BW_SCH40.CUST_REDUCER_CONC_BW_SCH40 import REDUCERCONCBWSCH40
     Ports="2",
 )
 def CUST_REDUCER_CONC_BW_SCH40(s, DN=100, DN2=80, **kw):
-    import pipe_sizes
-
     preview = bool(kw.get("preview", False))
     dn_l = int(DN)
     dn_s = int(DN2)

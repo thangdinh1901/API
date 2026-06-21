@@ -103,7 +103,7 @@ namespace Plant3DCatalogComposer
             _toolTip.SetToolTip(btnGenerateCode,
                 "Custom parts → export to catalog_generator/parts. Standard parts → port reference only (_composer_exports), library unchanged.");
             _toolTip.SetToolTip(btnDeployCatalog,
-                "Copy standard library to CustomScripts + PLANTREGISTERCUSTOMSCRIPTS. Scene export only for custom parts.");
+                "Copy library to CustomScripts, clear __pycache__, PLANTREGISTERCUSTOMSCRIPTS.");
             _toolTip.SetToolTip(
                 btnPublishCatalog,
                 "Export Catalog Builder Excel workbook (.xlsx) for Gasket / Flange / Valve parts");
@@ -610,8 +610,11 @@ namespace Plant3DCatalogComposer
                     dwg, Path.GetFileNameWithoutExtension(dwg));
 
                 ValidationResult preflight = CatalogPreflightService.ValidateForDeploy(project);
-                if (!ConfirmPreflight(preflight, "Deploy Catalog", out bool allowWarnings))
+                if (!preflight.IsValid)
+                {
+                    ShowWarning(string.Join("\n", preflight.Errors));
                     return;
+                }
 
                 Autodesk.AutoCAD.ApplicationServices.Document? doc =
                     Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
@@ -620,7 +623,7 @@ namespace Plant3DCatalogComposer
                     project,
                     ResolveCatalogExportDirectory,
                     doc,
-                    allowWarnings);
+                    allowExportWithWarnings: true);
 
                 if (result.Success)
                 {
@@ -632,24 +635,12 @@ namespace Plant3DCatalogComposer
                     }
 
                     lblStatus.Text = result.Message;
-                    doc?.Editor.WriteMessage($"\nP3D Composer: {result.Message}");
-                    string detail = string.IsNullOrEmpty(result.PartFolder)
-                        ? ProjectPaths.ResolvePartsDir()
-                        : result.PartFolder;
-                    MessageBox.Show(
-                        result.Message + Environment.NewLine + Environment.NewLine + detail,
-                        "Deploy Catalog",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
+                    NotifyPluginUpdateIfNeeded(result.PluginDeploy);
                 }
                 else
                 {
                     lblStatus.Text = result.Message;
-                    MessageBox.Show(
-                        result.Message,
-                        "Deploy Catalog",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
+                    ShowWarning(result.Message);
                 }
             }
             catch (OperationCanceledException)
@@ -679,41 +670,27 @@ namespace Plant3DCatalogComposer
                     dwg, Path.GetFileNameWithoutExtension(dwg));
 
                 ValidationResult preflight = CatalogPreflightService.ValidateForExcelPublish(project);
-                if (!ConfirmPreflight(preflight, "Publish Catalog", out bool allowWarnings))
+                if (!preflight.IsValid)
+                {
+                    ShowWarning(string.Join("\n", preflight.Errors));
                     return;
+                }
 
                 string outputPath = ResolveCatalogExcelOutputPath(project, dwg);
                 CatalogPublishResult result = CatalogPublishService.Publish(
                     dwg,
                     project,
                     outputPath,
-                    allowWarnings);
+                    allowExportWithWarnings: true);
 
                 if (result.Success)
                 {
                     lblStatus.Text = result.Message;
-                    Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
-                        .MdiActiveDocument?.Editor.WriteMessage($"\nP3D Composer: {result.Message}");
-
-                    string skipped = result.SkippedPartIds.Count > 0
-                        ? Environment.NewLine + Environment.NewLine
-                          + "Skipped fittings: " + string.Join(", ", result.SkippedPartIds)
-                        : "";
-
-                    MessageBox.Show(
-                        result.Message + Environment.NewLine + Environment.NewLine + result.OutputPath + skipped,
-                        "Publish Catalog",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
                 }
                 else
                 {
                     lblStatus.Text = result.Message;
-                    MessageBox.Show(
-                        result.Message,
-                        "Publish Catalog",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
+                    ShowWarning(result.Message);
                 }
             }
             catch (OperationCanceledException)
@@ -1960,6 +1937,30 @@ namespace Plant3DCatalogComposer
             lblSceneStatus.Text = string.Empty;
             MessageBox.Show(ex.Message, "Plant 3D Catalog Composer",
                 MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+
+        private static void NotifyPluginUpdateIfNeeded(PluginDeployResult? plugin)
+        {
+            if (plugin?.BuiltDllIsNewerThanLoaded != true)
+                return;
+
+            string body = plugin.CopiedToBundle
+                ? "Plugin DLL updated — restart Plant 3D to load the new version."
+                : "Plugin DLL is locked (Plant 3D is using it).\n"
+                  + "Close Plant 3D, run dotnet build, then open CAD again.";
+
+            if (!plugin.CopiedToNetload)
+            {
+                body += Environment.NewLine + Environment.NewLine
+                    + "NETLOAD (after restart):" + Environment.NewLine
+                    + plugin.NetloadDllPath;
+            }
+
+            MessageBox.Show(
+                body,
+                "Plugin Update",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
         }
 
         private static void ShowWarning(string message)

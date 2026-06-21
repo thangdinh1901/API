@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ScriptInfo>
-	<ScriptGroup>
-		<ScriptName>CUST_TESTVALVE_FL_CL150</ScriptName>
-		<Group>Valve</Group>
-		<FirstPortEndtypes>FL,FL</FirstPortEndtypes>
-	</ScriptGroup>
-</ScriptInfo>

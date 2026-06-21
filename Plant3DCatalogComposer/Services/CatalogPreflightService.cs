@@ -7,18 +7,30 @@ namespace Plant3DCatalogComposer.Services
 {
     internal static class CatalogPreflightService
     {
+        /// <summary>Library deploy — errors only (no scene/port warnings).</summary>
         public static ValidationResult ValidateForDeploy(ValveProject project)
         {
-            ValidationResult result = ProjectValidator.Validate(project);
-            // Library deploy copies catalog_generator/parts → CustomScripts without a scene.
-            AddCommonPublishChecks(result, project, requireSceneParts: false);
+            var result = new ValidationResult();
+
+            if (!System.IO.Directory.Exists(ProjectPaths.CustomScriptsDir))
+            {
+                result.AddError($"CustomScripts not found: {ProjectPaths.CustomScriptsDir}");
+            }
+
+            if (project.Parts.Count > 0)
+            {
+                ValidationResult scene = ProjectValidator.Validate(project);
+                foreach (ValidationIssue issue in scene.Issues.Where(i => i.IsError))
+                    result.AddError(issue.Message);
+            }
+
             return result;
         }
 
         public static ValidationResult ValidateForExcelPublish(ValveProject project)
         {
-            ValidationResult result = new();
-            AddCommonPublishChecks(result, project, requireSceneParts: false);
+            var result = new ValidationResult();
+            AddPublishWarnings(result, project);
 
             IReadOnlyList<CatalogExcelPartRow> exportable = CatalogExcelPartResolver.DiscoverExportParts();
             if (exportable.Count == 0)
@@ -27,27 +39,23 @@ namespace Plant3DCatalogComposer.Services
                     "No flange / gasket / fitting parts found in catalog_generator/parts for Excel export.");
             }
 
+            if (!System.IO.Directory.Exists(ProjectPaths.CustomScriptsDir))
+            {
+                result.AddError($"CustomScripts not found: {ProjectPaths.CustomScriptsDir}");
+            }
+
             return result;
         }
 
-        [Obsolete("Use ValidateForDeploy or ValidateForExcelPublish.")]
-        public static ValidationResult ValidateForPublish(ValveProject project) =>
-            ValidateForDeploy(project);
-
-        private static void AddCommonPublishChecks(
-            ValidationResult result,
-            ValveProject project,
-            bool requireSceneParts)
+        private static void AddPublishWarnings(ValidationResult result, ValveProject project)
         {
             string catalogName = CatalogProjectService.SanitizeCatalogName(project.ValveName ?? "");
-            if (string.IsNullOrEmpty(catalogName) || catalogName.Equals("COMPOSER_PART", StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(catalogName) ||
+                catalogName.Equals("COMPOSER_PART", StringComparison.OrdinalIgnoreCase))
             {
                 result.AddWarning(
                     "Catalog name is default (COMPOSER_PART). Set a unique name in Catalog Project → Apply.");
             }
-
-            if (requireSceneParts && project.Parts.Count == 0)
-                result.AddError("Scene has no parts — insert geometry before deploying.");
 
             if (project.Ports.Count == 0)
             {
@@ -78,11 +86,6 @@ namespace Plant3DCatalogComposer.Services
             {
                 result.AddWarning(
                     "deploy.json not configured — Generate will ask for an export folder each time.");
-            }
-
-            if (!System.IO.Directory.Exists(ProjectPaths.CustomScriptsDir))
-            {
-                result.AddError($"CustomScripts not found: {ProjectPaths.CustomScriptsDir}");
             }
         }
     }

@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ArrayOfScript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-	<Script Name="CUST_ELBOW_45_SW_CL3000" LDesId="CUST_ELBOW_45_SW_CL3000_L" SDesId="CUST_ELBOW_45_SW_CL3000" ConnPortNum="2" LengthUnit="mm" >
-		<Params>
-			<Param Name="DN" LDesId="CUST_ELBOW_45_SW_CL3000.DN" SDesId="CUST_ELBOW_45_SW_CL3000.DN" Type="INT" Ask4Dist="false" Value="50" />
-		</Params>
-	</Script>
-</ArrayOfScript>

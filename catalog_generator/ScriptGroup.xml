@@ -1,8 +1,8 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <ScriptInfo>
 	<ScriptGroup>
 		<ScriptName>CUST_BLD_FLRF_CL150</ScriptName>
-		<Group>Flange</Group>
+		<Group>BlindFlange</Group>
 		<FirstPortEndtypes>FL</FirstPortEndtypes>
 	</ScriptGroup>
 	<ScriptGroup>
@@ -94,11 +94,6 @@
 		<ScriptName>CUST_TEE_REDUCE_SW_CL3000</ScriptName>
 		<Group>Fitting</Group>
 		<FirstPortEndtypes>SW,SW,SW</FirstPortEndtypes>
-	</ScriptGroup>
-	<ScriptGroup>
-		<ScriptName>CUST_TESTVALVE_FL_CL150</ScriptName>
-		<Group>Valve</Group>
-		<FirstPortEndtypes>FL,FL</FirstPortEndtypes>
 	</ScriptGroup>
 	<ScriptGroup>
 		<ScriptName>CUST_WN_FLRF_CL150</ScriptName>

@@ -167,48 +167,6 @@ namespace Plant3DCatalogComposer
             }
         }
 
-        /// <summary>Save API repo snapshot to backup/snapshot (requires deploy.json).</summary>
-        [CommandMethod("P3DCOMPBACKUP", CommandFlags.Session)]
-        public static void SaveProjectBackup()
-        {
-            (bool ok, string message) = ProjectBackupService.SaveSnapshot("from-plant3d");
-            WriteStatus(ok ? "P3DCOMPBACKUP: " + message : "P3DCOMPBACKUP failed: " + message);
-            if (!ok)
-            {
-                System.Windows.Forms.MessageBox.Show(
-                    message,
-                    "Save Backup",
-                    System.Windows.Forms.MessageBoxButtons.OK,
-                    System.Windows.Forms.MessageBoxIcon.Warning);
-            }
-        }
-
-        /// <summary>Restore API repo from backup/snapshot.</summary>
-        [CommandMethod("P3DCOMPRESTORE", CommandFlags.Session)]
-        public static void RestoreProjectBackup()
-        {
-            if (System.Windows.Forms.MessageBox.Show(
-                    "Restore the last saved backup over the dev repo?\n\n"
-                    + "Rebuild the plugin and Deploy Catalog after restore.",
-                    "Restore Backup",
-                    System.Windows.Forms.MessageBoxButtons.YesNo,
-                    System.Windows.Forms.MessageBoxIcon.Warning) != System.Windows.Forms.DialogResult.Yes)
-            {
-                return;
-            }
-
-            (bool ok, string message) = ProjectBackupService.RestoreSnapshot();
-            WriteStatus(ok ? "P3DCOMPRESTORE: " + message : "P3DCOMPRESTORE failed: " + message);
-            if (!ok)
-            {
-                System.Windows.Forms.MessageBox.Show(
-                    message,
-                    "Restore Backup",
-                    System.Windows.Forms.MessageBoxButtons.OK,
-                    System.Windows.Forms.MessageBoxIcon.Error);
-            }
-        }
-
         /// <summary>Generate + deploy + register catalog for active drawing scene.</summary>
         [CommandMethod("P3DCOMPDEPLOY", CommandFlags.Session)]
         public static void DeployCatalog()
@@ -242,7 +200,9 @@ namespace Plant3DCatalogComposer
                     doc,
                     allowExportWithWarnings: true);
 
-                WriteStatus(result.Success ? "P3DCOMPDEPLOY: " + result.Message : "P3DCOMPDEPLOY: " + result.Message);
+                WriteStatus(result.Success
+                    ? "P3DCOMPDEPLOY: " + result.Message
+                    : "P3DCOMPDEPLOY: " + result.Message);
             }
             catch (System.Exception ex)
             {

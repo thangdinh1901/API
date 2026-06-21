@@ -37,55 +37,6 @@ namespace Plant3DCatalogComposer.Services
 
         public static double OdSch40Mm(double dnMm) =>
             FindByDn(dnMm)?.OdSch40Mm ?? dnMm;
-
-        /// <summary>NPS label for Plant catalog Sizes column (e.g. 4").</summary>
-        public static string FormatPlantSizesLabel(int dnMm)
-        {
-            PipeSizeOption? opt = FindByDn(dnMm);
-            return opt != null ? $"{opt.NpsLabel}\"" : dnMm.ToString(CultureInfo.InvariantCulture);
-        }
-
-        /// <summary>Decimal NPS inches for Plant NominalDiameter when NominalUnit=in.</summary>
-        public static bool TryGetNpsInches(int dnMm, out double npsInches)
-        {
-            npsInches = 0;
-            PipeSizeOption? opt = FindByDn(dnMm);
-            if (opt == null)
-                return false;
-
-            npsInches = ParseNpsLabelToInches(opt.NpsLabel);
-            return true;
-        }
-
-        internal static double ParseNpsLabelToInches(string npsLabel)
-        {
-            string label = npsLabel.Trim();
-            if (label.Contains('-'))
-            {
-                string[] parts = label.Split('-', 2);
-                double whole = ParseFractionOrNumber(parts[0]);
-                double frac = ParseFractionOrNumber(parts[1]);
-                return whole + frac;
-            }
-
-            return ParseFractionOrNumber(label);
-        }
-
-        private static double ParseFractionOrNumber(string token)
-        {
-            token = token.Trim();
-            if (token.Contains('/'))
-            {
-                string[] p = token.Split('/');
-                if (p.Length == 2
-                    && double.TryParse(p[0], NumberStyles.Float, CultureInfo.InvariantCulture, out double num)
-                    && double.TryParse(p[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double den)
-                    && Math.Abs(den) > 1e-9)
-                    return num / den;
-            }
-
-            return double.Parse(token, CultureInfo.InvariantCulture);
-        }
     }
 
     public sealed class PipeSizeOption(int dnMm, string npsLabel, double odSch40Mm)

@@ -77,8 +77,11 @@ def main() -> None:
     print(f"Backing ring OD={ring['O']} (CL150 flange OD)  >> lap G  ({st['G']/ring['O']*100:.0f}% of ring OD)")
     print(f"Ring bore={ring['model_bore']}  clears lap by {ring['model_bore']-st['G']:.1f} mm")
     print(f"Stub lap thk={st['T']}  <<  ring tf={ring['tf']}  (lap slides inside ring bore)")
-    print(f"LAP ports: stub x=0 (−X) ↔ ring x={ring['stub_lap_t']} (+X), engagement={st['T']} mm")
-    print(f"LJ stud catalog length={rf['L']} mm  (RF + 2 x lap thk {st['T']})")
+    print(f"Ring: FL@0 LAP@stub B={st['T']:.2f} mm, body L={ring['L']} mm (plate+collar)")
+    print(
+        f"LJ stud OAL={rf['L']} mm  gap={rf['grip']:.2f} mm  "
+        f"proj={rf['protrusion_mm']:.3f} mm"
+    )
 
 
 if __name__ == "__main__":

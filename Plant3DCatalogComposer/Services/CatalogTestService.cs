@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Xml.Linq;
 using Autodesk.AutoCAD.ApplicationServices;
 using Plant3DSkeletonManager.Core;

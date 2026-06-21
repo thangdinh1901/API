@@ -34,7 +34,8 @@ namespace Plant3DCatalogComposer.Services
                     .ToList();
             }
 
-            if (part.Id.StartsWith("STUBEND_", StringComparison.OrdinalIgnoreCase))
+            if (part.Id.StartsWith("STUBEND_", StringComparison.OrdinalIgnoreCase)
+                || part.Id.StartsWith("COLLAR_LJ_", StringComparison.OrdinalIgnoreCase))
             {
                 var allowed = ResolveNominalDns(part).ToHashSet();
                 return CatalogStubEndTable.AllDns

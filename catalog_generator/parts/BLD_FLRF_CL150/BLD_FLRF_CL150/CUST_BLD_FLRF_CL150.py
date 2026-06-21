@@ -110,10 +110,7 @@ class BLDFLRFCL150(prim.ShapeObject):
             self.add_ports(s)
 
     def add_ports(self, s):
-        """Single flange connection at raised face (West, -X).
-
-        Catalog: PortNum = 1; port 1 = FL / RF Class 150 only (blind face).
-        """
+        """Single FL / RF connection at raised face (West, -X)."""
         prim.set_port(
             s,
             prim.Point3d(0.0, 0.0, 0.0),

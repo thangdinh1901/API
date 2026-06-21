@@ -46,6 +46,16 @@ namespace Plant3DCatalogComposer.Services
                     ContentIsoSymbolDefinition = "TYPE=FLANGE,SKEY=FFLB",
                 };
 
+            if (id.StartsWith("COLLAR_LJ_", StringComparison.Ordinal))
+                return new CatalogExcelIsoMetadata
+                {
+                    CompatibleStandard = "ASME B16.9",
+                    DesignStd = "B16.9",
+                    IsoType = "LAPJOINT",
+                    IsoSkey = "FLSE",
+                    ContentIsoSymbolDefinition = "SKEY=FLSE,TYPE=LAPJOINT-STUB-END",
+                };
+
             if (id.StartsWith("STUBEND_", StringComparison.Ordinal))
                 return new CatalogExcelIsoMetadata
                 {

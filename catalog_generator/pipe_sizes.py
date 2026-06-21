@@ -664,7 +664,7 @@ def default_sw_tee_small_dn(dn_large: int) -> int:
 #   stub_thk = lap thickness (catalog B)
 STUBEND_LJ_A_MM = {
     15: {"do": 21, "F_sh": 51, "F_lg": 76, "G": 35, "stub_thk": 2.77},
-    20: {"do": 27, "F_sh": 51, "F_lg": 76, "G": 49, "stub_thk": 2.87},
+    20: {"do": 27, "F_sh": 51, "F_lg": 76, "G": 42.9, "stub_thk": 2.87},
     25: {"do": 33, "F_sh": 51, "F_lg": 102, "G": 51, "stub_thk": 3.38},
     32: {"do": 42, "F_sh": 51, "F_lg": 102, "G": 64, "stub_thk": 3.56},
     40: {"do": 48, "F_sh": 51, "F_lg": 102, "G": 73, "stub_thk": 3.68},
@@ -686,10 +686,6 @@ STUBEND_LJ_A_MM = {
     600: {"do": 610, "F_sh": 152, "F_lg": 305, "G": 692, "stub_thk": 9.53},
 }
 
-# Back-compat alias
-STUBEND_LJ_A_PIPEDATA_MM = STUBEND_LJ_A_MM
-
-
 def stubend_lj_a_dims_mm(dn: int, pattern: str = "long") -> dict[str, float]:
     """Stub end envelope from STUBEND TABLE. pattern: 'long' (standard) or 'short'."""
     dn = resolve_dn(dn)
@@ -706,8 +702,8 @@ def stubend_lj_a_dims_mm(dn: int, pattern: str = "long") -> dict[str, float]:
     else:
         raise ValueError(f"Unknown stub end pattern '{pattern}' (use long or short).")
 
-    od = float(row["do"])
     lap_t = float(row["stub_thk"])
+    od = pipe_od_sch40_mm(dn)
     pipe_wall = float(SCH40_WALL_MM.get(dn, lap_t))
     return {
         "G": float(row["G"]),
@@ -740,7 +736,7 @@ def pipe_id_sch40_mm(dn: int) -> float:
     return pipe_od_sch40_mm(dn) - 2.0 * SCH40_WALL_MM[dn]
 
 
-# Plant catalog FLANGE LJ, 150 LB — inch export × 25.4 (mm). L,D1,D2 catalog geometry; tf = flange thickness.
+# Plant FLANGE LJ catalog geometry (mm) — L,D1,D2 for CollarLapped; tf from Iplex backing ring.
 LJ_RING_CL150_PLANT_MM = {
     15: {"L": 15.75, "D1": 88.9, "D2": 22.86, "tf": 11.18},
     20: {"L": 15.75, "D1": 98.55, "D2": 28.19, "tf": 12.7},
@@ -809,7 +805,12 @@ def lj_ring_cl150_dims_mm(dn: int) -> dict[str, float]:
 
     tf = iplex["tf"]
     stub_lap_t = float(stubend_lj_a_dims_mm(dn, "long")["T"])
-    model_bore = max(stub_g + 1.5, iplex["id_l2"])
+    pipe_od = pipe_od_sch40_mm(dn)
+    # Collar slides on stub barrel (pipe OD), stops at lap shoulder (G > bore).
+    model_bore = min(
+        max(pipe_od + 1.5, iplex["id_l2"]),
+        stub_g - 1.0,
+    )
 
     return {
         **catalog,

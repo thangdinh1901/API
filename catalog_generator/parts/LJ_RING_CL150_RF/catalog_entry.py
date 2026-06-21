@@ -1,6 +1,7 @@
 """Catalog entry — geometry in LJ_RING_CL150_RF/CUST_LJ_RING_CL150_RF.py."""
 from varmain.custom import *  # type: ignore
 
+import catalog_params
 from LJ_RING_CL150_RF.CUST_LJ_RING_CL150_RF import LJRINGCL150RF
 
 
@@ -14,4 +15,5 @@ from LJ_RING_CL150_RF.CUST_LJ_RING_CL150_RF import LJRINGCL150RF
 )
 def CUST_LJ_RING_CL150_RF(s, DN=100, **kw):
     preview = bool(kw.get("preview", False))
-    return LJRINGCL150RF(s, int(DN), add_ports=not preview)
+    dn = catalog_params.resolve_catalog_dn(DN, **kw)
+    return LJRINGCL150RF(s, dn, add_ports=not preview)

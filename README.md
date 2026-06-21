@@ -1,54 +1,41 @@
 # Plant 3D / Inventor API
 
-Workspace gốc: `D:\02. Engineering\04. Autocad Plant 3D\API`
+Workspace: `D:\02. Engineering\04. Autocad Plant 3D\API`
 
 ## Cấu trúc
 
 ```
 API/
 ├── Plant3DCatalogComposer/     ← AutoCAD Plant 3D 2026 plugin (P3DCOMPOSER)
-├── Plant3DSkeletonManager/    ← Shared scene graph + primitives.py (+ Inventor add-in)
-├── catalog_generator/        ← Python/Lisp nguồn (deploy → CustomScripts)
-│   ├── parts/                ← mọi part + thư viện hỗ trợ
-│   │   ├── WN_FLRF_CL150/    ← catalog part (có catalog_entry.py)
-│   │   ├── STUD_BOLTS/       ← thư viện (không có catalog_entry.py)
-│   │   ├── NUTS/
-│   │   └── STRUCTURAL_PROFILES/
-│   ├── pipe_sizes.py, sw_fitting_geom.py
+├── Plant3DSkeletonManager/     ← Scene graph + primitives.py (+ Inventor add-in)
+├── catalog_generator/          ← Python nguồn (deploy → CustomScripts)
+│   ├── parts/                  ← catalog parts (part.json + catalog_entry.py)
+│   ├── pipe_sizes.py           ← DN/NPS, stub end, LJ ring tables
+│   ├── stubend_geom.py         ← lap-joint stub end geometry
+│   ├── lj_stud_bolts.py        ← LJ stud OAL / nut placement
+│   ├── sw_fitting_geom.py      ← socket-weld fittings
+│   ├── standard_sets.json      ← BW / LJ / SW part sets
 │   └── ScriptGroup.xml, variants.xml
-├── scripts/                    ← Install / dev reload
-├── BoxExtrudeAddIn/            ← Inventor sample add-in
-└── BoxExtrudeAddIn.sln
+├── scripts/                    ← install, deploy, audit
+└── BoxExtrudeAddIn/            ← Inventor sample add-in
 ```
 
-## Hai vùng làm việc (ổ D vs ổ C)
+## Hai vùng làm việc
 
 | Vùng | Đường dẫn | Vai trò |
 |------|-----------|---------|
-| **Nguồn / dev** | `D:\02. Engineering\04. Autocad Plant 3D\API` | Sửa code C#, Python parts, thiết kế scene trong Composer |
-| **Runtime Plant 3D** | `C:\AutoCAD Plant 3D 2026 Content\CPak Common\CustomScripts` | Plant 3D đọc catalog script tại đây |
+| **Nguồn / dev** | `D:\02. Engineering\04. Autocad Plant 3D\API` | Sửa C#, Python, scene trong Composer |
+| **Runtime Plant 3D** | `C:\AutoCAD Plant 3D 2026 Content\CPak Common\CustomScripts` | Plant đọc catalog script |
 
-**Luồng:**
+**Luồng catalog chuẩn:**
 
-1. **Thiết kế & preview** — mở `P3DCOMPOSER`, chỉnh part/scene. Scene JSON lưu tại `%AppData%\Plant3DCatalogComposer\scenes\`. Source Python nằm trong `catalog_generator/parts/` trên ổ D.
-2. **Part OK** — bấm **Deploy Catalog** trên form Composer, hoặc chạy `.\scripts\Install-Plant3DCatalogComposer.ps1` để copy `.py`/`.xml` từ ổ D sang `CustomScripts` trên ổ C.
-3. **Tạo spec / catalog** — sau deploy, Plant 3D chạy **`PLANTREGISTERCUSTOMSCRIPTS`** (nút Deploy Catalog gửi lệnh tự động). Lệnh này compile `.py` → `.pyc` và tạo `__pycache__` — **không tạo folder này thủ công**.
+1. **Deploy Catalog** trong Composer (hoặc `.\scripts\Deploy-Catalog.ps1`) → copy Python sang CustomScripts, ghi `deploy_manifest.json`, queue `PLANTREGISTERCUSTOMSCRIPTS`.
+2. **Export Excel** → **Publish `.pcat`** → import spec.
+3. Lap joint: xóa joint cũ, chèn lại Stub → Ring → GSK_FF → Ring → Stub.
 
-Part mới: tạo folder trong `catalog_generator/parts/{PART_ID}/`, thêm vào `ScriptGroup.xml`, rồi install. Install **gộp** `catalog_entry.py` + geometry thành một file `CUST_{PART_ID}.py` trên ổ C (không copy thêm folder part). Thư viện hỗ trợ (`STUD_BOLTS`, `NUTS`, `STRUCTURAL_PROFILES`) cũng nằm trong `catalog_generator/parts/` (cùng folder với catalog part, **không** có `catalog_entry.py`). Install copy chúng thẳng ra `CustomScripts/STUD_BOLTS/` … trên ổ C — import Python: `from STUD_BOLTS import …`.
+Part mới: folder `catalog_generator/parts/{PART_ID}/` với `part.json` + `catalog_entry.py`, rồi `.\scripts\Sync-CatalogMetadata.ps1`. Install gộp entry + geometry thành `CUST_{PART_ID}.py` trên ổ C.
 
-**Ổ C (CustomScripts) sau deploy** — chỉ file/folder runtime:
-
-| Loại | Ví dụ |
-|------|--------|
-| Catalog parts | `CUST_*.py`, `CUST_*.xml` |
-| Metadata | `ScriptGroup.xml`, `variants.xml`, `variants.map`, `standard_sets.json` |
-| Shared Python | `pipe_sizes.py`, `primitives.py`, `sw_fitting_geom.py` |
-| Support modules | `STUD_BOLTS/`, `NUTS/`, `STRUCTURAL_PROFILES/` |
-| Composer (preview) | `p3d_composer/`, `hot_reload.py`, `wrapper.py`, `Wrapper.lsp` |
-
-## Plant 3D Catalog Composer
-
-### Build & cài
+## Build & cài
 
 ```powershell
 cd "D:\02. Engineering\04. Autocad Plant 3D\API"
@@ -56,33 +43,26 @@ dotnet build Plant3DCatalogComposer\Plant3DCatalogComposer.csproj -c Release
 .\scripts\Install-Plant3DCatalogComposer.ps1
 ```
 
-Restart Plant 3D (hoặc `NETLOAD` DLL), rồi chạy `P3DCOMPOSER`.
+Restart Plant 3D (hoặc `NETLOAD`), chạy `P3DCOMPOSER`.
 
-### Đường dẫn runtime (không nằm trong repo — do install script ghi)
+## Scripts (QA / bảo trì)
 
-| Mục đích | Đường dẫn |
-|----------|-----------|
-| Plugin DLL | `%AppData%\Autodesk\ApplicationPlugins\Plant3DCatalogComposer.bundle\` |
-| Scene JSON | `%AppData%\Plant3DCatalogComposer\scenes\{drawing}.scene.json` |
-| Python deploy | `C:\AutoCAD Plant 3D 2026 Content\CPak Common\CustomScripts\` |
-| Composer lib | `...\CustomScripts\p3d_composer\` (`scene_builder.py`, `composer_live.py` sinh khi Save) |
-| Wrapper | `...\CustomScripts\wrapper.py` (từ `wrapper_patched.py`) |
+| Script | Mục đích |
+|--------|----------|
+| `Deploy-Catalog.ps1` | Wrapper deploy + register |
+| `Sync-CatalogMetadata.ps1` | Rebuild ScriptGroup / variants từ catalog_entry.py |
+| `sync_lap_joint_cs_tables.py` | Sync `CatalogStubEndTable.cs`, `CatalogLjRingCl150Table.cs` từ pipe_sizes.py |
+| `patch_gsk_template_dual_ports.py` | Sửa template GSK: port S1/S2 (chạy sau khi đổi template) |
+| `Export-CatalogExcel.ps1` | Export `.xlsx` headless (không cần mở Composer) |
+| `audit_lap_joint.py` | Python ↔ C# table sync, LJ DN coverage |
+| `audit_lj_placement.py` | Kiểm tra axial stack / overlap |
+| `audit_lj_stud_lengths.py` | Stud OAL tất cả DN |
+| `audit_asme_standard_parts.py` | ASME cho WN/SO/BLD/BW/SW (LJ user-data excluded) |
+| `verify_lj_deploy.py` | Kiểm tra CustomScripts + deploy_manifest sau deploy |
+| `compare_stub_ring.py` | Stub vs ring vs WN_G |
 
-### Luồng rebuild
+Sau sửa `pipe_sizes.py`: chạy `sync_lap_joint_cs_tables.py`, rồi audit LJ.
 
-```
-Form → scene JSON → Idle → ERASE (lần 2+) → testacpscript wrapper → hot_reload → scene_builder
-```
+## Inventor
 
-Lệnh: `P3DCOMPOSER`, `P3DREBUILD`, `P3DCOMPWRAP`, hoặc `COMPWRAP` / `COMPWRAPFRESH` trong `Wrapper.lsp`.
-
----
-
-## Inventor (BoxExtrudeAddIn, Plant3DSkeletonManager)
-
-Xem thư mục `BoxExtrudeAddIn\` và `scripts\Install-Plant3DAddIn.ps1`.
-
-```powershell
-cd "D:\02. Engineering\04. Autocad Plant 3D\API\BoxExtrudeAddIn"
-dotnet build -c Release
-```
+Xem `BoxExtrudeAddIn\` và `scripts\Install-Plant3DAddIn.ps1`.

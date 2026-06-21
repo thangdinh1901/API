@@ -5,6 +5,22 @@ param(
     [string]$Configuration = "Release"
 )
 
+function Set-PackageContentsVersion {
+    param(
+        [string]$TemplateXml,
+        [string]$DestXml,
+        [string]$DllPath
+    )
+
+    if (-not (Test-Path $TemplateXml)) { return }
+    $version = (Get-Item $DllPath).LastWriteTime.ToString('yyyy.M.d.HHmm')
+    $xml = Get-Content $TemplateXml -Raw
+    $xml = $xml -replace 'AppVersion="[^"]*"', "AppVersion=`"$version`""
+    $xml = $xml -replace '(<ComponentEntry[^>]*\sVersion=")[^"]*(")', "`${1}$version`${2}"
+    Set-Content -Path $DestXml -Value $xml -Encoding UTF8
+    Write-Host "PackageContents version -> $version"
+}
+
 function Register-Plant3DComposer {
     param(
         [Parameter(Mandatory = $true)][string]$DllPath,
@@ -22,7 +38,8 @@ function Register-Plant3DComposer {
 
         $appKey = Join-Path $parent "Plant3DCatalogComposer"
         New-Item -Path $appKey -Force | Out-Null
-        New-ItemProperty -Path $appKey -Name "LOADER" -PropertyType ExpandString -Value $DllPath -Force | Out-Null
+        # REG_SZ — ExpandString eats "\C" in "...bundle\Contents\..." and breaks autoload.
+        New-ItemProperty -Path $appKey -Name "LOADER" -PropertyType String -Value $DllPath -Force | Out-Null
         New-ItemProperty -Path $appKey -Name "MANAGED" -PropertyType DWord -Value 1 -Force | Out-Null
         New-ItemProperty -Path $appKey -Name "LOADCTRLS" -PropertyType DWord -Value 6 -Force | Out-Null
         New-ItemProperty -Path $appKey -Name "DESCRIPTION" -PropertyType String -Value $Description -Force | Out-Null
@@ -68,6 +85,21 @@ function Get-ComposerHotReloadBlock {
     # P3D_COMPOSER_END
 
 '@
+}
+
+function Clear-AllPythonCache {
+    param([string]$CustomScripts)
+
+    if (-not (Test-Path $CustomScripts)) { return 0 }
+
+    $count = 0
+    Get-ChildItem $CustomScripts -Directory -Recurse -Filter '__pycache__' -ErrorAction SilentlyContinue |
+        ForEach-Object {
+            Remove-Item $_.FullName -Recurse -Force
+            $count++
+            Write-Host "Cleared __pycache__: $($_.FullName)"
+        }
+    return $count
 }
 
 function Clear-ComposerRuntimeArtifacts {
@@ -146,8 +178,15 @@ function Deploy-SupportModules {
 
         $dst = Join-Path $CustomScripts $name
         if (Test-Path $dst) { Remove-Item $dst -Recurse -Force }
-        Copy-Item $src $dst -Recurse -Force
-        Write-Host "Deployed support module: $name (from parts/$name)"
+        New-Item -ItemType Directory -Force -Path $dst | Out-Null
+        Get-ChildItem $src -Recurse -File -Filter '*.py' | ForEach-Object {
+            $rel = $_.FullName.Substring($src.Length).TrimStart('\', '/')
+            $target = Join-Path $dst $rel
+            $parent = Split-Path $target -Parent
+            if (-not (Test-Path $parent)) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
+            Copy-Item $_.FullName $target -Force
+        }
+        Write-Host "Deployed support module: $name (from parts/$name, .py only)"
     }
 }
 
@@ -232,8 +271,14 @@ function Merge-CatalogPartPy {
     $geom = (Get-Content $GeometryPath -Raw).TrimEnd()
 
     $varmain = @($entryLines | Where-Object { $_ -match 'varmain\.custom' })
+    $entryImports = @($entryLines | Where-Object {
+            $_ -match '^(import |from )' -and
+            $_ -notmatch 'varmain\.custom' -and
+            $_ -notmatch '^from [A-Z0-9_]+\.CUST_[A-Z0-9_]+ import '
+        })
     $body = @($entryLines | Where-Object {
             $_ -notmatch 'varmain\.custom' -and
+            $_ -notmatch '^(import |from )' -and
             $_ -notmatch '^from [A-Z0-9_]+\.CUST_[A-Z0-9_]+ import '
         })
     $activateIdx = 0
@@ -259,9 +304,28 @@ function Merge-CatalogPartPy {
 
     $parts = @()
     if ($varmain.Count -gt 0) { $parts += ($varmain -join "`n") }
+    if ($entryImports.Count -gt 0) { $parts += ($entryImports -join "`n") }
     if ($geom) { $parts += $geom }
     if ($body.Count -gt 0) { $parts += ($body -join "`n") }
-    return ($parts -join "`n`n").TrimEnd() + "`n"
+    $merged = ($parts -join "`n`n").TrimEnd() + "`n"
+    return (Ensure-SupportImports -Content $merged)
+}
+
+function Ensure-SupportImports {
+    param([string]$Content)
+
+    if ($Content -notmatch 'catalog_params\.') { return $Content }
+    if ($Content -match '(?m)^import catalog_params\s*$|^from catalog_params import ') { return $Content }
+
+    $importLine = "import catalog_params"
+    $marker = 'varmain.custom'
+    $idx = $Content.IndexOf($marker)
+    if ($idx -ge 0) {
+        $lineEnd = $Content.IndexOf("`n", $idx)
+        $insertAt = if ($lineEnd -lt 0) { $Content.Length } else { $lineEnd + 1 }
+        return $Content.Insert($insertAt, "`n$importLine`n")
+    }
+    return "$importLine`n`n$Content"
 }
 
 function Remove-OrphanedCatalogParts {
@@ -403,6 +467,46 @@ function Deploy-CustomParts {
     Write-Host "Deployed $count flat catalog part(s) from catalog_generator/parts"
 }
 
+function Write-DeployManifest {
+    param(
+        [string]$CustomScripts,
+        [int]$ScriptCount,
+        [int]$PycacheCleared
+    )
+
+    $keyFiles = @(
+        'lj_stud_bolts.py',
+        'CUST_GSK_FF_CL150.py',
+        'CUST_LJ_RING_CL150_RF.py',
+        'stubend_geom.py',
+        'pipe_sizes.py',
+        'catalog_params.py'
+    )
+    $hashes = @{}
+    foreach ($name in $keyFiles) {
+        $p = Join-Path $CustomScripts $name
+        if (Test-Path $p) {
+            $hashes[$name] = (Get-FileHash $p -Algorithm MD5).Hash.ToLowerInvariant()
+        }
+    }
+
+    $manifest = @{
+        deployVersion             = '2026.06.11'
+        deployedAtUtc             = (Get-Date).ToUniversalTime().ToString('o')
+        scriptCount               = $ScriptCount
+        pycacheFoldersCleared     = $PycacheCleared
+        registerQueued            = $false
+        pluginRestartRecommended  = $false
+        keyFileHashes             = $hashes
+    } | ConvertTo-Json -Depth 5
+
+    $path = Join-Path $CustomScripts 'deploy_manifest.json'
+    $utf8NoBom = New-Object System.Text.UTF8Encoding $false
+    [System.IO.File]::WriteAllText($path, $manifest, $utf8NoBom)
+    Write-Host "Wrote deploy manifest: $path"
+    return $path
+}
+
 function Write-DeploySettings {
     param(
         [string]$Root,
@@ -507,6 +611,7 @@ if (Test-Path (Split-Path $customScripts -Parent)) {
     }
     Clear-ComposerRuntimeArtifacts -CustomScripts $customScripts
     Remove-ValveCatalogArtifacts -CustomScripts $customScripts
+    $pycacheCleared = Clear-AllPythonCache -CustomScripts $customScripts
     Deploy-CustomParts -PartsSrc (Join-Path $genSrc "parts") -CustomScripts $customScripts
     Deploy-SupportModules -GenSrc $genSrc -CustomScripts $customScripts
     $pipeSizes = Join-Path $genSrc "pipe_sizes.py"
@@ -514,10 +619,22 @@ if (Test-Path (Split-Path $customScripts -Parent)) {
         Copy-Item $pipeSizes (Join-Path $customScripts "pipe_sizes.py") -Force
         Write-Host "Deployed pipe_sizes.py"
     }
+    $catalogParams = Join-Path $genSrc "catalog_params.py"
+    if (Test-Path $catalogParams) {
+        Copy-Item $catalogParams (Join-Path $customScripts "catalog_params.py") -Force
+        Write-Host "Deployed catalog_params.py"
+    }
     $swGeom = Join-Path $genSrc "sw_fitting_geom.py"
     if (Test-Path $swGeom) {
         Copy-Item $swGeom (Join-Path $customScripts "sw_fitting_geom.py") -Force
         Write-Host "Deployed sw_fitting_geom.py"
+    }
+    foreach ($supportPy in @("stubend_geom.py", "lj_stud_bolts.py")) {
+        $supportSrc = Join-Path $genSrc $supportPy
+        if (Test-Path $supportSrc) {
+            Copy-Item $supportSrc (Join-Path $customScripts $supportPy) -Force
+            Write-Host "Deployed $supportPy"
+        }
     }
     $primitives = Join-Path $root "Plant3DSkeletonManager\primitives.py"
     if (Test-Path $primitives) {
@@ -530,6 +647,9 @@ if (Test-Path (Split-Path $customScripts -Parent)) {
         Write-Host "Deployed standard_sets.json"
     }
     Deploy-CatalogMetadata -GenSrc $genSrc -CustomScripts $customScripts
+    $pycacheCleared += Clear-AllPythonCache -CustomScripts $customScripts
+    Write-Host "Total __pycache__ folders cleared: $pycacheCleared (PLANTREGISTERCUSTOMSCRIPTS rebuilds .pyc in Plant 3D)"
+    Write-DeployManifest -CustomScripts $customScripts -ScriptCount 0 -PycacheCleared $pycacheCleared | Out-Null
     Write-Host "Composer lib: $composerLib"
     Write-Host "Manual rebuild: P3DCOMPWRAP or Wrapper.lsp COMPWRAP / COMPWRAPFRESH"
 } else {
@@ -577,7 +697,6 @@ if (Test-Path (Split-Path $customScripts -Parent)) {
         Write-Host "WARN: Could not copy NETLOAD DLL to CustomScripts: $_"
     }
 }
-Copy-Item (Join-Path $root "Plant3DCatalogComposer\PackageContents.xml") $bundleRoot -Force
 
 $genDst = Join-Path $contents "catalog_generator"
 $genDstLib = Join-Path $genDst "p3d_composer"
@@ -592,6 +711,9 @@ if (Test-Path $partsDst) {
 Copy-Item (Join-Path $genSrc "Wrapper.lsp") (Join-Path $genDst "Wrapper.lsp") -Force
 
 Copy-Item (Join-Path $root "Plant3DSkeletonManager\primitives.py") $contents -Force
+
+$packageTemplate = Join-Path $root "Plant3DCatalogComposer\PackageContents.xml"
+Set-PackageContentsVersion -TemplateXml $packageTemplate -DestXml (Join-Path $bundleRoot "PackageContents.xml") -DllPath $builtDll
 
 $dllPath = Join-Path $contents "Plant3DCatalogComposer.dll"
 Register-Plant3DComposer -DllPath $dllPath -Description "Compose Plant 3D catalog primitives visually"
