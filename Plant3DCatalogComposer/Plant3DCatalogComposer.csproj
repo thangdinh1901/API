@@ -39,6 +39,7 @@
     <Compile Include="..\Plant3DSkeletonManager\Core\ExpressionEvaluator.cs" Link="Core\ExpressionEvaluator.cs" />
     <Compile Include="..\Plant3DSkeletonManager\Core\JsonCodec.cs" Link="Core\JsonCodec.cs" />
     <Compile Include="..\Plant3DSkeletonManager\Core\Model.cs" Link="Core\Model.cs" />
+    <Compile Include="..\Plant3DSkeletonManager\Core\Plant3DEndTypes.cs" Link="Core\Plant3DEndTypes.cs" />
     <Compile Include="..\Plant3DSkeletonManager\Core\PortConnectionTypeHelper.cs" Link="Core\PortConnectionTypeHelper.cs" />
     <Compile Include="..\Plant3DSkeletonManager\Core\PortConnectionTypeJsonConverter.cs" Link="Core\PortConnectionTypeJsonConverter.cs" />
     <Compile Include="..\Plant3DSkeletonManager\Core\PrimitiveParameterUnits.cs" Link="Core\PrimitiveParameterUnits.cs" />

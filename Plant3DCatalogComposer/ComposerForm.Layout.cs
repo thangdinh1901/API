@@ -63,7 +63,13 @@ namespace Plant3DCatalogComposer
             _lblScriptPreview!.Location = new Point(CatalogValueLeft, previewY);
 
             row = previewY + 16 + afterPreviewGap;
-            PlaceRow(_lblCatalogGroup, _cmbPlantGroup!, row);
+            PlaceRow(_lblPartCategory, _cmbPartCategory!, row);
+
+            row += rowGap;
+            PlaceRow(_lblPipingComponent, _cmbPipingComponent!, row);
+
+            row += rowGap;
+            PlaceRow(_lblPrimaryEnd, _cmbPrimaryEnd!, row);
 
             row += rowGap;
             PlaceRow(_lblCatalogDn, _cmbProjectDn!, row);
@@ -72,10 +78,7 @@ namespace Plant3DCatalogComposer
             PlaceRow(_lblCatalogDn2, _cmbProjectDn2!, row);
 
             row += rowGap;
-            PlaceRow(_lblCatalogClass, _cmbProjectPressureClass!, row);
-
-            row += rowGap;
-            PlaceRow(_lblCatalogSchedule, _cmbProjectSchedule!, row);
+            PlaceRow(_lblClassSch, _cmbClassSch!, row);
 
             row += rowGap;
             if (_lblCatalogTip != null)
@@ -89,13 +92,24 @@ namespace Plant3DCatalogComposer
             _txtTooltipShort!.SetBounds(CatalogValueLeft, row, half, rowH);
             _txtTooltipLong!.SetBounds(CatalogValueLeft + half + 6, row, valueW - half - 6, rowH);
 
-            if (_btnApplyCatalogProject == null)
+            row += rowGap;
+            PlaceRow(_lblShortDescription, _txtShortDescription!, row);
+
+            row += rowGap;
+            PlaceRow(_lblExcelClone, _cmbExcelClone!, row);
+
+            if (_btnApplyCatalogProject == null || _btnRegisterForPublish == null)
                 return;
 
             const int applyH = 26;
             int applyY = row + rowH + applyGap;
-            int applyX = (_grpCatalogProject.ClientSize.Width - _btnApplyCatalogProject.Width) / 2;
-            _btnApplyCatalogProject.Location = new Point(Math.Max(FieldRightPad, applyX), applyY);
+            int gap = 8;
+            int totalBtnW = _btnApplyCatalogProject.Width + gap + _btnRegisterForPublish.Width;
+            int startX = (_grpCatalogProject.ClientSize.Width - totalBtnW) / 2;
+            _btnApplyCatalogProject.Location = new Point(Math.Max(FieldRightPad, startX), applyY);
+            _btnRegisterForPublish.Location = new Point(
+                _btnApplyCatalogProject.Right + gap,
+                applyY);
 
             const int groupChrome = 26;
             int targetHeight = applyY + applyH + groupChrome;

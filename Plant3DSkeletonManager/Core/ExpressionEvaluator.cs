@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Globalization;
+using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace Plant3DSkeletonManager.Core
@@ -11,11 +13,6 @@ namespace Plant3DSkeletonManager.Core
     /// </summary>
     public static class ExpressionEvaluator
     {
-        private static readonly string[] ParameterNames =
-        {
-            "FaceToFace", "BodyOD", "BodyLength", "BonnetHeight", "StemDia", "HandwheelOD", "DN",
-        };
-
         public static bool TryEvaluate(string? expression, SkeletonParameters skeleton, out double value)
         {
             value = 0;
@@ -35,7 +32,7 @@ namespace Plant3DSkeletonManager.Core
             }
 
             // Bare parameter name
-            if (IsParameterName(trimmed))
+            if (IsParameterName(trimmed, skeleton))
             {
                 value = skeleton.Resolve(trimmed);
                 return true;
@@ -65,18 +62,31 @@ namespace Plant3DSkeletonManager.Core
         private static string SubstituteParameters(string expression, SkeletonParameters skeleton)
         {
             string result = expression;
-            foreach (string name in ParameterNames)
+            foreach (string name in skeleton.ExpressionParameterNames()
+                         .Distinct(StringComparer.OrdinalIgnoreCase)
+                         .OrderByDescending(n => n.Length))
             {
+                double value;
+                try
+                {
+                    value = skeleton.Resolve(name);
+                }
+                catch (KeyNotFoundException)
+                {
+                    continue;
+                }
+
                 result = Regex.Replace(
                     result,
                     $@"\b{Regex.Escape(name)}\b",
-                    skeleton.Resolve(name).ToString(CultureInfo.InvariantCulture),
+                    value.ToString(CultureInfo.InvariantCulture),
                     RegexOptions.IgnoreCase);
             }
             return result;
         }
 
-        private static bool IsParameterName(string text) =>
-            Array.Exists(ParameterNames, n => string.Equals(n, text, StringComparison.OrdinalIgnoreCase));
+        private static bool IsParameterName(string text, SkeletonParameters skeleton) =>
+            skeleton.ExpressionParameterNames()
+                .Any(n => string.Equals(n, text, StringComparison.OrdinalIgnoreCase));
     }
 }

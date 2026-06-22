@@ -17,7 +17,8 @@ namespace Plant3DCatalogComposer
 
         private static readonly Color[] TabHeaderColors =
         {
-            Color.FromArgb(25, 118, 210),   // Setup
+            Color.FromArgb(25, 118, 210),   // Catalog
+            Color.FromArgb(156, 39, 176),   // Dimensions
             Color.FromArgb(46, 125, 50),      // Scene
             Color.FromArgb(230, 81, 0),       // Booleans
             Color.FromArgb(0, 151, 167),      // Port Manager
@@ -34,26 +35,13 @@ namespace Plant3DCatalogComposer
             InitializeComponent();
             ConfigureForPaletteHost();
 
-            foreach (string valveType in ParameterService.ValveTypes)
-                cmbValveType.Items.Add(valveType);
-
             foreach (PipeSizeOption size in PipeSizeCatalog.NominalSizes)
-            {
-                cmbDn.Items.Add(size);
                 cmbCatalogDN.Items.Add(size);
-            }
             foreach (string pc in PipeSizeCatalog.PressureClasses)
-            {
-                cmbPressureClass.Items.Add(pc);
                 cmbCatalogPressureClass.Items.Add(pc);
-            }
 
-            cmbDn.DisplayMember = nameof(PipeSizeOption.Display);
             cmbCatalogDN.DisplayMember = nameof(PipeSizeOption.Display);
-            SelectDnCombo(cmbDn, 50);
             SelectDnCombo(cmbCatalogDN, 100);
-            if (cmbPressureClass.Items.Count > 0)
-                cmbPressureClass.SelectedIndex = 0;
             if (cmbCatalogPressureClass.Items.Count > 0)
                 cmbCatalogPressureClass.SelectedIndex = 0;
 
@@ -79,13 +67,6 @@ namespace Plant3DCatalogComposer
                 cmbPrimitive.Items.Add(p);
             cmbPrimitive.SelectedIndex = 0;
 
-            foreach (string name in ParameterService.DimensionNames)
-                dgvParams.Rows.Add(name, "");
-
-            cmbValveType.SelectedIndexChanged += (_, _) => FillSuggestedValues();
-            cmbDn.SelectedIndexChanged += (_, _) => FillSuggestedValues();
-            cmbValveType.SelectedIndex = 0;
-
             treeScene.AllowDrop = true;
             treeScene.ItemDrag += TreeScene_ItemDrag;
             treeScene.DragEnter += TreeScene_DragEnter;
@@ -110,8 +91,6 @@ namespace Plant3DCatalogComposer
             _toolTip.SetToolTip(
                 btnTestCatalog,
                 "Run testacpscript for the current catalog part (DN from Catalog Project)");
-            _toolTip.SetToolTip(btnExport, "Export scene graph to JSON file");
-            _toolTip.SetToolTip(btnImportJson, "Import scene graph from JSON file");
             _toolTip.SetToolTip(btnRebuildScene, "Force rebuild geometry in Plant 3D");
             _toolTip.SetToolTip(
                 btnDeleteNode,
@@ -128,6 +107,7 @@ namespace Plant3DCatalogComposer
             StylePrimaryActionButtons();
             DistancePickSession.Completed += OnDisplacementPickSessionCompleted;
             InitializeCatalogSetupTab();
+            InitializeDimensionsTab();
             InitializePortManagerTab();
 
             lvBoolOps.Columns.Add("#", 28);
@@ -263,7 +243,6 @@ namespace Plant3DCatalogComposer
             Color back = Color.FromArgb(187, 222, 251);
             Color border = Color.FromArgb(144, 202, 249);
             Color fore = Color.FromArgb(21, 54, 92);
-            StyleLightActionButton(btnCreateSkeleton, back, border, fore);
             StyleLightActionButton(btnInsertCatalogPart, back, border, fore);
         }
 
@@ -283,8 +262,6 @@ namespace Plant3DCatalogComposer
             StyleAccentButton(btnDeployCatalog, Color.FromArgb(69, 90, 100));
             StyleAccentButton(btnPublishCatalog, Color.FromArgb(46, 125, 50));
             StyleAccentButton(btnTestCatalog, Color.FromArgb(0, 137, 123));
-            StyleAccentButton(btnExport, Color.FromArgb(0, 137, 123));
-            StyleAccentButton(btnImportJson, Color.FromArgb(239, 108, 0));
             StyleAccentButton(btnRebuildScene, Color.FromArgb(25, 118, 210));
         }
 
@@ -311,8 +288,8 @@ namespace Plant3DCatalogComposer
 
                 ValveProject project = DocumentStore.LoadOrCreate(
                     dwg, Path.GetFileNameWithoutExtension(dwg));
-                LoadSkeletonFields(project);
                 LoadCatalogProjectFields(project);
+                LoadDimensionFields(project);
                 RefreshSceneTree();
                 RefreshBooleanUi();
                 RefreshPortUi();
@@ -325,122 +302,30 @@ namespace Plant3DCatalogComposer
             }
         }
 
-        private void LoadSkeletonFields(ValveProject project)
-        {
-            SkeletonParameters p = project.Parameters;
-            if (p.DN > 0)
-            {
-                SelectDnCombo(cmbDn, p.DN);
-                SelectDnCombo(cmbCatalogDN, p.DN);
-            }
-            if (!string.IsNullOrEmpty(p.PressureClass))
-            {
-                SelectPressureClassCombo(cmbPressureClass, p.PressureClass);
-                SelectPressureClassCombo(cmbCatalogPressureClass, p.PressureClass);
-                RefreshCatalogPartList();
-            }
-
-            double[] values =
-            {
-                p.FaceToFace, p.BodyOD, p.BodyLength,
-                p.BonnetHeight, p.StemDia, p.HandwheelOD,
-            };
-            for (int i = 0; i < values.Length && i < dgvParams.Rows.Count; i++)
-            {
-                if (values[i] > 0)
-                    dgvParams.Rows[i].Cells[1].Value = Format(values[i]);
-            }
-        }
-
-        private void FillSuggestedValues()
-        {
-            if (cmbValveType.SelectedItem is not string valveType)
-                return;
-            if (!TryGetSelectedDn(cmbDn, out double dn))
-                return;
-
-            double[] suggested = ParameterService.SuggestDimensions(valveType, dn);
-            for (int i = 0; i < suggested.Length; i++)
-                dgvParams.Rows[i].Cells[1].Value = Format(suggested[i]);
-        }
-
-        private void btnCreateSkeleton_Click(object sender, EventArgs e)
-        {
-            if (cmbValveType.SelectedItem is not string valveType)
-            {
-                ShowWarning("Please select a valve type.");
-                return;
-            }
-
-            if (!TryGetSelectedDn(cmbDn, out double dn))
-            {
-                ShowWarning("Please select a nominal pipe size (DN).");
-                return;
-            }
-
-            if (cmbPressureClass.SelectedItem is not string pressureClass || pressureClass.Length == 0)
-            {
-                ShowWarning("Please select a pressure class.");
-                return;
-            }
-
-            var values = new double[ParameterService.DimensionNames.Length];
-            for (int i = 0; i < values.Length; i++)
-            {
-                string text = dgvParams.Rows[i].Cells[1].Value?.ToString() ?? "";
-                if (!TryParsePositive(text, out values[i]))
-                {
-                    ShowWarning($"Please enter a valid positive value for {ParameterService.DimensionNames[i]} (mm).");
-                    return;
-                }
-            }
-
-            var data = new SkeletonParameters
-            {
-                DN = dn,
-                PressureClass = pressureClass,
-                FaceToFace = values[0],
-                BodyOD = values[1],
-                BodyLength = values[2],
-                BonnetHeight = values[3],
-                StemDia = values[4],
-                HandwheelOD = values[5],
-            };
-
-            try
-            {
-                string dwg = DrawingContext.RequireActiveDrawingPath();
-                ValveProject project = DocumentStore.LoadOrCreate(
-                    dwg, Path.GetFileNameWithoutExtension(dwg));
-                ParameterService.ApplySkeleton(project, valveType, data);
-                DocumentStore.Save(dwg, project);
-                lblStatus.Text = $"Skeleton saved ({valveType}, DN{dn:0.###}).";
-            }
-            catch (Exception ex)
-            {
-                ShowError(ex);
-            }
-        }
-
         private void RefreshCatalogPartList()
         {
-            string pc = _cmbProjectPressureClass?.SelectedItem as string
-                ?? cmbCatalogPressureClass.SelectedItem as string
-                ?? "150";
-            string schedule = GetProjectSchedule();
+            ClassScheduleOption? classSch = GetSelectedClassSchedule();
             string category = (cmbCatalogCategory.SelectedItem as CatalogCategoryOption)?.Id
-                ?? CatalogCategories.Flange;
+                ?? CatalogCategories.Fittings;
             int prevIndex = cmbCatalogPart.SelectedIndex;
 
             cmbCatalogPart.Items.Clear();
-            foreach (CustomPartDefinition part in _catalogPartChoices)
+            foreach (CustomPartDefinition part in CustomPartCatalog.InsertableParts)
             {
-                if (!part.Category.Equals(category, StringComparison.OrdinalIgnoreCase))
+                if (!CatalogCategories.CategoriesMatch(part.Category, category))
                     continue;
-                if (!part.PressureClass.Equals(pc, StringComparison.OrdinalIgnoreCase))
-                    continue;
-                if (!PipeScheduleCatalog.PartMatches(schedule, part.PipeSchedule))
-                    continue;
+                if (classSch != null)
+                {
+                    if (!CatalogClassScheduleOptions.PartMatches(classSch, part))
+                        continue;
+                }
+                else
+                {
+                    string pc = cmbCatalogPressureClass.SelectedItem as string ?? "150";
+                    if (!part.PressureClass.Equals(pc, StringComparison.OrdinalIgnoreCase))
+                        continue;
+                }
+
                 cmbCatalogPart.Items.Add(part);
             }
 
@@ -784,6 +669,7 @@ namespace Plant3DCatalogComposer
                     dwg, Path.GetFileNameWithoutExtension(dwg));
 
                 DocumentStore.Save(dwg, project);
+                ApplyCatalogFamilyFromUi(project);
                 CatalogPackage package = ComposerLiveScriptService.BuildCatalogPackage(project);
                 if (CatalogGroupResolver.WouldRemapValveToFitting(project.CatalogGroup, project.Ports))
                 {
@@ -812,7 +698,7 @@ namespace Plant3DCatalogComposer
                 }
 
                 string exportRoot = ResolveCatalogExportDirectory(dwg);
-                IReadOnlyList<string> exported = CatalogExportService.Export(package, exportRoot);
+                IReadOnlyList<string> exported = CatalogExportService.Export(package, exportRoot, project);
                 string catalogCode = package.ToDisplayText();
                 ComposerLiveScriptService.WriteCatalogPackage(project, catalogCode);
                 txtGeneratedCode.Text = catalogCode;
@@ -821,7 +707,7 @@ namespace Plant3DCatalogComposer
                 string partFolder = Path.Combine(exportRoot, package.ExportFolderName);
                 string status = package.IsStandardPortReference
                     ? $"Port reference → {partFolder} (standard {package.StandardPartId} unchanged)"
-                    : $"Exported {exported.Count} file(s) → {partFolder}; ScriptGroup/variants synced — Deploy Catalog for Spec Editor";
+                    : $"Exported {exported.Count} file(s) → {partFolder}; part.json draft written — Register for Publish for Excel sheet";
                 lblStatus.Text = status;
                 Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
                     .MdiActiveDocument?.Editor.WriteMessage(
@@ -890,94 +776,6 @@ namespace Plant3DCatalogComposer
                 return dwgDir;
 
             return Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-        }
-
-        private void btnExport_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                string dwg = DrawingContext.RequireActiveDrawingPath();
-                ValveProject project = DocumentStore.LoadOrCreate(
-                    dwg, Path.GetFileNameWithoutExtension(dwg));
-                DocumentStore.Save(dwg, project);
-
-                ValidationResult validation = ProjectValidator.Validate(project);
-                if (!ConfirmExport(validation))
-                    return;
-
-                using var dialog = new SaveFileDialog
-                {
-                    Title = "Export Scene Graph JSON",
-                    Filter = "Scene JSON (*.scene.json)|*.scene.json|JSON (*.json)|*.json",
-                    FileName = (string.IsNullOrEmpty(project.ValveName) ? "valve" : project.ValveName) + ".scene.json",
-                    InitialDirectory = string.IsNullOrEmpty(dwg)
-                        ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-                        : Path.GetDirectoryName(dwg),
-                };
-                if (dialog.ShowDialog() != DialogResult.OK)
-                    return;
-
-                File.WriteAllText(dialog.FileName, JsonCodec.Serialize(project));
-                lblStatus.Text = $"Exported {project.Parts.Count} parts, {project.Operations.Count} operations.";
-            }
-            catch (Exception ex)
-            {
-                ShowError(ex);
-            }
-        }
-
-        private void btnImportJson_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                string dwg = DrawingContext.RequireActiveDrawingPath();
-
-                using var dialog = new OpenFileDialog
-                {
-                    Title = "Import Scene Graph JSON",
-                    Filter = "Scene JSON (*.scene.json)|*.scene.json|JSON (*.json)|*.json",
-                    InitialDirectory = string.IsNullOrEmpty(dwg)
-                        ? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
-                        : Path.GetDirectoryName(dwg),
-                };
-                if (dialog.ShowDialog() != DialogResult.OK)
-                    return;
-
-                ValveProject imported = SceneImportExport.LoadJsonFile(dialog.FileName);
-                ValidationResult validation = ProjectValidator.Validate(imported);
-                if (!validation.IsValid)
-                {
-                    ShowValidationBlocked(validation);
-                    return;
-                }
-
-                if (validation.Issues.Any(i => !i.IsError))
-                {
-                    if (!ConfirmWithWarnings("Import this scene graph?", validation.Warnings.ToList()))
-                        return;
-                }
-
-                SceneImportExport.ReplaceProject(dwg, imported);
-                LoadSkeletonFields(imported);
-                lblStatus.Text =
-                    $"Imported {imported.Parts.Count} parts, {imported.Operations.Count} operations.";
-
-                if (MessageBox.Show(
-                        "Rebuild geometry in Plant 3D from the imported scene graph?",
-                        "Plant 3D Catalog Composer",
-                        MessageBoxButtons.YesNo,
-                        MessageBoxIcon.Question) == DialogResult.Yes)
-                {
-                    TriggerRebuild(imported, quiet: true);
-                }
-
-                RefreshSceneTree();
-                RefreshBooleanUi();
-            }
-            catch (Exception ex)
-            {
-                ShowError(ex);
-            }
         }
 
         private void btnRebuildScene_Click(object sender, EventArgs e)
@@ -1387,7 +1185,7 @@ namespace Plant3DCatalogComposer
 
                 SceneGraphEditor.ResolveExpressions(node, project.Parameters);
                 LoadNodeEditor(node);
-                lblSceneStatus.Text = "Expressions resolved from skeleton parameters.";
+                lblSceneStatus.Text = "Expressions resolved from catalog parameters.";
             }
             catch (Exception ex)
             {
@@ -1967,21 +1765,6 @@ namespace Plant3DCatalogComposer
         {
             MessageBox.Show(message, "Plant 3D Catalog Composer",
                 MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
-
-        private static bool ConfirmExport(ValidationResult validation)
-        {
-            if (!validation.IsValid)
-            {
-                ShowValidationBlocked(validation);
-                return false;
-            }
-
-            var warnings = validation.Warnings.ToList();
-            if (warnings.Count == 0)
-                return true;
-
-            return ConfirmWithWarnings("Export scene graph anyway?", warnings);
         }
 
         private static void ShowValidationBlocked(ValidationResult validation)

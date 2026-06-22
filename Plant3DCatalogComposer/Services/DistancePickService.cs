@@ -11,6 +11,12 @@ namespace Plant3DCatalogComposer.Services
         public double Dy { get; init; }
         public double Dz { get; init; }
         public double Distance { get; init; }
+        public double FromX { get; init; }
+        public double FromY { get; init; }
+        public double FromZ { get; init; }
+        public double ToX { get; init; }
+        public double ToY { get; init; }
+        public double ToZ { get; init; }
     }
 
     /// <summary>WCS displacement between two picked points (drawing units, typically mm).</summary>
@@ -52,6 +58,12 @@ namespace Plant3DCatalogComposer.Services
                 Dy = delta.Y,
                 Dz = delta.Z,
                 Distance = distance,
+                FromX = pt1.Value.X,
+                FromY = pt1.Value.Y,
+                FromZ = pt1.Value.Z,
+                ToX = pt2.Value.X,
+                ToY = pt2.Value.Y,
+                ToZ = pt2.Value.Z,
             };
             return true;
         }

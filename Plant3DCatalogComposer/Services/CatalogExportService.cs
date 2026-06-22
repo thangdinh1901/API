@@ -1,13 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Plant3DSkeletonManager.Core;
 
 namespace Plant3DCatalogComposer.Services
 {
     /// <summary>Writes catalog package files to a user-selected folder (Plant 3D CustomScripts layout).</summary>
     internal static class CatalogExportService
     {
-        public static IReadOnlyList<string> Export(CatalogPackage package, string destinationRoot)
+        public static IReadOnlyList<string> Export(
+            CatalogPackage package,
+            string destinationRoot,
+            ValveProject? project = null)
         {
             if (string.IsNullOrWhiteSpace(destinationRoot))
                 throw new ArgumentException("Destination folder is required.", nameof(destinationRoot));
@@ -27,6 +31,9 @@ namespace Plant3DCatalogComposer.Services
             string? catalogGeneratorDir = Directory.GetParent(destinationRoot)?.FullName;
             if (!string.IsNullOrEmpty(catalogGeneratorDir) && !package.IsStandardPortReference)
                 CatalogMetadataSyncService.SyncFromParts(catalogGeneratorDir);
+
+            if (project != null && !package.IsStandardPortReference)
+                CatalogPartJsonService.TryWriteDraft(partDir, project);
 
             return written;
         }

@@ -58,16 +58,36 @@ namespace Plant3DSkeletonManager.Core
     [JsonConverter(typeof(PortConnectionTypeJsonConverter))]
     public enum PortConnectionType
     {
-        FL,
-        BV,
+        Undefined_ET,
         PL,
-        SW,
+        BV,
         THDM,
         THDF,
-        SO,
+        SW,
+        FL,
         WF,
         LAP,
         GRV,
+        SO,
+        PPL,
+        PSW,
+        LFL,
+        LLP,
+        LUG,
+        BELL,
+        SPIG,
+        TAP,
+        MJM,
+        MJF,
+        MJP,
+        PFS,
+        Universal_ET,
+        TC,
+        C,
+        FTG,
+        FA,
+        P,
+        SL,
     }
 
     /// <summary>Connection port stored in the scene graph (parent-local or world coordinates).</summary>
@@ -217,20 +237,82 @@ namespace Plant3DSkeletonManager.Core
         [JsonPropertyName("HandwheelOD")]
         public double HandwheelOD { get; set; }
 
+        /// <summary>User-defined design dimensions (mm) for valve / instrument authoring.</summary>
+        [JsonPropertyName("customDimensions")]
+        public Dictionary<string, double> CustomDimensions { get; set; } =
+            new(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>Resolves a skeleton parameter by name (used for expression lookup).</summary>
-        public double Resolve(string name) => name switch
+        public double Resolve(string name)
         {
-            "DN" => DN,
-            "DN2" => DN2,
-            "FaceToFace" => FaceToFace,
-            "BodyOD" => BodyOD,
-            "ElbowCenterToFace" => ElbowCenterToFace,
-            "BodyLength" => BodyLength,
-            "BonnetHeight" => BonnetHeight,
-            "StemDia" => StemDia,
-            "HandwheelOD" => HandwheelOD,
-            _ => throw new KeyNotFoundException($"Unknown skeleton parameter '{name}'."),
-        };
+            if (CustomDimensions.TryGetValue(name, out double custom))
+                return custom;
+
+            return name.ToUpperInvariant() switch
+            {
+                "DN" => DN,
+                "DN2" => DN2,
+                "FACETOFACE" => FaceToFace,
+                "BODYOD" => BodyOD,
+                "ELBOWCENTERTOFACE" => ElbowCenterToFace,
+                "BODYLENGTH" => BodyLength,
+                "BONNETHEIGHT" => BonnetHeight,
+                "STEMDIA" => StemDia,
+                "HANDWHEELOD" => HandwheelOD,
+                _ => throw new KeyNotFoundException($"Unknown skeleton parameter '{name}'."),
+            };
+        }
+
+        /// <summary>All names available to primitive parameter expressions.</summary>
+        public IEnumerable<string> ExpressionParameterNames()
+        {
+            yield return "DN";
+            yield return "DN2";
+            yield return "FaceToFace";
+            yield return "BodyOD";
+            yield return "ElbowCenterToFace";
+            yield return "BodyLength";
+            yield return "BonnetHeight";
+            yield return "StemDia";
+            yield return "HandwheelOD";
+            foreach (string key in CustomDimensions.Keys)
+                yield return key;
+        }
+    }
+
+    /// <summary>How a design dimension was measured and what scene element it relates to.</summary>
+    public sealed class DimensionBinding
+    {
+        [JsonPropertyName("measureKind")]
+        public string MeasureKind { get; set; } = "manual";
+
+        [JsonPropertyName("fromPort")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? FromPort { get; set; }
+
+        [JsonPropertyName("toPort")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? ToPort { get; set; }
+
+        [JsonPropertyName("sceneNodeId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public Guid? SceneNodeId { get; set; }
+
+        [JsonPropertyName("sceneNodeName")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? SceneNodeName { get; set; }
+
+        [JsonPropertyName("paramKey")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? ParamKey { get; set; }
+
+        [JsonPropertyName("pickFromWcs")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public double[]? PickFromWcs { get; set; }
+
+        [JsonPropertyName("pickToWcs")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public double[]? PickToWcs { get; set; }
     }
 
     /// <summary>Root of the scene graph; serialized to/from JSON.</summary>
@@ -252,6 +334,36 @@ namespace Plant3DSkeletonManager.Core
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public string TooltipLong { get; set; } = string.Empty;
 
+        /// <summary>Setup panel category (Buttwelded, Flange, …) → part.json category.</summary>
+        [JsonPropertyName("catalogCategory")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public string CatalogCategory { get; set; } = string.Empty;
+
+        /// <summary>Plant Spec Editor PnP class (Elbow, Tee, Flange, …).</summary>
+        [JsonPropertyName("pnpClassName")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public string PnpClassName { get; set; } = string.Empty;
+
+        /// <summary>Named size library (BW_SCH40, SW_CL3000, …) — inferred from primary end + schedule.</summary>
+        [JsonPropertyName("standardSet")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public string StandardSet { get; set; } = string.Empty;
+
+        /// <summary>Plant 3D Primary End Type (Undefined_ET, FL, BV, …).</summary>
+        [JsonPropertyName("primaryEndType")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public string PrimaryEndType { get; set; } = string.Empty;
+
+        /// <summary>Excel ShortDescription override (palette label).</summary>
+        [JsonPropertyName("shortDescription")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public string ShortDescription { get; set; } = string.Empty;
+
+        /// <summary>Template sheet clone source part id (e.g. ELBOW_90_LR_BW_SCH40).</summary>
+        [JsonPropertyName("excelCloneSourcePartId")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public string ExcelCloneSourcePartId { get; set; } = string.Empty;
+
         /// <summary>Selected library part id from catalog_generator/parts (e.g. WN_FLRF_CL150).</summary>
         [JsonPropertyName("CustomPartId")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
@@ -262,6 +374,11 @@ namespace Plant3DSkeletonManager.Core
         public List<PrimitiveNode> Parts { get; set; } = new();
         public List<BooleanOperation> Operations { get; set; } = new();
         public List<ConnectionPort> Ports { get; set; } = new();
+
+        /// <summary>Per-dimension measure/bind metadata (pick, ports, scene node).</summary>
+        [JsonPropertyName("dimensionBindings")]
+        public Dictionary<string, DimensionBinding> DimensionBindings { get; set; } =
+            new(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>When true, connection ports are drawn as arrows in the drawing.</summary>
         public bool ShowPortMarkers { get; set; } = true;

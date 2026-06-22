@@ -14,7 +14,7 @@ namespace Plant3DCatalogComposer.Services
 
         public required string Group { get; init; }
 
-        /// <summary>Setup panel family (Flange, Buttwelded, Threaded, Socketwelded).</summary>
+        /// <summary>Plant 3D Component Category (Fittings, Flanges, Fasteners, …).</summary>
         public required string Category { get; init; }
 
         public double DefaultDN { get; init; }
@@ -26,6 +26,12 @@ namespace Plant3DCatalogComposer.Services
 
         /// <summary>Named library set (e.g. BW_SCH40 standard butt-weld fittings).</summary>
         public string StandardSet { get; init; } = "";
+
+        /// <summary>Excel ShortDescription override from part.json.</summary>
+        public string ShortDescription { get; init; } = "";
+
+        /// <summary>Plant Spec Editor PnP class from part.json.</summary>
+        public string PnpClassName { get; init; } = "";
 
         public bool ParametricDN { get; init; } = true;
 

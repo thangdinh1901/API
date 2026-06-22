@@ -167,6 +167,55 @@ namespace Plant3DCatalogComposer
             }
         }
 
+        /// <summary>Modal two-point pick — fills selected Dimensions row (|Δ| or axis delta).</summary>
+        [CommandMethod("P3DCOMPPICKDIM", CommandFlags.Modal)]
+        public static void PickDimensionMeasure()
+        {
+            Document? doc = Application.DocumentManager.MdiActiveDocument;
+            if (doc == null)
+                return;
+
+            string? dimName = DimensionPickSession.PendingDimensionName;
+            if (string.IsNullOrWhiteSpace(dimName))
+            {
+                WriteStatus("P3DCOMPPICKDIM: select a dimension row and click Pick first.");
+                return;
+            }
+
+            try
+            {
+                if (!DistancePickService.TryPickDisplacement(doc, out DisplacementPickResult pick))
+                {
+                    DimensionPickSession.Cancel();
+                    return;
+                }
+
+                DimensionMeasureMode mode = DimensionPickSession.MeasureMode;
+                double valueMm = DimensionMeasureService.ValueFromPick(pick, mode);
+                DimensionBinding binding = DimensionMeasureService.CreatePickBinding(
+                    pick,
+                    mode,
+                    DimensionPickSession.BindSceneNodeId,
+                    DimensionPickSession.BindSceneNodeName,
+                    DimensionPickSession.BindParamKey);
+
+                DimensionPickSession.Complete(new DimensionPickResult
+                {
+                    DimensionName = dimName,
+                    ValueMm = valueMm,
+                    Binding = binding,
+                });
+
+                doc.Editor.WriteMessage(
+                    $"\nP3D Composer: {dimName} = {valueMm:0.###} mm ({DimensionMeasureService.MeasureKindToken(mode)}).");
+            }
+            catch (System.Exception ex)
+            {
+                DimensionPickSession.Cancel();
+                WriteStatus("P3DCOMPPICKDIM error: " + ex.Message);
+            }
+        }
+
         /// <summary>Generate + deploy + register catalog for active drawing scene.</summary>
         [CommandMethod("P3DCOMPDEPLOY", CommandFlags.Session)]
         public static void DeployCatalog()

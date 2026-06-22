@@ -6,37 +6,28 @@ namespace Plant3DSkeletonManager.Core
 {
     public static class PortConnectionTypeHelper
     {
-        private static readonly (PortConnectionType Type, string Description)[] CatalogTypes =
-        {
-            (PortConnectionType.FL, "Flanged"),
-            (PortConnectionType.BV, "Beveled (butt weld)"),
-            (PortConnectionType.PL, "Plain"),
-            (PortConnectionType.SW, "Socket weld"),
-            (PortConnectionType.THDM, "Threaded male"),
-            (PortConnectionType.THDF, "Threaded female"),
-            (PortConnectionType.SO, "Slip-on"),
-            (PortConnectionType.WF, "Wafer"),
-            (PortConnectionType.LAP, "Lap joint"),
-            (PortConnectionType.GRV, "Grooved"),
-        };
+        public static IReadOnlyList<(PortConnectionType Type, string Description)> CatalogEndTypes { get; } =
+            BuildCatalogTypes();
 
-        public static IReadOnlyList<(PortConnectionType Type, string Description)> CatalogEndTypes => CatalogTypes;
+        private static IReadOnlyList<(PortConnectionType Type, string Description)> BuildCatalogTypes()
+        {
+            var list = new List<(PortConnectionType, string)>();
+            foreach ((string code, string description) in Plant3DEndTypes.All)
+            {
+                if (TryToPortType(code, out PortConnectionType type))
+                    list.Add((type, description));
+            }
+
+            return list;
+        }
 
         public static string ToEndTypeCode(PortConnectionType type) => type.ToString();
 
-        public static string GetDescription(PortConnectionType type)
-        {
-            foreach ((PortConnectionType t, string description) in CatalogTypes)
-            {
-                if (t == type)
-                    return description;
-            }
-
-            return type.ToString();
-        }
+        public static string GetDescription(PortConnectionType type) =>
+            Plant3DEndTypes.GetDescription(ToEndTypeCode(type));
 
         public static string GetDisplayName(PortConnectionType type) =>
-            $"{ToEndTypeCode(type)} — {GetDescription(type)}";
+            Plant3DEndTypes.FormatDisplay(ToEndTypeCode(type));
 
         public static string PortLabel(ConnectionPort port) => $"Port {port.Number}";
 
@@ -48,19 +39,20 @@ namespace Plant3DSkeletonManager.Core
             if (string.IsNullOrWhiteSpace(raw))
                 return PortConnectionType.FL;
 
-            string value = raw.Trim();
-            if (Enum.TryParse(value, true, out PortConnectionType parsed))
+            string code = Plant3DEndTypes.NormalizeCode(raw);
+            if (TryToPortType(code, out PortConnectionType parsed))
                 return parsed;
 
-            return value.ToUpperInvariant() switch
-            {
-                "FLANGED" => PortConnectionType.FL,
-                "BUTT_WELD" or "BW" => PortConnectionType.BV,
-                "SOCKET_WELD" => PortConnectionType.SW,
-                "THREADED" or "TH" => PortConnectionType.THDM,
-                "CUSTOM" => PortConnectionType.FL,
-                _ => PortConnectionType.FL,
-            };
+            return PortConnectionType.FL;
+        }
+
+        public static bool TryToPortType(string? code, out PortConnectionType type)
+        {
+            type = PortConnectionType.FL;
+            if (string.IsNullOrWhiteSpace(code))
+                return false;
+
+            return Enum.TryParse(Plant3DEndTypes.NormalizeCode(code), ignoreCase: false, out type);
         }
 
         public static string BuildEndtypesCsv(IEnumerable<ConnectionPort> ports) =>

@@ -7,6 +7,9 @@ namespace Plant3DCatalogComposer.Services
     {
         public static string Resolve(CustomPartDefinition part)
         {
+            if (!string.IsNullOrWhiteSpace(part.ShortDescription))
+                return part.ShortDescription.Trim();
+
             string id = part.Id.ToUpperInvariant();
             return id switch
             {

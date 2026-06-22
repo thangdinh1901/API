@@ -17,12 +17,23 @@ namespace Plant3DCatalogComposer.Services
             new("80S"),
             new("10"),
             new("10S"),
+            new("SDR17"),
+            new("SDR11"),
         ];
 
         public static string Normalize(string? schedule)
         {
+            string? known = TryNormalize(schedule);
+            return known ?? Default;
+        }
+
+        public static string NormalizeOrEmpty(string? schedule) =>
+            TryNormalize(schedule) ?? "";
+
+        private static string? TryNormalize(string? schedule)
+        {
             if (string.IsNullOrWhiteSpace(schedule))
-                return Default;
+                return null;
 
             string s = schedule.Trim();
             foreach (PipeScheduleOption opt in All)
@@ -31,7 +42,6 @@ namespace Plant3DCatalogComposer.Services
                     return opt.Id;
             }
 
-            // Legacy / imported values
             if (s.Equals("Sch40", StringComparison.OrdinalIgnoreCase) ||
                 s.Equals("Sch-40", StringComparison.OrdinalIgnoreCase))
                 return "40";
@@ -41,7 +51,7 @@ namespace Plant3DCatalogComposer.Services
             if (s.Equals("Auto", StringComparison.OrdinalIgnoreCase))
                 return Default;
 
-            return Default;
+            return null;
         }
 
         /// <summary>True when part has no schedule tag or matches project schedule.</summary>

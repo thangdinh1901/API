@@ -15,6 +15,7 @@
         {
             this.tabMain = new System.Windows.Forms.TabControl();
             this.tabSetup = new System.Windows.Forms.TabPage();
+            this.tabDimensions = new System.Windows.Forms.TabPage();
             this.tabScene = new System.Windows.Forms.TabPage();
             this.tabCode = new System.Windows.Forms.TabPage();
             this.txtGeneratedCode = new System.Windows.Forms.TextBox();
@@ -61,14 +62,6 @@
             this.btnPortRotZ = new System.Windows.Forms.Button();
             this.lblPortStatus = new System.Windows.Forms.Label();
 
-            this.lblValveType = new System.Windows.Forms.Label();
-            this.lblDN = new System.Windows.Forms.Label();
-            this.lblPressureClass = new System.Windows.Forms.Label();
-            this.cmbValveType = new System.Windows.Forms.ComboBox();
-            this.cmbDn = new System.Windows.Forms.ComboBox();
-            this.cmbPressureClass = new System.Windows.Forms.ComboBox();
-            this.grpSkeleton = new System.Windows.Forms.GroupBox();
-            this.btnCreateSkeleton = new System.Windows.Forms.Button();
             this.grpCatalogParts = new System.Windows.Forms.GroupBox();
             this.lblCatalogCategory = new System.Windows.Forms.Label();
             this.cmbCatalogCategory = new System.Windows.Forms.ComboBox();
@@ -88,13 +81,8 @@
             this.btnTestCatalog = new System.Windows.Forms.Button();
             this.grpSceneTools = new System.Windows.Forms.GroupBox();
             this.btnGenerateCode = new System.Windows.Forms.Button();
-            this.btnExport = new System.Windows.Forms.Button();
-            this.btnImportJson = new System.Windows.Forms.Button();
             this.btnRebuildScene = new System.Windows.Forms.Button();
             this.lblStatus = new System.Windows.Forms.Label();
-            this.dgvParams = new System.Windows.Forms.DataGridView();
-            this.colName = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.colValue = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.treeScene = new System.Windows.Forms.TreeView();
             this.btnRefreshTree = new System.Windows.Forms.Button();
             this.btnDeleteNode = new System.Windows.Forms.Button();
@@ -153,7 +141,7 @@
             this.tabMain.SuspendLayout();
             this.grpSceneTools.SuspendLayout();
             this.tabSetup.SuspendLayout();
-            this.grpSkeleton.SuspendLayout();
+            this.tabDimensions.SuspendLayout();
             this.grpCatalogParts.SuspendLayout();
             this.tabScene.SuspendLayout();
             this.tabCode.SuspendLayout();
@@ -170,13 +158,13 @@
             ((System.ComponentModel.ISupportInitialize)(this.numPosStepZ)).BeginInit();
             this.grpRotation.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numAngleStep)).BeginInit();
-            ((System.ComponentModel.ISupportInitialize)(this.dgvParams)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvNodeParams)).BeginInit();
             this.SuspendLayout();
             //
             // tabMain
             //
             this.tabMain.Controls.Add(this.tabSetup);
+            this.tabMain.Controls.Add(this.tabDimensions);
             this.tabMain.Controls.Add(this.tabScene);
             this.tabMain.Controls.Add(this.tabBooleans);
             this.tabMain.Controls.Add(this.tabPortManager);
@@ -191,14 +179,7 @@
             // tabSetup
             //
             this.tabSetup.Controls.Add(this.grpSceneTools);
-            this.tabSetup.Controls.Add(this.grpSkeleton);
             this.tabSetup.Controls.Add(this.grpCatalogParts);
-            this.tabSetup.Controls.Add(this.cmbPressureClass);
-            this.tabSetup.Controls.Add(this.lblPressureClass);
-            this.tabSetup.Controls.Add(this.cmbDn);
-            this.tabSetup.Controls.Add(this.lblDN);
-            this.tabSetup.Controls.Add(this.cmbValveType);
-            this.tabSetup.Controls.Add(this.lblValveType);
             this.tabSetup.Controls.Add(this.lblStatus);
             this.tabSetup.Location = new System.Drawing.Point(4, 24);
             this.tabSetup.Name = "tabSetup";
@@ -208,6 +189,17 @@
             this.tabSetup.Text = "Setup";
             this.tabSetup.UseVisualStyleBackColor = true;
             this.tabSetup.AutoScroll = true;
+            //
+            // tabDimensions
+            //
+            this.tabDimensions.Location = new System.Drawing.Point(4, 24);
+            this.tabDimensions.Name = "tabDimensions";
+            this.tabDimensions.Padding = new System.Windows.Forms.Padding(8);
+            this.tabDimensions.Size = new System.Drawing.Size(312, 592);
+            this.tabDimensions.TabIndex = 1;
+            this.tabDimensions.Text = "Dimensions";
+            this.tabDimensions.UseVisualStyleBackColor = true;
+            this.tabDimensions.AutoScroll = true;
             //
             // tabScene
             //
@@ -896,124 +888,6 @@
             this.btnBoolCutterSubtract.UseVisualStyleBackColor = true;
             this.btnBoolCutterSubtract.Click += new System.EventHandler(this.btnBoolCutterSubtract_Click);
             //
-            // lblValveType
-            //
-            this.lblValveType.AutoSize = true;
-            this.lblValveType.Location = new System.Drawing.Point(11, 15);
-            this.lblValveType.Name = "lblValveType";
-            this.lblValveType.Size = new System.Drawing.Size(65, 15);
-            this.lblValveType.TabIndex = 0;
-            this.lblValveType.Text = "Valve Type:";
-            //
-            // cmbValveType
-            //
-            this.cmbValveType.Anchor = System.Windows.Forms.AnchorStyles.Top
-                | System.Windows.Forms.AnchorStyles.Left
-                | System.Windows.Forms.AnchorStyles.Right;
-            this.cmbValveType.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cmbValveType.Location = new System.Drawing.Point(110, 12);
-            this.cmbValveType.Name = "cmbValveType";
-            this.cmbValveType.Size = new System.Drawing.Size(186, 23);
-            this.cmbValveType.TabIndex = 1;
-            //
-            // lblDN
-            //
-            this.lblDN.AutoSize = true;
-            this.lblDN.Location = new System.Drawing.Point(11, 50);
-            this.lblDN.Name = "lblDN";
-            this.lblDN.Size = new System.Drawing.Size(27, 15);
-            this.lblDN.TabIndex = 2;
-            this.lblDN.Text = "DN:";
-            //
-            // cmbDn
-            //
-            this.cmbDn.Anchor = System.Windows.Forms.AnchorStyles.Top
-                | System.Windows.Forms.AnchorStyles.Left
-                | System.Windows.Forms.AnchorStyles.Right;
-            this.cmbDn.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cmbDn.Location = new System.Drawing.Point(110, 47);
-            this.cmbDn.Name = "cmbDn";
-            this.cmbDn.Size = new System.Drawing.Size(186, 23);
-            this.cmbDn.TabIndex = 3;
-            //
-            // lblPressureClass
-            //
-            this.lblPressureClass.AutoSize = true;
-            this.lblPressureClass.Location = new System.Drawing.Point(11, 85);
-            this.lblPressureClass.Name = "lblPressureClass";
-            this.lblPressureClass.Size = new System.Drawing.Size(85, 15);
-            this.lblPressureClass.TabIndex = 4;
-            this.lblPressureClass.Text = "Pressure Class:";
-            //
-            // cmbPressureClass
-            //
-            this.cmbPressureClass.Anchor = System.Windows.Forms.AnchorStyles.Top
-                | System.Windows.Forms.AnchorStyles.Left
-                | System.Windows.Forms.AnchorStyles.Right;
-            this.cmbPressureClass.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-            this.cmbPressureClass.Location = new System.Drawing.Point(110, 82);
-            this.cmbPressureClass.Name = "cmbPressureClass";
-            this.cmbPressureClass.Size = new System.Drawing.Size(186, 23);
-            this.cmbPressureClass.TabIndex = 5;
-            //
-            // dgvParams
-            //
-            this.dgvParams.AllowUserToAddRows = false;
-            this.dgvParams.Anchor = System.Windows.Forms.AnchorStyles.Top
-                | System.Windows.Forms.AnchorStyles.Left
-                | System.Windows.Forms.AnchorStyles.Right;
-            this.dgvParams.AllowUserToDeleteRows = false;
-            this.dgvParams.AllowUserToResizeRows = false;
-            this.dgvParams.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.Fill;
-            this.dgvParams.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
-            this.dgvParams.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
-                this.colName,
-                this.colValue});
-            this.dgvParams.Location = new System.Drawing.Point(10, 22);
-            this.dgvParams.MultiSelect = false;
-            this.dgvParams.Name = "dgvParams";
-            this.dgvParams.RowHeadersVisible = false;
-            this.dgvParams.Size = new System.Drawing.Size(276, 96);
-            this.dgvParams.TabIndex = 0;
-            //
-            // colName
-            //
-            this.colName.HeaderText = "Parameter";
-            this.colName.Name = "colName";
-            this.colName.ReadOnly = true;
-            //
-            // colValue
-            //
-            this.colValue.HeaderText = "Value (mm)";
-            this.colValue.Name = "colValue";
-            //
-            // grpSkeleton
-            //
-            this.grpSkeleton.Anchor = System.Windows.Forms.AnchorStyles.Top
-                | System.Windows.Forms.AnchorStyles.Left
-                | System.Windows.Forms.AnchorStyles.Right;
-            this.grpSkeleton.Controls.Add(this.btnCreateSkeleton);
-            this.grpSkeleton.Controls.Add(this.dgvParams);
-            this.grpSkeleton.Location = new System.Drawing.Point(8, 108);
-            this.grpSkeleton.Name = "grpSkeleton";
-            this.grpSkeleton.Size = new System.Drawing.Size(296, 178);
-            this.grpSkeleton.TabIndex = 6;
-            this.grpSkeleton.TabStop = false;
-            this.grpSkeleton.Text = "Valve Skeleton";
-            //
-            // btnCreateSkeleton
-            //
-            this.btnCreateSkeleton.Anchor = System.Windows.Forms.AnchorStyles.Top
-                | System.Windows.Forms.AnchorStyles.Left
-                | System.Windows.Forms.AnchorStyles.Right;
-            this.btnCreateSkeleton.Location = new System.Drawing.Point(10, 132);
-            this.btnCreateSkeleton.Name = "btnCreateSkeleton";
-            this.btnCreateSkeleton.Size = new System.Drawing.Size(276, 32);
-            this.btnCreateSkeleton.TabIndex = 1;
-            this.btnCreateSkeleton.Text = "Create Skeleton";
-            this.btnCreateSkeleton.UseVisualStyleBackColor = true;
-            this.btnCreateSkeleton.Click += new System.EventHandler(this.btnCreateSkeleton_Click);
-            //
             // grpCatalogParts
             //
             this.grpCatalogParts.Anchor = System.Windows.Forms.AnchorStyles.Top
@@ -1183,12 +1057,10 @@
             this.grpSceneTools.Controls.Add(this.btnTestCatalog);
             this.grpSceneTools.Controls.Add(this.btnDeployCatalog);
             this.grpSceneTools.Controls.Add(this.btnRebuildScene);
-            this.grpSceneTools.Controls.Add(this.btnImportJson);
-            this.grpSceneTools.Controls.Add(this.btnExport);
             this.grpSceneTools.Controls.Add(this.btnGenerateCode);
             this.grpSceneTools.Location = new System.Drawing.Point(8, 496);
             this.grpSceneTools.Name = "grpSceneTools";
-            this.grpSceneTools.Size = new System.Drawing.Size(296, 152);
+            this.grpSceneTools.Size = new System.Drawing.Size(296, 120);
             this.grpSceneTools.TabIndex = 9;
             this.grpSceneTools.TabStop = false;
             this.grpSceneTools.Text = "Scene Tools";
@@ -1229,7 +1101,7 @@
             // btnPublishCatalog
             //
             this.btnPublishCatalog.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
-            this.btnPublishCatalog.Location = new System.Drawing.Point(10, 118);
+            this.btnPublishCatalog.Location = new System.Drawing.Point(10, 86);
             this.btnPublishCatalog.Name = "btnPublishCatalog";
             this.btnPublishCatalog.Size = new System.Drawing.Size(276, 28);
             this.btnPublishCatalog.TabIndex = 6;
@@ -1237,33 +1109,11 @@
             this.btnPublishCatalog.UseVisualStyleBackColor = true;
             this.btnPublishCatalog.Click += new System.EventHandler(this.btnPublishCatalog_Click);
             //
-            // btnExport
-            //
-            this.btnExport.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
-            this.btnExport.Location = new System.Drawing.Point(152, 22);
-            this.btnExport.Name = "btnExport";
-            this.btnExport.Size = new System.Drawing.Size(134, 28);
-            this.btnExport.TabIndex = 1;
-            this.btnExport.Text = "Export";
-            this.btnExport.UseVisualStyleBackColor = true;
-            this.btnExport.Click += new System.EventHandler(this.btnExport_Click);
-            //
-            // btnImportJson
-            //
-            this.btnImportJson.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left;
-            this.btnImportJson.Location = new System.Drawing.Point(10, 54);
-            this.btnImportJson.Name = "btnImportJson";
-            this.btnImportJson.Size = new System.Drawing.Size(134, 28);
-            this.btnImportJson.TabIndex = 2;
-            this.btnImportJson.Text = "Import";
-            this.btnImportJson.UseVisualStyleBackColor = true;
-            this.btnImportJson.Click += new System.EventHandler(this.btnImportJson_Click);
-            //
             // btnRebuildScene
             //
             this.btnRebuildScene.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
             this.btnRebuildScene.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-            this.btnRebuildScene.Location = new System.Drawing.Point(152, 54);
+            this.btnRebuildScene.Location = new System.Drawing.Point(152, 22);
             this.btnRebuildScene.Name = "btnRebuildScene";
             this.btnRebuildScene.Size = new System.Drawing.Size(134, 28);
             this.btnRebuildScene.TabIndex = 3;
@@ -1733,10 +1583,11 @@
             this.Name = "ComposerForm";
             this.tabMain.ResumeLayout(false);
             this.grpSceneTools.ResumeLayout(false);
-            this.grpSkeleton.ResumeLayout(false);
             this.grpCatalogParts.ResumeLayout(false);
             this.tabSetup.ResumeLayout(false);
             this.tabSetup.PerformLayout();
+            this.tabDimensions.ResumeLayout(false);
+            this.tabDimensions.PerformLayout();
             this.tabScene.ResumeLayout(false);
             this.tabScene.PerformLayout();
             this.tabCode.ResumeLayout(false);
@@ -1761,13 +1612,13 @@
             this.grpRotation.ResumeLayout(false);
             this.grpRotation.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numAngleStep)).EndInit();
-            ((System.ComponentModel.ISupportInitialize)(this.dgvParams)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.dgvNodeParams)).EndInit();
             this.ResumeLayout(false);
         }
 
         private System.Windows.Forms.TabControl tabMain;
         private System.Windows.Forms.TabPage tabSetup;
+        private System.Windows.Forms.TabPage tabDimensions;
         private System.Windows.Forms.TabPage tabScene;
 
         private System.Windows.Forms.TabPage tabPortManager;
@@ -1814,14 +1665,6 @@
         private System.Windows.Forms.TextBox txtGeneratedCode;
         private System.Windows.Forms.Label lblCodeHint;
         private System.Windows.Forms.TabPage tabBooleans;
-        private System.Windows.Forms.Label lblValveType;
-        private System.Windows.Forms.Label lblDN;
-        private System.Windows.Forms.Label lblPressureClass;
-        private System.Windows.Forms.ComboBox cmbValveType;
-        private System.Windows.Forms.ComboBox cmbDn;
-        private System.Windows.Forms.ComboBox cmbPressureClass;
-        private System.Windows.Forms.GroupBox grpSkeleton;
-        private System.Windows.Forms.Button btnCreateSkeleton;
         private System.Windows.Forms.GroupBox grpCatalogParts;
         private System.Windows.Forms.Label lblCatalogCategory;
         private System.Windows.Forms.ComboBox cmbCatalogCategory;
@@ -1841,13 +1684,8 @@
         private System.Windows.Forms.Button btnDeployCatalog;
         private System.Windows.Forms.Button btnPublishCatalog;
         private System.Windows.Forms.Button btnTestCatalog;
-        private System.Windows.Forms.Button btnExport;
-        private System.Windows.Forms.Button btnImportJson;
         private System.Windows.Forms.Button btnRebuildScene;
         private System.Windows.Forms.Label lblStatus;
-        private System.Windows.Forms.DataGridView dgvParams;
-        private System.Windows.Forms.DataGridViewTextBoxColumn colName;
-        private System.Windows.Forms.DataGridViewTextBoxColumn colValue;
         private System.Windows.Forms.TreeView treeScene;
         private System.Windows.Forms.Button btnRefreshTree;
         private System.Windows.Forms.Button btnDeleteNode;

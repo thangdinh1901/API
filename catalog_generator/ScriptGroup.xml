@@ -96,6 +96,11 @@
 		<FirstPortEndtypes>SW,SW,SW</FirstPortEndtypes>
 	</ScriptGroup>
 	<ScriptGroup>
+		<ScriptName>CUST_TEST_BEND_3D</ScriptName>
+		<Group>Fitting</Group>
+		<FirstPortEndtypes>FL,FL</FirstPortEndtypes>
+	</ScriptGroup>
+	<ScriptGroup>
 		<ScriptName>CUST_WN_FLRF_CL150</ScriptName>
 		<Group>Flange</Group>
 		<FirstPortEndtypes>FL,BV</FirstPortEndtypes>

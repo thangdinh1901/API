@@ -19,7 +19,7 @@ namespace Plant3DCatalogComposer.Services
 
             if (project.Parameters.BodyOD <= 0)
                 throw new InvalidOperationException(
-                    "Set catalog DN (Catalog → Apply) or run Create Skeleton for valve body dimensions.");
+                    "Set catalog DN (Catalog → Apply) and design dimensions (Dimensions tab) before inserting primitives.");
 
             string name = project.NextName(primitive.Prefix);
             var node = new PrimitiveNode

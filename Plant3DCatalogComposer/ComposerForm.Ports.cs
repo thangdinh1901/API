@@ -19,7 +19,7 @@ namespace Plant3DCatalogComposer
                 cmbPortType.Items.Add(new PortTypeOption(type));
 
             lvPorts.Columns.Add("#", 28);
-            lvPorts.Columns.Add("End type", 120);
+            lvPorts.Columns.Add("End type", 148);
             lvPorts.Columns.Add("Parent", 72);
             lvPorts.SelectedIndexChanged += (_, _) => OnPortSelectionChanged();
 

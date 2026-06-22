@@ -9,9 +9,11 @@ namespace Plant3DCatalogComposer.Services
 {
     public static class CustomPartCatalog
     {
-        private static readonly Lazy<IReadOnlyList<CustomPartDefinition>> Cached = new(Discover);
+        private static IReadOnlyList<CustomPartDefinition>? _cache;
 
-        public static IReadOnlyList<CustomPartDefinition> Parts => Cached.Value;
+        public static IReadOnlyList<CustomPartDefinition> Parts => _cache ??= Discover();
+
+        public static void Reload() => _cache = null;
 
         /// <summary>Flanges, gaskets, pre-built catalog valves — insert directly into the scene.</summary>
         public static IReadOnlyList<CustomPartDefinition> InsertableParts =>
@@ -53,7 +55,7 @@ namespace Plant3DCatalogComposer.Services
                     string displayName = root.GetProperty("displayName").GetString() ?? id;
                     string group = root.GetProperty("group").GetString() ?? "Part";
                     string category = root.TryGetProperty("category", out JsonElement catEl)
-                        ? catEl.GetString() ?? CatalogCategories.Flange
+                        ? CatalogCategories.NormalizeCategoryId(catEl.GetString())
                         : ResolveCategoryFromGroup(group);
                     double defaultDn = root.TryGetProperty("defaultDN", out JsonElement dnEl) && dnEl.TryGetDouble(out double dn)
                         ? dn
@@ -66,6 +68,12 @@ namespace Plant3DCatalogComposer.Services
                     string standardSet = root.TryGetProperty("standardSet", out JsonElement ssEl)
                         ? ssEl.GetString() ?? ""
                         : InferStandardSetFromId(id);
+                    string shortDescription = root.TryGetProperty("shortDescription", out JsonElement sdEl)
+                        ? sdEl.GetString() ?? ""
+                        : "";
+                    string pnpClassName = root.TryGetProperty("pnpClassName", out JsonElement pnpEl)
+                        ? pnpEl.GetString() ?? ""
+                        : "";
 
                     Dictionary<string, double>? skeleton = null;
                     if (root.TryGetProperty("skeleton", out JsonElement skEl) && skEl.ValueKind == JsonValueKind.Object)
@@ -124,6 +132,8 @@ namespace Plant3DCatalogComposer.Services
                         PressureClass = pressureClass,
                         PipeSchedule = pipeSchedule,
                         StandardSet = standardSet,
+                        ShortDescription = shortDescription,
+                        PnpClassName = pnpClassName,
                         ParametricDN = parametricDn,
                         Skeleton = skeleton,
                         CatalogParams = catalogParams,
@@ -143,10 +153,7 @@ namespace Plant3DCatalogComposer.Services
         }
 
         private static string ResolveCategoryFromGroup(string group) =>
-            group.Equals("Flange", StringComparison.OrdinalIgnoreCase)
-            || group.Equals("Gasket", StringComparison.OrdinalIgnoreCase)
-                ? CatalogCategories.Flange
-                : CatalogCategories.Flange;
+            CatalogCategories.FromActivateGroup(group);
 
         private static string ResolvePipeSchedule(JsonElement root, string partId)
         {

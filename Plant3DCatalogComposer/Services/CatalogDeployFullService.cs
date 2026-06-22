@@ -66,7 +66,7 @@ namespace Plant3DCatalogComposer.Services
                     {
                         CatalogPackage package = ComposerLiveScriptService.BuildCatalogPackage(project);
                         string exportRoot = resolveExportRoot(dwgPath);
-                        IReadOnlyList<string> exported = CatalogExportService.Export(package, exportRoot);
+                        IReadOnlyList<string> exported = CatalogExportService.Export(package, exportRoot, project);
                         exportedFileCount = exported.Count;
                         partFolder = Path.Combine(exportRoot, package.ExportFolderName);
                         catalogCode = package.ToDisplayText();

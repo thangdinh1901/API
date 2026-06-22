@@ -52,6 +52,9 @@ namespace Plant3DCatalogComposer
         public static void NotifyDisplacementPicked(DisplacementPickResult result, DistancePickTarget target) =>
             _form?.OnDisplacementPicked(result, target);
 
+        public static void NotifyDimensionPicked(DimensionPickResult result) =>
+            _form?.OnDimensionPicked(result);
+
         public static void Terminate()
         {
             _form?.Dispose();

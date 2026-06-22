@@ -9,24 +9,45 @@ namespace Plant3DCatalogComposer.Services
         public static void Apply(
             ValveProject project,
             string catalogName,
-            string plantGroup,
             double dn,
             double dn2,
             string pressureClass,
             string pipeSchedule,
             string tooltipShort,
-            string tooltipLong)
+            string tooltipLong,
+            string catalogCategory,
+            string pipingComponent,
+            string primaryEndType,
+            string shortDescription,
+            string excelCloneSourcePartId)
         {
             project.ValveName = SanitizeCatalogName(catalogName);
-            project.CatalogGroup = string.IsNullOrWhiteSpace(plantGroup) ? "Custom" : plantGroup.Trim();
             project.TooltipShort = tooltipShort.Trim();
             project.TooltipLong = tooltipLong.Trim();
+            project.CatalogCategory = CatalogCategories.NormalizeCategoryId(catalogCategory);
+            project.PnpClassName = pipingComponent.Trim();
+            project.PrimaryEndType = Plant3DEndTypes.NormalizeCode(primaryEndType);
+            project.CatalogGroup = CatalogPartFamilyOptions.ResolveActivateGroup(
+                project.CatalogCategory,
+                project.PnpClassName);
+            project.StandardSet = CatalogStandardSetInference.InferStandardSet(project, project.PrimaryEndType);
+            project.ShortDescription = shortDescription.Trim();
+            project.ExcelCloneSourcePartId = excelCloneSourcePartId.Trim();
             project.Parameters.DN = dn;
-            project.Parameters.DN2 = BwFittingSizeCatalog.NormalizeReducerSmallDn(
-                (int)Math.Round(dn),
-                dn2 > 0 ? (int)Math.Round(dn2) : BwFittingSizeCatalog.DefaultReducerSmallDn((int)Math.Round(dn)));
+            if (CatalogPartFamilyOptions.UsesDnSmall(catalogCategory, pipingComponent))
+            {
+                project.Parameters.DN2 = BwFittingSizeCatalog.NormalizeReducerSmallDn(
+                    (int)Math.Round(dn),
+                    dn2 > 0 ? (int)Math.Round(dn2) : BwFittingSizeCatalog.DefaultReducerSmallDn((int)Math.Round(dn)));
+            }
+            else
+            {
+                project.Parameters.DN2 = 0;
+            }
             project.Parameters.PressureClass = pressureClass.Trim();
-            project.Parameters.PipeSchedule = PipeScheduleCatalog.Normalize(pipeSchedule);
+            project.Parameters.PipeSchedule = string.IsNullOrWhiteSpace(pipeSchedule)
+                ? ""
+                : PipeScheduleCatalog.Normalize(pipeSchedule);
             FittingDimensionService.SyncProjectDimensions(project);
         }
 
