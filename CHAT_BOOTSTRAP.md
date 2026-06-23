@@ -8,7 +8,7 @@
 
 **Plant 3D Catalog Factory** — nền tảng C# + Python tạo catalog component tùy chỉnh cho **AutoCAD Plant 3D 2026**, thay thế quy trình thủ công Python / Catalog Builder / Spec Editor.
 
-**Workspace**: `D:\02. Engineering\04. Autocad Plant 3D\API`
+**Workspace**: clone of this repository (see `deploy.json.example`)
 
 **Mục tiêu cuối**: ứng dụng duy nhất sinh geometry → Python → deploy → Excel → `.pcat` → spec, không cần thao tác thủ công.
 

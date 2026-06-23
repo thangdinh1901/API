@@ -1,0 +1,5 @@
+{
+  "ApiRoot": "C:/path/to/your/API",
+  "CatalogGenerator": "C:/path/to/your/API/catalog_generator",
+  "PrimitivesPy": ""
+}

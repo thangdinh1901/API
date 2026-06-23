@@ -21,6 +21,7 @@ namespace Plant3DCatalogComposer.Services
         public required string PnpClassName { get; init; }
         public required string ShortDescription { get; init; }
         public required string ExcelCloneSourcePartId { get; init; }
+        public required string FlangeFacing { get; init; }
         public double DefaultDn { get; init; }
         public bool ParametricDn { get; init; } = true;
     }
@@ -60,6 +61,10 @@ namespace Plant3DCatalogComposer.Services
                 project.ExcelCloneSourcePartId,
                 CatalogExcelTemplateService.InferCloneSourcePartId(partId, pnp, standardSet, group));
 
+            string facing = CatalogFlangeFacing.PrimaryEndUsesFacing(primaryEndType)
+                ? CatalogFlangeFacing.Normalize(project.FlangeFacing)
+                : "";
+
             return new CatalogPartJsonDocument
             {
                 Role = "standard",
@@ -74,6 +79,7 @@ namespace Plant3DCatalogComposer.Services
                 PnpClassName = pnp,
                 ShortDescription = shortDesc,
                 ExcelCloneSourcePartId = cloneSource,
+                FlangeFacing = facing,
                 DefaultDn = project.Parameters.DN > 0 ? project.Parameters.DN : 100,
                 ParametricDn = true,
             };
@@ -118,6 +124,8 @@ namespace Plant3DCatalogComposer.Services
                 root["shortDescription"] = doc.ShortDescription;
             if (!string.IsNullOrWhiteSpace(doc.ExcelCloneSourcePartId))
                 root["excelCloneSourcePartId"] = doc.ExcelCloneSourcePartId;
+            if (!string.IsNullOrWhiteSpace(doc.FlangeFacing))
+                root["flangeFacing"] = doc.FlangeFacing;
 
             string json = JsonSerializer.Serialize(root, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(path, json + Environment.NewLine, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));

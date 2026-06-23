@@ -20,8 +20,8 @@ namespace Plant3DCatalogComposer
             Color.FromArgb(25, 118, 210),   // Catalog
             Color.FromArgb(156, 39, 176),   // Dimensions
             Color.FromArgb(46, 125, 50),      // Scene
-            Color.FromArgb(230, 81, 0),       // Booleans
             Color.FromArgb(0, 151, 167),      // Port Manager
+            Color.FromArgb(230, 81, 0),       // Booleans
             Color.FromArgb(94, 53, 177),      // Code
         };
 
@@ -82,12 +82,12 @@ namespace Plant3DCatalogComposer
             _toolTip.SetToolTip(btnPosZMinus, "Move -Z (world)");
             UpdateRotationAxisTooltips();
             _toolTip.SetToolTip(btnGenerateCode,
-                "Custom parts → export to catalog_generator/parts. Standard parts → port reference only (_composer_exports), library unchanged.");
+                "Apply Part Family, seed dimensions, export catalog files, register part.json + Excel template sheet");
             _toolTip.SetToolTip(btnDeployCatalog,
                 "Copy library to CustomScripts, clear __pycache__, PLANTREGISTERCUSTOMSCRIPTS.");
             _toolTip.SetToolTip(
                 btnPublishCatalog,
-                "Export Catalog Builder Excel workbook (.xlsx) for Gasket / Flange / Valve parts");
+                "Export Catalog Builder Excel (current part or all parts), then open Catalog Builder");
             _toolTip.SetToolTip(
                 btnTestCatalog,
                 "Run testacpscript for the current catalog part (DN from Catalog Project)");
@@ -494,12 +494,19 @@ namespace Plant3DCatalogComposer
                 ValveProject project = DocumentStore.LoadOrCreate(
                     dwg, Path.GetFileNameWithoutExtension(dwg));
 
-                ValidationResult preflight = CatalogPreflightService.ValidateForDeploy(project);
-                if (!preflight.IsValid)
+                if (!TryApplyCatalogFamilyFromUi(project, refreshDesignDimensions: false, out string? familyError))
                 {
-                    ShowWarning(string.Join("\n", preflight.Errors));
+                    ShowWarning(familyError ?? "Complete Part Family fields first.");
                     return;
                 }
+
+                if (!TryFlushSceneEditorToProject(dwg, project, out string? sceneError))
+                {
+                    ShowWarning(sceneError ?? "Invalid scene parameter values.");
+                    return;
+                }
+
+                DocumentStore.Save(dwg, project);
 
                 Autodesk.AutoCAD.ApplicationServices.Document? doc =
                     Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
@@ -516,7 +523,6 @@ namespace Plant3DCatalogComposer
                     {
                         string catalogCode = ComposerLiveScriptService.GenerateCatalogPackage(project);
                         txtGeneratedCode.Text = catalogCode;
-                        tabMain.SelectedTab = tabCode;
                     }
 
                     lblStatus.Text = result.Message;
@@ -526,6 +532,14 @@ namespace Plant3DCatalogComposer
                 {
                     lblStatus.Text = result.Message;
                     ShowWarning(result.Message);
+                }
+
+                RefreshSceneTree();
+                if (_selectedNodeId.HasValue)
+                {
+                    PrimitiveNode? selected = project.FindNode(_selectedNodeId.Value);
+                    if (selected != null)
+                        LoadNodeEditor(selected);
                 }
             }
             catch (OperationCanceledException)
@@ -554,6 +568,20 @@ namespace Plant3DCatalogComposer
                 ValveProject project = DocumentStore.LoadOrCreate(
                     dwg, Path.GetFileNameWithoutExtension(dwg));
 
+                if (!TryApplyCatalogFamilyFromUi(project, refreshDesignDimensions: false, out string? familyError))
+                {
+                    ShowWarning(familyError ?? "Complete Part Family fields first.");
+                    return;
+                }
+
+                DocumentStore.Save(dwg, project);
+                CatalogPartRegistrationResult register = CatalogPartRegistrationService.Register(project);
+                if (!register.Success)
+                {
+                    ShowWarning(register.Message);
+                    return;
+                }
+
                 ValidationResult preflight = CatalogPreflightService.ValidateForExcelPublish(project);
                 if (!preflight.IsValid)
                 {
@@ -561,16 +589,37 @@ namespace Plant3DCatalogComposer
                     return;
                 }
 
+                string partId = CatalogProjectService.SanitizeCatalogName(project.ValveName ?? "");
+                if (string.IsNullOrWhiteSpace(partId))
+                {
+                    ShowWarning("Set a catalog part name before publishing.");
+                    return;
+                }
+
+                PublishCatalogScope scope = PublishCatalogScopePrompt.Show(FindForm(), partId);
+                if (scope == PublishCatalogScope.Cancelled)
+                    return;
+
                 string outputPath = ResolveCatalogExcelOutputPath(project, dwg);
+                IReadOnlyList<string>? partFilter = scope == PublishCatalogScope.AllParts
+                    ? null
+                    : new[] { partId };
                 CatalogPublishResult result = CatalogPublishService.Publish(
                     dwg,
                     project,
                     outputPath,
-                    allowExportWithWarnings: true);
+                    allowExportWithWarnings: true,
+                    partIdFilter: partFilter);
 
                 if (result.Success)
                 {
-                    lblStatus.Text = result.Message;
+                    string status = result.Message;
+                    if (PlantCatalogBuilderLaunchService.TryLaunch(result.OutputPath, out string launchMsg))
+                        status += Environment.NewLine + launchMsg;
+                    else
+                        ShowWarning(launchMsg);
+
+                    lblStatus.Text = status;
                 }
                 else
                 {
@@ -600,7 +649,14 @@ namespace Plant3DCatalogComposer
                 string dwg = DrawingContext.RequireActiveDrawingPath();
                 ValveProject project = DocumentStore.LoadOrCreate(
                     dwg, Path.GetFileNameWithoutExtension(dwg));
-                CatalogTestResult test = CatalogTestService.BuildTestCommand(project);
+
+                if (!TryFlushSceneEditorToProject(dwg, project, out string? sceneError))
+                {
+                    ShowWarning(sceneError ?? "Invalid scene parameter values.");
+                    return;
+                }
+
+                CatalogTestResult test = CatalogTestService.BuildTestCommand(dwg);
 
                 if (!test.CanRun)
                 {
@@ -614,7 +670,7 @@ namespace Plant3DCatalogComposer
 
                 Autodesk.AutoCAD.ApplicationServices.Document? doc =
                     Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
-                if (doc == null || !CatalogTestService.TryQueueTest(doc, project))
+                if (doc == null || !CatalogTestService.TryQueueTest(doc, dwg))
                 {
                     ShowWarning("Could not queue testacpscript.");
                     return;
@@ -668,8 +724,30 @@ namespace Plant3DCatalogComposer
                 ValveProject project = DocumentStore.LoadOrCreate(
                     dwg, Path.GetFileNameWithoutExtension(dwg));
 
+                if (!TryApplyCatalogFamilyFromUi(project, refreshDesignDimensions: false, out string? familyError))
+                {
+                    ShowWarning(familyError ?? "Complete Part Family fields first.");
+                    return;
+                }
+
+                if (!TryFlushSceneEditorToProject(dwg, project, out string? sceneError))
+                {
+                    ShowWarning(sceneError ?? "Invalid scene parameter values.");
+                    return;
+                }
+
                 DocumentStore.Save(dwg, project);
-                ApplyCatalogFamilyFromUi(project);
+
+                CatalogProjectService.SeedDesignDimensionsIfEmpty(project);
+                CatalogExportPrepareService.PrepareSceneForExport(project);
+                DocumentStore.Save(dwg, project);
+                RefreshSceneTree();
+                if (_selectedNodeId.HasValue)
+                {
+                    PrimitiveNode? selected = project.FindNode(_selectedNodeId.Value);
+                    if (selected != null)
+                        LoadNodeEditor(selected);
+                }
                 CatalogPackage package = ComposerLiveScriptService.BuildCatalogPackage(project);
                 if (CatalogGroupResolver.WouldRemapValveToFitting(project.CatalogGroup, project.Ports))
                 {
@@ -701,17 +779,53 @@ namespace Plant3DCatalogComposer
                 IReadOnlyList<string> exported = CatalogExportService.Export(package, exportRoot, project);
                 string catalogCode = package.ToDisplayText();
                 ComposerLiveScriptService.WriteCatalogPackage(project, catalogCode);
+
+                CatalogPartRegistrationResult register = CatalogPartRegistrationService.Register(project);
+                if (!register.Success)
+                {
+                    ShowWarning(register.Message);
+                }
+
+                if (ProjectPaths.TryResolveDevPartsDir() != null)
+                {
+                    CatalogDeployResult deploy = CatalogDeployService.DeployToCustomScripts();
+                    if (deploy.Success)
+                    {
+                        Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                            .MdiActiveDocument?.Editor.WriteMessage(
+                                $"\nP3D Composer: deployed {deploy.ScriptCount} script(s) to CustomScripts.");
+                    }
+                    else
+                    {
+                        ShowWarning("Export OK, deploy to CustomScripts failed: " + deploy.Message);
+                    }
+                }
+
+                LoadCatalogProjectFields(project);
+                LoadDimensionFields(project);
+                RefreshCatalogPartList();
+
                 txtGeneratedCode.Text = catalogCode;
-                tabMain.SelectedTab = tabCode;
 
                 string partFolder = Path.Combine(exportRoot, package.ExportFolderName);
                 string status = package.IsStandardPortReference
                     ? $"Port reference → {partFolder} (standard {package.StandardPartId} unchanged)"
-                    : $"Exported {exported.Count} file(s) → {partFolder}; part.json draft written — Register for Publish for Excel sheet";
+                    : $"Exported {exported.Count} file(s) → {partFolder}";
+                if (register.Success)
+                    status += $"; registered Excel sheet '{register.ExcelSheetName}'";
+                else if (!package.IsStandardPortReference)
+                    status += "; Register for Excel failed — see warning";
                 lblStatus.Text = status;
-                Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
-                    .MdiActiveDocument?.Editor.WriteMessage(
-                        $"\nP3D Composer: catalog exported → {partFolder} ({exported.Count} files)");
+                var editor = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                    .MdiActiveDocument?.Editor;
+                editor?.WriteMessage(
+                    $"\nP3D Composer: catalog exported → {partFolder} ({exported.Count} files)");
+                editor?.WriteMessage($"\nP3D Composer: {CatalogSceneManifest.Build(project)}");
+                if (ProjectPaths.TryResolveDevPartsDir() == null)
+                {
+                    editor?.WriteMessage(
+                        "\nP3D Composer: run Deploy Catalog to copy scripts to CustomScripts for Test Catalog.");
+                }
             }
             catch (OperationCanceledException)
             {
@@ -1184,8 +1298,10 @@ namespace Plant3DCatalogComposer
                     return;
 
                 SceneGraphEditor.ResolveExpressions(node, project.Parameters);
+                DocumentStore.Save(dwg, project);
                 LoadNodeEditor(node);
-                lblSceneStatus.Text = "Expressions resolved from catalog parameters.";
+                lblSceneStatus.Text =
+                    "Parameters synced from Dimensions tab (BodyOD, BodyLength, …). Click Apply if you edit values.";
             }
             catch (Exception ex)
             {
@@ -1207,7 +1323,7 @@ namespace Plant3DCatalogComposer
                 if (node == null)
                     return;
 
-                if (!TryApplyEditorToNode(node, out string? error))
+                if (!TryApplyEditorToNode(node, project.Parameters, out string? error))
                 {
                     ShowWarning(error ?? "Invalid property values.");
                     return;
@@ -1505,6 +1621,8 @@ namespace Plant3DCatalogComposer
 
         private void OnTreeSelectionChanged()
         {
+            TryPersistSelectedNodeEdits();
+
             if (treeScene.SelectedNode?.Tag is not Guid id)
             {
                 _selectedNodeId = null;
@@ -1599,7 +1717,52 @@ namespace Plant3DCatalogComposer
             dgvNodeParams.Rows.Clear();
         }
 
-        private bool TryApplyEditorToNode(PrimitiveNode node, out string? error)
+        private bool TryFlushSceneEditorToProject(string dwg, ValveProject project, out string? error)
+        {
+            error = null;
+            if (_selectedNodeId == null)
+                return true;
+
+            PrimitiveNode? node = project.FindNode(_selectedNodeId.Value);
+            if (node == null)
+                return true;
+
+            if (!TryApplyEditorToNode(node, project.Parameters, out error))
+                return false;
+
+            DocumentStore.Save(dwg, project);
+            return true;
+        }
+
+        private void TryPersistSelectedNodeEdits()
+        {
+            if (_selectedNodeId == null)
+                return;
+
+            try
+            {
+                string dwg = DrawingContext.RequireActiveDrawingPath();
+                ValveProject project = DocumentStore.LoadOrCreate(
+                    dwg, Path.GetFileNameWithoutExtension(dwg));
+                PrimitiveNode? node = project.FindNode(_selectedNodeId.Value);
+                if (node == null)
+                    return;
+
+                if (!TryApplyEditorToNode(node, project.Parameters, out _))
+                    return;
+
+                DocumentStore.Save(dwg, project);
+            }
+            catch
+            {
+                // Palette may not have an active drawing during host teardown.
+            }
+        }
+
+        private bool TryApplyEditorToNode(
+            PrimitiveNode node,
+            SkeletonParameters skeleton,
+            out string? error)
         {
             error = null;
             string name = txtNodeName.Text.Trim();
@@ -1635,6 +1798,14 @@ namespace Plant3DCatalogComposer
                 {
                     error = paramError;
                     return false;
+                }
+
+                if (exprText.Length > 0)
+                {
+                    bool keepExpression = ExpressionEvaluator.TryEvaluate(exprText, skeleton, out double eval)
+                        && Math.Abs(eval - value) <= 1e-9;
+                    if (!keepExpression)
+                        exprText = "";
                 }
 
                 if (!node.Parameters.TryGetValue(paramName, out ParamValue? pv))

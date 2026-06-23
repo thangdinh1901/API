@@ -14,8 +14,8 @@ namespace Plant3DCatalogComposer
         private static readonly Func<SkeletonParameters, double> Hgt = v => v.BonnetHeight;
         private static readonly Func<SkeletonParameters, double> Rad = v => v.BodyOD / 2.0;
         private static readonly Func<SkeletonParameters, double> Hw = v => v.HandwheelOD;
-        private static readonly Func<SkeletonParameters, double> ElbowR = v =>
-            v.ElbowCenterToFace > 0 ? v.ElbowCenterToFace : v.BodyOD * 1.5;
+        private static readonly Func<SkeletonParameters, double> BendR = v =>
+            v.BodyOD > 0 ? v.BodyOD * 1.5 : 0;
 
         public static IReadOnlyList<PrimitiveDefinition> All { get; } = new[]
         {
@@ -37,8 +37,8 @@ namespace Plant3DCatalogComposer
                 Param("E", "0", _ => 0, CatalogParamUnit.Unitless)),
 
             Make(PrimitiveType.TORUS, "Torus", "TOR_",
-                Param("D", "HandwheelOD", Hw, CatalogParamUnit.Millimeter),
-                Param("T", "HandwheelOD * 0.15", v => v.HandwheelOD * 0.15, CatalogParamUnit.Millimeter)),
+                Param("D", "BodyOD", Od, CatalogParamUnit.Millimeter),
+                Param("T", "BodyOD * 0.15", v => v.BodyOD * 0.15, CatalogParamUnit.Millimeter)),
 
             Make(PrimitiveType.SPHERE, "Sphere", "SPH_",
                 Param("R", "BodyOD / 2", Rad, CatalogParamUnit.Millimeter)),
@@ -47,20 +47,20 @@ namespace Plant3DCatalogComposer
                 Param("R", "BodyOD / 2", Rad, CatalogParamUnit.Millimeter)),
 
             Make(PrimitiveType.REDUCED_ELBOW, "Reduced Elbow", "RELB_",
-                Param("D", "pipe OD from DN", Od, CatalogParamUnit.Millimeter),
+                Param("D", "BodyOD", Od, CatalogParamUnit.Millimeter),
                 Param("D2", "BodyOD * 0.75", v => v.BodyOD * 0.75, CatalogParamUnit.Millimeter),
-                Param("R", "LR 90 center-to-face", ElbowR, CatalogParamUnit.Millimeter),
-                Param("A", "90 deg", _ => 90, CatalogParamUnit.Degree)),
+                Param("R", "BodyOD * 1.5", BendR, CatalogParamUnit.Millimeter),
+                Param("A", "90", _ => 90, CatalogParamUnit.Degree)),
 
             Make(PrimitiveType.ELBOW, "Elbow", "ELB_",
-                Param("D", "pipe OD from DN", Od, CatalogParamUnit.Millimeter),
-                Param("R", "LR 90 center-to-face", ElbowR, CatalogParamUnit.Millimeter),
-                Param("A", "90 deg", _ => 90, CatalogParamUnit.Degree)),
+                Param("D", "BodyOD", Od, CatalogParamUnit.Millimeter),
+                Param("R", "BodyOD * 1.5", BendR, CatalogParamUnit.Millimeter),
+                Param("A", "90", _ => 90, CatalogParamUnit.Degree)),
 
             Make(PrimitiveType.SEGMENTED_ELBOW, "Segmented Elbow", "SELB_",
-                Param("D", "pipe OD from DN", Od, CatalogParamUnit.Millimeter),
-                Param("R", "LR 90 center-to-face", ElbowR, CatalogParamUnit.Millimeter),
-                Param("A", "90 deg", _ => 90, CatalogParamUnit.Degree),
+                Param("D", "BodyOD", Od, CatalogParamUnit.Millimeter),
+                Param("R", "BodyOD * 1.5", BendR, CatalogParamUnit.Millimeter),
+                Param("A", "90", _ => 90, CatalogParamUnit.Degree),
                 Param("S", "4", _ => 4, CatalogParamUnit.Unitless)),
 
             Make(PrimitiveType.ELLIPSOID_HEAD, "Ellipsoid Head", "EHEAD_",

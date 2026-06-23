@@ -74,6 +74,12 @@ namespace Plant3DCatalogComposer.Services
                     string pnpClassName = root.TryGetProperty("pnpClassName", out JsonElement pnpEl)
                         ? pnpEl.GetString() ?? ""
                         : "";
+                    string primaryEndType = root.TryGetProperty("primaryEndType", out JsonElement petEl)
+                        ? petEl.GetString() ?? ""
+                        : "";
+                    string flangeFacing = root.TryGetProperty("flangeFacing", out JsonElement ffEl)
+                        ? ffEl.GetString() ?? ""
+                        : "";
 
                     Dictionary<string, double>? skeleton = null;
                     if (root.TryGetProperty("skeleton", out JsonElement skEl) && skEl.ValueKind == JsonValueKind.Object)
@@ -134,6 +140,9 @@ namespace Plant3DCatalogComposer.Services
                         StandardSet = standardSet,
                         ShortDescription = shortDescription,
                         PnpClassName = pnpClassName,
+                        PrimaryEndType = primaryEndType,
+                        FlangeFacing = CatalogFlangeFacing.Normalize(
+                            string.IsNullOrWhiteSpace(flangeFacing) ? "RF" : flangeFacing),
                         ParametricDN = parametricDn,
                         Skeleton = skeleton,
                         CatalogParams = catalogParams,

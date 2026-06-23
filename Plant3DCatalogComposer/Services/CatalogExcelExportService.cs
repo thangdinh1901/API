@@ -144,8 +144,24 @@ namespace Plant3DCatalogComposer.Services
                 };
             }
 
+            if (partIdFilter is { Count: > 0 })
+            {
+                int removedSheets = PruneUnexportedPartSheets(
+                    workbook,
+                    filledSheets,
+                    keepStaticSupportSheets: partIdFilter.Count > 1);
+                if (removedSheets > 0)
+                {
+                    warnings.Add(
+                        partIdFilter.Count == 1
+                            ? $"Workbook trimmed to {filledSheets.Count} part sheet(s) only."
+                            : $"Removed {removedSheets} unused part sheet(s) from workbook.");
+                }
+            }
+
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? ".");
-            FillStaticTemplateSheets(workbook);
+            if (partIdFilter is not { Count: 1 })
+                FillStaticTemplateSheets(workbook);
             workbook.SaveAs(outputPath);
 
             string skippedNote = skipped.Count > 0
@@ -172,6 +188,44 @@ namespace Plant3DCatalogComposer.Services
             return workbook.Worksheets
                 .FirstOrDefault(w => w.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
         }
+
+        /// <summary>
+        /// Single-part publish loads the full template — drop unfilled part sheets so Spec Editor
+        /// does not ingest placeholder families for parts that were not exported.
+        /// </summary>
+        private static int PruneUnexportedPartSheets(
+            XLWorkbook workbook,
+            IReadOnlyList<string> filledSheets,
+            bool keepStaticSupportSheets)
+        {
+            var keep = new HashSet<string>(filledSheets, StringComparer.OrdinalIgnoreCase);
+            if (keepStaticSupportSheets)
+            {
+                foreach (IXLWorksheet sheet in workbook.Worksheets)
+                {
+                    if (IsRequiredCatalogSheet(sheet.Name))
+                        keep.Add(sheet.Name);
+                }
+            }
+
+            int removed = 0;
+            foreach (IXLWorksheet sheet in workbook.Worksheets.ToList())
+            {
+                if (keep.Contains(sheet.Name))
+                    continue;
+
+                workbook.Worksheets.Delete(sheet.Name);
+                removed++;
+            }
+
+            return removed;
+        }
+
+        private static bool IsRequiredCatalogSheet(string sheetName) =>
+            sheetName.Equals("Catalog Data Flag", StringComparison.OrdinalIgnoreCase)
+            || sheetName.StartsWith("PIPE_SCH40", StringComparison.OrdinalIgnoreCase)
+            || sheetName.StartsWith("STUD_RF", StringComparison.OrdinalIgnoreCase)
+            || sheetName.StartsWith("STUD_LJ", StringComparison.OrdinalIgnoreCase);
 
         private static Guid ResolveFamilyId(CatalogExcelTemplateMetadata metadata, string partId) =>
             CatalogExcelPartResolver.StableFamilyId(partId);
@@ -733,7 +787,7 @@ namespace Plant3DCatalogComposer.Services
 
         private static bool IsBwFitting(CatalogExcelPartRow row) =>
             row.Part.Group.Equals("Fitting", StringComparison.OrdinalIgnoreCase)
-            && !row.FittingEndType.Equals("SW", StringComparison.OrdinalIgnoreCase);
+            && CatalogFlangeFacing.IsButtWeldEndType(row.FittingEndType);
 
         private static string BuildPartSizeLongDesc(
             CustomPartDefinition part,
@@ -871,13 +925,18 @@ namespace Plant3DCatalogComposer.Services
             }
 
             // RF on WN/BLD/gasket FL ports; LJ backing ring is FF; LAP/BV have no facing.
-            string? facing = ResolvePortFacing(row.Part.Id, port.Port.EndType);
+            string? facing = ResolvePortFacing(row.Part, port.Port.EndType);
             if (facing != null)
                 Set(sheet, header, rowIndex, $"Facing_{port.Suffix}", facing);
         }
 
-        private static string? ResolvePortFacing(string partId, string endType)
+        private static string? ResolvePortFacing(CustomPartDefinition part, string endType)
         {
+            if (endType.Equals("FL", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(part.FlangeFacing))
+                return CatalogFlangeFacing.Normalize(part.FlangeFacing);
+
+            string partId = part.Id;
             if (partId.StartsWith("GSK_FF_", StringComparison.OrdinalIgnoreCase))
                 return "FF";
 

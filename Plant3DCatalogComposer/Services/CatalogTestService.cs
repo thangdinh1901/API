@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Xml.Linq;
 using Autodesk.AutoCAD.ApplicationServices;
 using Plant3DSkeletonManager.Core;
@@ -19,8 +20,13 @@ namespace Plant3DCatalogComposer.Services
 
     internal static class CatalogTestService
     {
-        public static CatalogTestResult BuildTestCommand(ValveProject project)
+        private static int _testSequence;
+
+        public static CatalogTestResult BuildTestCommand(string dwgPath)
         {
+            ValveProject project = SceneGraphCatalogService.ReloadScene(dwgPath);
+            CatalogExportPrepareService.PrepareSceneForExport(project);
+
             string scriptName = CatalogProjectService.PreviewScriptName(project);
             string pyPath = Path.Combine(ProjectPaths.CustomScriptsDir, scriptName + ".py");
             if (!File.Exists(pyPath))
@@ -37,6 +43,47 @@ namespace Plant3DCatalogComposer.Services
                 ? scriptName[5..]
                 : scriptName;
             IReadOnlyList<(string Name, string Value)> args = ResolveTestArguments(project, partId);
+
+            if (!CatalogSceneManifest.TryReadFromScript(pyPath, out _))
+            {
+                return new CatalogTestResult
+                {
+                    CanRun = true,
+                    ScriptName = scriptName,
+                    CommandLine = BuildInvoke(scriptName, args, out _),
+                    Message =
+                        $"Testing {scriptName} — deployed script has no scene manifest (re-run Deploy Catalog after plugin update).{Environment.NewLine}"
+                        + $"Current scene: {CatalogSceneManifest.Build(project)}",
+                };
+            }
+
+            if (!CatalogSceneManifest.MatchesProject(project, pyPath, out string manifestMessage))
+            {
+                return new CatalogTestResult
+                {
+                    CanRun = false,
+                    ScriptName = scriptName,
+                    Message = manifestMessage,
+                };
+            }
+
+            string command = BuildInvoke(scriptName, args, out _);
+            return new CatalogTestResult
+            {
+                CanRun = true,
+                ScriptName = scriptName,
+                CommandLine = command,
+                Message =
+                    $"Testing {scriptName} — {manifestMessage}{Environment.NewLine}"
+                    + "Preview geometry will be erased before test so only catalog script geometry remains.",
+            };
+        }
+
+        private static string BuildInvoke(
+            string scriptName,
+            IReadOnlyList<(string Name, string Value)> args,
+            out int seq)
+        {
             var parts = new List<string> { $"(testacpscript \"{scriptName}\"" };
             foreach ((string name, string value) in args)
             {
@@ -45,23 +92,18 @@ namespace Plant3DCatalogComposer.Services
             }
 
             parts.Add(")");
-            string command = string.Join(" ", parts);
-            return new CatalogTestResult
-            {
-                CanRun = true,
-                ScriptName = scriptName,
-                CommandLine = command,
-                Message = command,
-            };
+            string invoke = string.Join(" ", parts);
+            seq = Interlocked.Increment(ref _testSequence);
+            return WrapperScript.WrapTestCatalogInvoke(seq, invoke, registerScripts: true);
         }
 
-        public static bool TryQueueTest(Document? doc, ValveProject project)
+        public static bool TryQueueTest(Document? doc, string dwgPath)
         {
-            CatalogTestResult test = BuildTestCommand(project);
+            CatalogTestResult test = BuildTestCommand(dwgPath);
             if (!test.CanRun || doc == null)
                 return false;
 
-            doc.Editor.WriteMessage($"\nP3D Composer: {test.CommandLine}");
+            doc.Editor.WriteMessage($"\nP3D Composer: {test.Message}");
             doc.SendStringToExecute(test.CommandLine + "\n", true, false, false);
             return true;
         }
@@ -84,11 +126,18 @@ namespace Plant3DCatalogComposer.Services
 
             list.Add(("DN", dn.ToString(CultureInfo.InvariantCulture)));
 
+            foreach ((string name, double value) in CatalogExportPrepareService.CollectExportDimensionParams(project))
+            {
+                list.Add((name, value.ToString("0.###", CultureInfo.InvariantCulture)));
+            }
+
             if (xmlDefaults != null)
             {
                 foreach (KeyValuePair<string, string> kv in xmlDefaults)
                 {
                     if (kv.Key.Equals("DN", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (list.Any(a => a.Item1.Equals(kv.Key, StringComparison.OrdinalIgnoreCase)))
                         continue;
 
                     string value = ResolveParamValue(project, kv.Key, kv.Value);
@@ -108,6 +157,10 @@ namespace Plant3DCatalogComposer.Services
                     : BwFittingSizeCatalog.DefaultReducerSmallDn((int)Math.Round(project.Parameters.DN));
                 return dn2.ToString(CultureInfo.InvariantCulture);
             }
+
+            double fromProject = ProjectDimensionService.GetValue(project, name);
+            if (fromProject > 0)
+                return fromProject.ToString("0.###", CultureInfo.InvariantCulture);
 
             if (name.Equals("CEL", StringComparison.OrdinalIgnoreCase))
                 return "0";

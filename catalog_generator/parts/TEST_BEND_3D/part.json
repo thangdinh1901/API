@@ -1,0 +1,23 @@
+{
+  "role": "standard",
+  "id": "TEST_BEND_3D",
+  "displayName": "Bend 3D Cermic Lining",
+  "category": "Fittings",
+  "group": "Fitting",
+  "defaultDN": 50,
+  "pressureClass": "3000",
+  "parametricDN": true,
+  "catalogParams": [
+    {
+      "name": "DN",
+      "label": "DN",
+      "useSkeletonDN": true,
+      "default": 50
+    }
+  ],
+  "standardSet": "SW_CL3000",
+  "primaryEndType": "SW",
+  "pnpClassName": "Elbow",
+  "shortDescription": "Bend 3D Cermic Lining",
+  "excelCloneSourcePartId": "ELBOW_90_LR_BW_SCH40"
+}

@@ -166,8 +166,8 @@
             this.tabMain.Controls.Add(this.tabSetup);
             this.tabMain.Controls.Add(this.tabDimensions);
             this.tabMain.Controls.Add(this.tabScene);
-            this.tabMain.Controls.Add(this.tabBooleans);
             this.tabMain.Controls.Add(this.tabPortManager);
+            this.tabMain.Controls.Add(this.tabBooleans);
             this.tabMain.Controls.Add(this.tabCode);
             this.tabMain.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tabMain.Location = new System.Drawing.Point(0, 0);
@@ -228,7 +228,7 @@
             this.tabScene.Name = "tabScene";
             this.tabScene.Padding = new System.Windows.Forms.Padding(8);
             this.tabScene.Size = new System.Drawing.Size(312, 692);
-            this.tabScene.TabIndex = 1;
+            this.tabScene.TabIndex = 2;
             this.tabScene.Text = "Scene";
             this.tabScene.UseVisualStyleBackColor = true;
             this.tabScene.AutoScroll = true;
@@ -263,7 +263,7 @@
             this.tabPortManager.Name = "tabPortManager";
             this.tabPortManager.Padding = new System.Windows.Forms.Padding(8);
             this.tabPortManager.Size = new System.Drawing.Size(312, 692);
-            this.tabPortManager.TabIndex = 4;
+            this.tabPortManager.TabIndex = 3;
             this.tabPortManager.Text = "Port Manager";
             this.tabPortManager.UseVisualStyleBackColor = true;
             this.tabPortManager.AutoScroll = true;
@@ -678,7 +678,7 @@
             this.tabCode.Name = "tabCode";
             this.tabCode.Padding = new System.Windows.Forms.Padding(8);
             this.tabCode.Size = new System.Drawing.Size(312, 592);
-            this.tabCode.TabIndex = 3;
+            this.tabCode.TabIndex = 5;
             this.tabCode.Text = "Code";
             this.tabCode.UseVisualStyleBackColor = true;
             this.tabCode.Enter += new System.EventHandler(this.tabCode_Enter);
@@ -721,7 +721,7 @@
             this.tabBooleans.Name = "tabBooleans";
             this.tabBooleans.Padding = new System.Windows.Forms.Padding(8);
             this.tabBooleans.Size = new System.Drawing.Size(312, 692);
-            this.tabBooleans.TabIndex = 2;
+            this.tabBooleans.TabIndex = 4;
             this.tabBooleans.Text = "Booleans";
             this.tabBooleans.UseVisualStyleBackColor = true;
             this.tabBooleans.AutoScroll = true;

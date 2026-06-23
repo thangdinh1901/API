@@ -19,7 +19,9 @@ namespace Plant3DCatalogComposer.Services
             string pipingComponent,
             string primaryEndType,
             string shortDescription,
-            string excelCloneSourcePartId)
+            string excelCloneSourcePartId,
+            string flangeFacing,
+            bool refreshDesignDimensions = true)
         {
             project.ValveName = SanitizeCatalogName(catalogName);
             project.TooltipShort = tooltipShort.Trim();
@@ -33,6 +35,7 @@ namespace Plant3DCatalogComposer.Services
             project.StandardSet = CatalogStandardSetInference.InferStandardSet(project, project.PrimaryEndType);
             project.ShortDescription = shortDescription.Trim();
             project.ExcelCloneSourcePartId = excelCloneSourcePartId.Trim();
+            project.FlangeFacing = CatalogFlangeFacing.Normalize(flangeFacing);
             project.Parameters.DN = dn;
             if (CatalogPartFamilyOptions.UsesDnSmall(catalogCategory, pipingComponent))
             {
@@ -48,8 +51,39 @@ namespace Plant3DCatalogComposer.Services
             project.Parameters.PipeSchedule = string.IsNullOrWhiteSpace(pipeSchedule)
                 ? ""
                 : PipeScheduleCatalog.Normalize(pipeSchedule);
-            FittingDimensionService.SyncProjectDimensions(project);
+
+            if (!refreshDesignDimensions)
+                return;
+
+            RefreshDesignDimensions(project);
         }
+
+        /// <summary>Seed from DN / Excel clone only when the user has not set design dimensions yet.</summary>
+        public static void SeedDesignDimensionsIfEmpty(ValveProject project)
+        {
+            if (HasUserDesignDimensions(project))
+                return;
+
+            RefreshDesignDimensions(project);
+        }
+
+        public static void RefreshDesignDimensions(ValveProject project)
+        {
+            FittingDimensionService.SyncProjectDimensions(project);
+            CatalogDimensionSuggestService.ApplySuggestions(project);
+        }
+
+        /// <summary>Pick / Apply / Scene bindings or saved dimension rows — do not overwrite on Generate.</summary>
+        public static bool HasUserDesignDimensions(ValveProject project)
+        {
+            if (project.DimensionBindings.Count > 0)
+                return true;
+
+            return ProjectDimensionService.LoadRows(project.Parameters).Count > 0;
+        }
+
+        public static bool HasDimensionBinding(ValveProject project, string name) =>
+            project.DimensionBindings.ContainsKey(name);
 
         public static string PreviewScriptName(ValveProject project)
         {

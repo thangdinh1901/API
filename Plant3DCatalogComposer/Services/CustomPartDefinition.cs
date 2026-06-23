@@ -33,6 +33,12 @@ namespace Plant3DCatalogComposer.Services
         /// <summary>Plant Spec Editor PnP class from part.json.</summary>
         public string PnpClassName { get; init; } = "";
 
+        /// <summary>Plant 3D Primary End Type from part.json (BV, FL, …).</summary>
+        public string PrimaryEndType { get; init; } = "";
+
+        /// <summary>Flange facing (RF / FF) from part.json.</summary>
+        public string FlangeFacing { get; init; } = "RF";
+
         public bool ParametricDN { get; init; } = true;
 
         public IReadOnlyDictionary<string, double>? Skeleton { get; init; }

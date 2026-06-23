@@ -3,6 +3,6 @@
 	<ScriptGroup>
 		<ScriptName>CUST_TEST_BEND_3D</ScriptName>
 		<Group>Fitting</Group>
-		<FirstPortEndtypes>FL,FL</FirstPortEndtypes>
+		<FirstPortEndtypes>SW,FL</FirstPortEndtypes>
 	</ScriptGroup>
 </ScriptInfo>

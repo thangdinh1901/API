@@ -25,7 +25,8 @@ namespace Plant3DCatalogComposer.Services
             string dwgPath,
             ValveProject project,
             string outputPath,
-            bool allowExportWithWarnings)
+            bool allowExportWithWarnings,
+            IReadOnlyList<string>? partIdFilter = null)
         {
             ValidationResult preflight = CatalogPreflightService.ValidateForExcelPublish(project);
             if (!preflight.IsValid)
@@ -51,7 +52,10 @@ namespace Plant3DCatalogComposer.Services
             try
             {
                 DocumentStore.Save(dwgPath, project);
-                CatalogExcelExportResult export = CatalogExcelExportService.Export(outputPath, project);
+                CatalogExcelExportResult export = CatalogExcelExportService.Export(
+                    outputPath,
+                    project,
+                    partIdFilter);
                 if (!export.Success)
                 {
                     return new CatalogPublishResult

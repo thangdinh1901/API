@@ -364,6 +364,11 @@ namespace Plant3DSkeletonManager.Core
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         public string ExcelCloneSourcePartId { get; set; } = string.Empty;
 
+        /// <summary>Flange facing for Excel export (RF or FF) when primary end is flanged.</summary>
+        [JsonPropertyName("flangeFacing")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public string FlangeFacing { get; set; } = string.Empty;
+
         /// <summary>Selected library part id from catalog_generator/parts (e.g. WN_FLRF_CL150).</summary>
         [JsonPropertyName("CustomPartId")]
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

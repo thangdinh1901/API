@@ -8,7 +8,10 @@ namespace Plant3DCatalogComposer.Services
     {
         public static ValveProject LoadOrCreate(string? dwgPath, string displayName)
         {
-            string path = ProjectPaths.GetSceneStorePath(dwgPath);
+            string path = ResolveSceneStorePathForSave(dwgPath);
+            if (!File.Exists(path))
+                TryMigrateLegacyScene(dwgPath, path);
+
             if (File.Exists(path))
             {
                 string json = File.ReadAllText(path);
@@ -27,8 +30,9 @@ namespace Plant3DCatalogComposer.Services
 
         public static void Save(string? dwgPath, ValveProject project)
         {
+            SceneParamBindingService.SanitizeManualParameterOverrides(project);
             string json = JsonCodec.Serialize(project);
-            string path = ProjectPaths.GetSceneStorePath(dwgPath);
+            string path = ResolveSceneStorePathForSave(dwgPath);
             Directory.CreateDirectory(ProjectPaths.SceneStoreDirectory);
             File.WriteAllText(path, json);
 
@@ -56,6 +60,26 @@ namespace Plant3DCatalogComposer.Services
 
             if (!string.IsNullOrEmpty(canonicalScenePath))
                 File.WriteAllText(ProjectPaths.CustomScriptsScenePointer, canonicalScenePath);
+        }
+
+        private static string ResolveSceneStorePathForSave(string? dwgPath) =>
+            ProjectPaths.GetSceneStorePath(dwgPath);
+
+        private static void TryMigrateLegacyScene(string? dwgPath, string keyedPath)
+        {
+            if (string.IsNullOrWhiteSpace(dwgPath))
+                return;
+
+            string full = Path.GetFullPath(dwgPath);
+            if (!Path.IsPathRooted(full) || !File.Exists(full))
+                return;
+
+            string legacy = ProjectPaths.LegacySceneStorePath(full);
+            if (!File.Exists(legacy) || File.Exists(keyedPath))
+                return;
+
+            Directory.CreateDirectory(ProjectPaths.SceneStoreDirectory);
+            File.Copy(legacy, keyedPath, overwrite: false);
         }
     }
 }

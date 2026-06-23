@@ -6,9 +6,8 @@ using Plant3DSkeletonManager.Core;
 namespace Plant3DCatalogComposer.Services
 {
     /// <summary>
-    /// Default run diameter (D) and LR 90° elbow center-to-face (R) from catalog DN.
-    /// D is always the connected <b>pipe OD</b> (B36.10 Sch-40) — including socket weld:
-    /// the pipe inserts into the socket; primitive Elbow diameter models the pipe run, not forging OD.
+    /// Pipe run diameter (BodyOD) and catalog center-to-face (ElbowCenterToFace) from DN.
+    /// Scene elbow <c>R</c> is bend radius (geometry) — not linked to ElbowCenterToFace.
     /// </summary>
     internal static class FittingDimensionService
     {
@@ -90,11 +89,18 @@ namespace Plant3DCatalogComposer.Services
             int dn = (int)Math.Round(project.Parameters.DN);
             ConnectionStyle style = InferConnectionStyle(project);
             project.Parameters.BodyOD = RunDiameterMm(dn);
-            project.Parameters.ElbowCenterToFace = ElbowCenterToFaceMm(dn, style);
-            RefreshElbowPrimitiveParameters(project);
+
+            if (!CatalogProjectService.HasDimensionBinding(project, "ElbowCenterToFace"))
+                project.Parameters.ElbowCenterToFace = ElbowCenterToFaceMm(dn, style);
+
+            RefreshElbowBodyOd(project);
         }
 
-        private static void RefreshElbowPrimitiveParameters(ValveProject project)
+        /// <summary>Typical LR bend radius (1.5× pipe OD) for new elbow primitives — not center-to-face.</summary>
+        public static double DefaultElbowBendRadiusMm(SkeletonParameters p) =>
+            p.BodyOD > 0 ? p.BodyOD * 1.5 : 0;
+
+        private static void RefreshElbowBodyOd(ValveProject project)
         {
             SkeletonParameters p = project.Parameters;
             foreach (PrimitiveNode node in project.Parts)
@@ -105,21 +111,144 @@ namespace Plant3DCatalogComposer.Services
                 if (node.Type is not (PrimitiveType.ELBOW or PrimitiveType.SEGMENTED_ELBOW or PrimitiveType.REDUCED_ELBOW))
                     continue;
 
-                SetNodeParam(node, "D", p.BodyOD, "pipe OD from DN");
-                SetNodeParam(node, "R", p.ElbowCenterToFace, "LR 90 center-to-face");
+                if (!node.Parameters.TryGetValue("D", out ParamValue? param))
+                    continue;
+
+                if (!IsElbowDiameterBoundToBodyOd(param, p))
+                    continue;
+
+                param.Value = p.BodyOD;
+                param.Expression = "BodyOD";
             }
         }
 
-        private static void SetNodeParam(PrimitiveNode node, string key, double value, string expression)
+        /// <summary>True when elbow D should follow project BodyOD (Catalog DN sync), not manual Scene edits.</summary>
+        internal static bool IsElbowDiameterBoundToBodyOd(ParamValue param, SkeletonParameters skeleton)
         {
-            if (!node.Parameters.TryGetValue(key, out ParamValue? param))
+            double bodyOd = skeleton.BodyOD;
+            string expr = param.Expression?.Trim() ?? "";
+            if (expr.Equals("BodyOD", StringComparison.OrdinalIgnoreCase)
+                || expr.Equals("pipe OD from DN", StringComparison.OrdinalIgnoreCase))
             {
-                param = new ParamValue();
-                node.Parameters[key] = param;
+                return !SceneParamBindingService.HasManualOverride(param, skeleton);
             }
 
-            param.Value = value;
-            param.Expression = expression;
+            if (!string.IsNullOrEmpty(expr))
+                return false;
+
+            return param.Value <= 0 || Math.Abs(param.Value - bodyOd) <= 1e-9;
+        }
+
+        /// <summary>Link elbow D→BodyOD; decouple R (bend radius) from ElbowCenterToFace.</summary>
+        public static void NormalizeElbowDimensionBindings(ValveProject project)
+        {
+            foreach (PrimitiveNode node in project.Parts)
+            {
+                if (node.Kind != SceneNodeKind.Primitive)
+                    continue;
+
+                if (node.Type is not (PrimitiveType.ELBOW or PrimitiveType.SEGMENTED_ELBOW or PrimitiveType.REDUCED_ELBOW))
+                    continue;
+
+                RewireParamExpression(node, "D", "BodyOD", "pipe OD from DN", project.Parameters);
+                DecoupleBendRadiusFromCenterToFace(node, project.Parameters);
+            }
+        }
+
+        private static void DecoupleBendRadiusFromCenterToFace(PrimitiveNode node, SkeletonParameters skeleton)
+        {
+            if (!node.Parameters.TryGetValue("R", out ParamValue? param))
+                return;
+
+            string expr = param.Expression?.Trim() ?? "";
+            if (!IsCenterToFaceExpression(expr))
+                return;
+
+            param.Value = ResolveElbowBendRadiusMm(node, skeleton);
+            param.Expression = null;
+        }
+
+        /// <summary>Scene elbow bend radius (mm) — never center-to-face.</summary>
+        public static double ResolveElbowBendRadiusMm(PrimitiveNode node, SkeletonParameters skeleton)
+        {
+            double fallback = DefaultElbowBendRadiusMm(skeleton);
+            if (!node.Parameters.TryGetValue("R", out ParamValue? param))
+                return fallback > 0 ? fallback : 0;
+
+            string expr = param.Expression?.Trim() ?? "";
+            if (IsCenterToFaceExpression(expr))
+                return fallback > 0 ? fallback : 0;
+
+            double ctf = skeleton.ElbowCenterToFace;
+            if (param.Value > 0)
+            {
+                if (ctf > 0 && Math.Abs(param.Value - ctf) < 0.01)
+                    return fallback > 0 ? fallback : param.Value;
+
+                return param.Value;
+            }
+
+            return fallback > 0 ? fallback : 0;
+        }
+
+        public static bool TryGetSceneBendRadiusMm(ValveProject project, out double bendRadiusMm)
+        {
+            bendRadiusMm = 0;
+            foreach (PrimitiveNode node in project.Parts)
+            {
+                if (node.Kind != SceneNodeKind.Primitive)
+                    continue;
+
+                if (node.Type is not (PrimitiveType.ELBOW or PrimitiveType.SEGMENTED_ELBOW or PrimitiveType.REDUCED_ELBOW))
+                    continue;
+
+                double bend = ResolveElbowBendRadiusMm(node, project.Parameters);
+                if (bend > 0)
+                {
+                    bendRadiusMm = bend;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool IsCenterToFaceExpression(string expr) =>
+            expr.Equals("ElbowCenterToFace", StringComparison.OrdinalIgnoreCase)
+            || expr.Equals("LR 90 center-to-face", StringComparison.OrdinalIgnoreCase);
+
+        private static void RewireParamExpression(
+            PrimitiveNode node,
+            string paramKey,
+            string designName,
+            string legacyLabel,
+            SkeletonParameters skeleton)
+        {
+            if (!node.Parameters.TryGetValue(paramKey, out ParamValue? param))
+                return;
+
+            string expr = param.Expression?.Trim() ?? "";
+            if (expr.Equals(designName, StringComparison.OrdinalIgnoreCase))
+            {
+                if (SceneParamBindingService.HasManualOverride(param, skeleton))
+                    param.Expression = null;
+
+                return;
+            }
+
+            // Keep manual Scene diameter (no expression, value set by user).
+            if (string.IsNullOrEmpty(expr) && param.Value > 0
+                && !IsElbowDiameterBoundToBodyOd(param, skeleton))
+            {
+                return;
+            }
+
+            if (expr.Equals(legacyLabel, StringComparison.OrdinalIgnoreCase)
+                || string.IsNullOrEmpty(expr)
+                || !ExpressionEvaluator.TryEvaluate(expr, skeleton, out _))
+            {
+                param.Expression = designName;
+            }
         }
 
         public static void EnsureRunDimensions(ValveProject project)

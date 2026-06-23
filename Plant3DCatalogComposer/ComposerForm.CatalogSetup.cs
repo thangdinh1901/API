@@ -35,8 +35,8 @@ namespace Plant3DCatalogComposer
         private TextBox? _txtShortDescription;
         private Label? _lblExcelClone;
         private ComboBox? _cmbExcelClone;
-        private Button? _btnApplyCatalogProject;
-        private Button? _btnRegisterForPublish;
+        private Label? _lblFlangeFacing;
+        private ComboBox? _cmbFlangeFacing;
 
         private void InitializeCatalogSetupTab()
         {
@@ -68,7 +68,7 @@ namespace Plant3DCatalogComposer
             {
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 Location = new Point(8, 8),
-                Size = new Size(296, 300),
+                Size = new Size(296, 318),
                 TabStop = false,
             };
             StyleGroupBoxCaption(_grpCatalogProject, "Part Family");
@@ -165,7 +165,22 @@ namespace Plant3DCatalogComposer
             foreach ((string code, string description) in Plant3DEndTypes.All)
                 _cmbPrimaryEnd.Items.Add(new PrimaryEndTypeOption(code, $"{code} — {description}"));
             _toolTip.SetToolTip(_cmbPrimaryEnd, "Plant 3D Primary End Type (Create New Component)");
-            _cmbPrimaryEnd.SelectedIndexChanged += (_, _) => RefreshClassSchCombo();
+            _cmbPrimaryEnd.SelectedIndexChanged += (_, _) =>
+            {
+                RefreshClassSchCombo();
+                UpdateFacingFieldState();
+            };
+
+            _lblFlangeFacing = new Label { Text = "Facing:", Visible = false };
+            _cmbFlangeFacing = new ComboBox
+            {
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Visible = false,
+            };
+            foreach (string facing in CatalogFlangeFacing.Options)
+                _cmbFlangeFacing.Items.Add(facing);
+            _toolTip.SetToolTip(_cmbFlangeFacing, "Flange facing for Excel export (RF / FF)");
 
             _lblShortDescription = new Label { Text = "Short desc:" };
             _txtShortDescription = new TextBox { Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
@@ -178,26 +193,7 @@ namespace Plant3DCatalogComposer
                 DropDownStyle = ComboBoxStyle.DropDownList,
             };
             RefreshExcelCloneCombo();
-            _toolTip.SetToolTip(_cmbExcelClone, "Clone CatalogBuilderTemplate sheet from this part on Register");
-
-            _btnApplyCatalogProject = new Button
-            {
-                Anchor = AnchorStyles.None,
-                Size = new Size(86, 26),
-                Text = "Apply",
-            };
-            StyleAccentButton(_btnApplyCatalogProject, Color.FromArgb(25, 118, 210));
-            _btnApplyCatalogProject.Click += btnApplyCatalogProject_Click;
-
-            _btnRegisterForPublish = new Button
-            {
-                Anchor = AnchorStyles.None,
-                Size = new Size(130, 26),
-                Text = "Register Publish",
-            };
-            StyleAccentButton(_btnRegisterForPublish, Color.FromArgb(46, 125, 50));
-            _btnRegisterForPublish.Click += btnRegisterForPublish_Click;
-            _toolTip.SetToolTip(_btnRegisterForPublish, "Write part.json and add Excel template sheet for Publish Catalog");
+            _toolTip.SetToolTip(_cmbExcelClone, "Clone CatalogBuilderTemplate sheet from this part on Generate Code");
 
             _grpCatalogProject.Controls.AddRange(new Control[]
             {
@@ -205,6 +201,7 @@ namespace Plant3DCatalogComposer
                 _lblPartCategory, _cmbPartCategory,
                 _lblPipingComponent, _cmbPipingComponent,
                 _lblPrimaryEnd, _cmbPrimaryEnd,
+                _lblFlangeFacing, _cmbFlangeFacing,
                 _lblCatalogDn, _cmbProjectDn,
                 _lblCatalogDn2, _cmbProjectDn2,
                 _lblClassSch, _cmbClassSch,
@@ -212,8 +209,6 @@ namespace Plant3DCatalogComposer
                 _lblShortDescription, _txtShortDescription,
                 _lblExcelClone, _cmbExcelClone,
             });
-            _grpCatalogProject.Controls.Add(_btnApplyCatalogProject);
-            _grpCatalogProject.Controls.Add(_btnRegisterForPublish);
 
             tabSetup.Controls.Add(_grpCatalogProject);
             LayoutCatalogProjectFields();
@@ -300,6 +295,8 @@ namespace Plant3DCatalogComposer
             SelectCategoryCombo(category);
             RefreshPipingComponentCombo(project.PnpClassName);
             SelectPrimaryEndCombo(CatalogStandardSetInference.ResolvePrimaryEndType(project));
+            SelectFacingCombo(project.FlangeFacing);
+            UpdateFacingFieldState();
             _txtShortDescription!.Text = project.ShortDescription ?? "";
             SelectStringCombo(_cmbExcelClone!, project.ExcelCloneSourcePartId, null, allowEmpty: true);
             if (_cmbExcelClone!.SelectedIndex < 0 && _cmbExcelClone.Items.Count > 0)
@@ -503,7 +500,79 @@ namespace Plant3DCatalogComposer
                 _cmbExcelClone.SelectedIndex = 0;
         }
 
-        private void ApplyCatalogFamilyFromUi(ValveProject project)
+        private void UpdateFacingFieldState()
+        {
+            if (_lblFlangeFacing == null || _cmbFlangeFacing == null)
+                return;
+
+            bool show = CatalogFlangeFacing.PrimaryEndUsesFacing(GetPartFamilyPrimaryEnd());
+            _lblFlangeFacing.Visible = show;
+            _cmbFlangeFacing.Visible = show;
+            if (show && _cmbFlangeFacing.SelectedIndex < 0 && _cmbFlangeFacing.Items.Count > 0)
+                _cmbFlangeFacing.SelectedIndex = 0;
+            LayoutCatalogProjectFields();
+        }
+
+        private void SelectFacingCombo(string? facing)
+        {
+            if (_cmbFlangeFacing == null)
+                return;
+
+            string target = CatalogFlangeFacing.Normalize(facing);
+            for (int i = 0; i < _cmbFlangeFacing.Items.Count; i++)
+            {
+                if (_cmbFlangeFacing.Items[i]?.ToString()?.Equals(target, StringComparison.OrdinalIgnoreCase) == true)
+                {
+                    _cmbFlangeFacing.SelectedIndex = i;
+                    return;
+                }
+            }
+
+            if (_cmbFlangeFacing.Items.Count > 0)
+                _cmbFlangeFacing.SelectedIndex = 0;
+        }
+
+        private string GetPartFamilyFacing() =>
+            _cmbFlangeFacing?.SelectedItem?.ToString() ?? "RF";
+
+        private bool TryApplyCatalogFamilyFromUi(
+            ValveProject project,
+            bool refreshDesignDimensions,
+            out string? errorMessage)
+        {
+            errorMessage = null;
+            if (_txtCatalogName == null || _cmbProjectDn == null || _cmbClassSch == null)
+            {
+                errorMessage = "Part Family panel is not initialized.";
+                return false;
+            }
+
+            if (!TryGetSelectedDn(_cmbProjectDn, out _))
+            {
+                errorMessage = "Select DN large (run / large end).";
+                return false;
+            }
+
+            if (CatalogPartFamilyOptions.UsesDnSmall(
+                    GetPartFamilyCategoryId(),
+                    GetPartFamilyComponent())
+                && !TryGetSelectedDn(_cmbProjectDn2!, out _))
+            {
+                errorMessage = "Select DN small (branch / small end).";
+                return false;
+            }
+
+            if (GetSelectedClassSchedule() is not ClassScheduleOption)
+            {
+                errorMessage = "Select Class/Sch.";
+                return false;
+            }
+
+            ApplyCatalogFamilyFromUi(project, refreshDesignDimensions);
+            return true;
+        }
+
+        private void ApplyCatalogFamilyFromUi(ValveProject project, bool refreshDesignDimensions = true)
         {
             if (_txtCatalogName == null || _cmbProjectDn == null || _cmbClassSch == null)
                 return;
@@ -541,34 +610,9 @@ namespace Plant3DCatalogComposer
                 pipingComponent,
                 primaryEnd,
                 _txtShortDescription?.Text ?? "",
-                cloneSource);
-        }
-
-        private void btnRegisterForPublish_Click(object? sender, EventArgs e)
-        {
-            try
-            {
-                string dwg = DrawingContext.RequireActiveDrawingPath();
-                ValveProject project = DocumentStore.LoadOrCreate(
-                    dwg, Path.GetFileNameWithoutExtension(dwg));
-
-                ApplyCatalogFamilyFromUi(project);
-                DocumentStore.Save(dwg, project);
-
-                CatalogPartRegistrationResult result = CatalogPartRegistrationService.Register(project);
-                if (!result.Success)
-                {
-                    ShowWarning(result.Message);
-                    return;
-                }
-
-                RefreshCatalogPartList();
-                lblStatus.Text = result.Message;
-            }
-            catch (Exception ex)
-            {
-                ShowError(ex);
-            }
+                cloneSource,
+                GetPartFamilyFacing(),
+                refreshDesignDimensions);
         }
 
         private void UpdateScriptPreviewLabel(ValveProject? project = null)
@@ -586,54 +630,6 @@ namespace Plant3DCatalogComposer
             _lblScriptPreview.Text = string.IsNullOrEmpty(preview)
                 ? "→ CUST_…"
                 : $"→ CUST_{preview}";
-        }
-
-        private void btnApplyCatalogProject_Click(object? sender, EventArgs e)
-        {
-            if (_txtCatalogName == null || _cmbProjectDn == null)
-            {
-                return;
-            }
-
-            if (!TryGetSelectedDn(_cmbProjectDn, out _))
-            {
-                ShowWarning("Select DN large (run / large end).");
-                return;
-            }
-
-            if (CatalogPartFamilyOptions.UsesDnSmall(
-                    GetPartFamilyCategoryId(),
-                    GetPartFamilyComponent())
-                && !TryGetSelectedDn(_cmbProjectDn2!, out _))
-            {
-                ShowWarning("Select DN small (branch / small end).");
-                return;
-            }
-
-            if (GetSelectedClassSchedule() is not ClassScheduleOption)
-            {
-                ShowWarning("Select Class/Sch.");
-                return;
-            }
-
-            try
-            {
-                string dwg = DrawingContext.RequireActiveDrawingPath();
-                ValveProject project = DocumentStore.LoadOrCreate(
-                    dwg, Path.GetFileNameWithoutExtension(dwg));
-
-                ApplyCatalogFamilyFromUi(project);
-
-                DocumentStore.Save(dwg, project);
-                LoadCatalogProjectFields(project);
-                LoadDimensionFields(project);
-                RefreshCatalogCodeDisplay(project);
-                lblStatus.Text = $"Part family saved → {CatalogProjectService.PreviewScriptName(project)}";
-            }
-            catch (Exception ex)
-            {
-                ShowError(ex);
-            }
         }
 
         private string GetProjectPressureClass(ValveProject project) =>

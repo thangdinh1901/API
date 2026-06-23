@@ -59,6 +59,14 @@ namespace Plant3DSkeletonManager.Core
             return TryEvaluate(expression, skeleton, out double v) ? v : fallback;
         }
 
+        public static bool IsNumericLiteral(string? expression) =>
+            !string.IsNullOrWhiteSpace(expression)
+            && double.TryParse(
+                expression.Trim(),
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out _);
+
         private static string SubstituteParameters(string expression, SkeletonParameters skeleton)
         {
             string result = expression;

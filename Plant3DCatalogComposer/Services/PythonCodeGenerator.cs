@@ -79,7 +79,7 @@ namespace Plant3DCatalogComposer.Services
                 }
                 else
                 {
-                    sb.AppendLine($"{indent}{vn} = {BuildPrimitiveCall(part)}");
+                    sb.AppendLine($"{indent}{vn} = {BuildPrimitiveCall(part, forCatalogPackage, project.Parameters)}");
                 }
 
                 AppendTransformChain(sb, vn, part, indent);
@@ -207,29 +207,45 @@ namespace Plant3DCatalogComposer.Services
             return $"{className}({string.Join(", ", args)})";
         }
 
-        private static string BuildPrimitiveCall(PrimitiveNode node)
+        private static string BuildPrimitiveCall(
+            PrimitiveNode node,
+            bool forCatalogPackage = false,
+            SkeletonParameters? catalogSkeleton = null)
         {
             double N(string k, double d = 0) => Param(node, k, d);
+            string Dim(string k, double d = 0) =>
+                forCatalogPackage && catalogSkeleton != null
+                    ? SceneParamBindingService.FormatCatalogDimensionRef(
+                        node.Parameters.TryGetValue(k, out ParamValue? pv) ? pv : null,
+                        catalogSkeleton,
+                        N(k, d))
+                    : Fmt(N(k, d));
+            string BendRadius() =>
+                forCatalogPackage
+                    ? "BendRadius"
+                    : Fmt(FittingDimensionService.ResolveElbowBendRadiusMm(
+                        node,
+                        new SkeletonParameters { BodyOD = N("D", 0) }));
 
             return node.Type switch
             {
                 PrimitiveType.BOX =>
-                    $"Box(s, length={Fmt(N("L"))}, width={Fmt(N("W"))}, height={Fmt(N("H"))})",
-                PrimitiveType.CYLINDER => BuildCylinder(node),
+                    $"Box(s, length={Dim("L")}, width={Dim("W")}, height={Dim("H")})",
+                PrimitiveType.CYLINDER => BuildCylinder(node, forCatalogPackage, catalogSkeleton),
                 PrimitiveType.CONE =>
-                    $"Cone(s, bottom_diameter={Fmt(N("D1"))}, height={Fmt(N("H"))}, top_diameter={Fmt(N("D2"))}, eccentricity={Fmt(N("E"))})",
+                    $"Cone(s, bottom_diameter={Dim("D1")}, height={Dim("H")}, top_diameter={Dim("D2")}, eccentricity={Dim("E")})",
                 PrimitiveType.TORUS =>
-                    $"Torus(s, diameter={Fmt(N("D"))}, thickness={Fmt(N("T"))})",
+                    $"Torus(s, diameter={Dim("D")}, thickness={Dim("T")})",
                 PrimitiveType.SPHERE =>
-                    $"Sphere(s, radius={Fmt(N("R"))})",
+                    $"Sphere(s, radius={Dim("R")})",
                 PrimitiveType.HALFSPHERE =>
-                    $"HalfSphere(s, radius={Fmt(N("R"))})",
+                    $"HalfSphere(s, radius={Dim("R")})",
                 PrimitiveType.REDUCED_ELBOW =>
-                    $"Reduced_elbow(s, diameter1={Fmt(N("D"))}, diameter2={Fmt(N("D2"))}, bend_radius={Fmt(N("R"))}, angle={Fmt(N("A", 90))})",
+                    $"Reduced_elbow(s, diameter1={Dim("D")}, diameter2={Dim("D2")}, bend_radius={BendRadius()}, angle={Dim("A", 90)})",
                 PrimitiveType.ELBOW =>
-                    $"Elbow(s, diameter={Fmt(N("D"))}, bend_radius={Fmt(N("R"))}, angle={Fmt(N("A", 90))})",
+                    $"Elbow(s, diameter={Dim("D")}, bend_radius={BendRadius()}, angle={Dim("A", 90)})",
                 PrimitiveType.SEGMENTED_ELBOW =>
-                    $"SegmentedElbow(s, diameter={Fmt(N("D"))}, bend_radius={Fmt(N("R"))}, angle={Fmt(N("A", 90))}, segments={FmtInt(N("S", 4))})",
+                    $"SegmentedElbow(s, diameter={Dim("D")}, bend_radius={BendRadius()}, angle={Dim("A", 90)}, segments={FmtInt(N("S", 4))})",
                 PrimitiveType.ELLIPSOID_HEAD =>
                     $"EllipsoidHead(s, diameter={Fmt(N("D"))})",
                 PrimitiveType.ELLIPSOID_HEAD2 =>
@@ -262,24 +278,36 @@ namespace Plant3DCatalogComposer.Services
 
         private static string BoolLit(double v) => v >= 0.5 ? "True" : "False";
 
-        private static string BuildCylinder(PrimitiveNode node)
+        private static string BuildCylinder(
+            PrimitiveNode node,
+            bool forCatalogPackage = false,
+            SkeletonParameters? catalogSkeleton = null)
         {
-            double d = Param(node, "D");
-            double h = Param(node, "L");
-            double o = Param(node, "O", d / 2);
+            double N(string k, double d = 0) => Param(node, k, d);
+            string Dim(string k, double d = 0) =>
+                forCatalogPackage && catalogSkeleton != null
+                    ? SceneParamBindingService.FormatCatalogDimensionRef(
+                        node.Parameters.TryGetValue(k, out ParamValue? pv) ? pv : null,
+                        catalogSkeleton,
+                        N(k, d))
+                    : Fmt(N(k, d));
+
+            double d = N("D");
+            double h = N("L");
+            double o = N("O", d / 2);
             double wall = Math.Max(0, d / 2 - o);
-            double r2 = Param(node, "R2");
+            double r2 = N("R2");
             bool ellipse = r2 > 1e-9 && Math.Abs(r2 - d / 2) > 1e-9;
 
             if (ellipse)
             {
-                return $"Cylinder(s, diameter={Fmt(d)}, height={Fmt(h)}, wall_thickness={Fmt(wall)}, ellipse_diameter={Fmt(r2)})";
+                return $"Cylinder(s, diameter={Dim("D")}, height={Dim("L")}, wall_thickness={Fmt(wall)}, ellipse_diameter={Fmt(r2)})";
             }
 
             if (wall > 1e-9)
-                return $"Cylinder(s, diameter={Fmt(d)}, height={Fmt(h)}, wall_thickness={Fmt(wall)})";
+                return $"Cylinder(s, diameter={Dim("D")}, height={Dim("L")}, wall_thickness={Fmt(wall)})";
 
-            return $"Cylinder(s, diameter={Fmt(d)}, height={Fmt(h)})";
+            return $"Cylinder(s, diameter={Dim("D")}, height={Dim("L")})";
         }
 
         private static void AppendTransformChain(StringBuilder sb, string varName, PrimitiveNode node, string indent = "    ")

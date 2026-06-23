@@ -227,13 +227,6 @@ namespace Plant3DCatalogComposer
                     dwg,
                     System.IO.Path.GetFileNameWithoutExtension(dwg));
 
-                ValidationResult preflight = CatalogPreflightService.ValidateForDeploy(project);
-                if (!preflight.IsValid)
-                {
-                    WriteStatus("P3DCOMPDEPLOY blocked: " + string.Join("; ", preflight.Errors));
-                    return;
-                }
-
                 Document? doc = Application.DocumentManager.MdiActiveDocument;
                 CatalogDeployFullResult result = CatalogDeployFullService.Deploy(
                     dwg,
@@ -279,7 +272,10 @@ namespace Plant3DCatalogComposer
 
                 string catalogName = CatalogProjectService.SanitizeCatalogName(project.ValveName ?? "");
                 if (string.IsNullOrWhiteSpace(catalogName))
-                    catalogName = "CatalogBuilder";
+                {
+                    WriteStatus("P3DCOMPPUBLISH blocked: set a catalog part name first.");
+                    return;
+                }
 
                 string? dwgDir = System.IO.Path.GetDirectoryName(dwg);
                 string outputPath = System.IO.Path.Combine(
@@ -290,9 +286,21 @@ namespace Plant3DCatalogComposer
                     dwg,
                     project,
                     outputPath,
-                    allowExportWithWarnings: true);
+                    allowExportWithWarnings: true,
+                    partIdFilter: new[] { catalogName });
 
-                WriteStatus(result.Success ? "P3DCOMPPUBLISH: " + result.Message : "P3DCOMPPUBLISH: " + result.Message);
+                if (result.Success)
+                {
+                    WriteStatus("P3DCOMPPUBLISH: " + result.Message);
+                    if (PlantCatalogBuilderLaunchService.TryLaunch(result.OutputPath, out string launchMsg))
+                        WriteStatus("P3DCOMPPUBLISH: " + launchMsg);
+                    else
+                        WriteStatus("P3DCOMPPUBLISH: " + launchMsg);
+                }
+                else
+                {
+                    WriteStatus("P3DCOMPPUBLISH: " + result.Message);
+                }
             }
             catch (System.Exception ex)
             {
@@ -310,7 +318,7 @@ namespace Plant3DCatalogComposer
                 ValveProject project = DocumentStore.LoadOrCreate(
                     dwg,
                     System.IO.Path.GetFileNameWithoutExtension(dwg));
-                CatalogTestResult test = CatalogTestService.BuildTestCommand(project);
+                CatalogTestResult test = CatalogTestService.BuildTestCommand(dwg);
                 if (!test.CanRun)
                 {
                     WriteStatus("P3DCOMPTEST: " + test.Message);
@@ -318,7 +326,7 @@ namespace Plant3DCatalogComposer
                 }
 
                 Document? doc = Application.DocumentManager.MdiActiveDocument;
-                if (doc != null && CatalogTestService.TryQueueTest(doc, project))
+                if (doc != null && CatalogTestService.TryQueueTest(doc, dwg))
                     WriteStatus("P3DCOMPTEST: " + test.CommandLine);
             }
             catch (System.Exception ex)

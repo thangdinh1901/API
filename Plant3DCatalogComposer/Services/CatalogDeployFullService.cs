@@ -31,6 +31,10 @@ namespace Plant3DCatalogComposer.Services
             Document? doc,
             bool allowExportWithWarnings)
         {
+            // Caller must DocumentStore.Save immediately before Deploy (scene + Catalog tab).
+            CatalogExportPrepareService.PrepareSceneForExport(project);
+            DocumentStore.Save(dwgPath, project);
+
             ValidationResult preflight = CatalogPreflightService.ValidateForDeploy(project);
             if (!preflight.IsValid)
             {
@@ -93,7 +97,14 @@ namespace Plant3DCatalogComposer.Services
                 string summary = CatalogDeployGuidance.BuildSummary(deploy.ScriptCount, registered);
                 if (project.Parts.Count > 0)
                 {
-                    summary = $"Deployed {Path.GetFileName(partFolder)}: {exportedFileCount} file(s) exported.{Environment.NewLine}{summary}";
+                    string partSummary = string.Join(
+                        ", ",
+                        project.Parts.Select(p => p.Name));
+                    summary =
+                        $"Deployed {Path.GetFileName(partFolder)}: {exportedFileCount} file(s), "
+                        + $"scene [{partSummary}] → CustomScripts.{Environment.NewLine}{summary}";
+                    doc?.Editor.WriteMessage(
+                        $"\nP3D Composer: {CatalogSceneManifest.Build(project)}");
                 }
 
                 return new CatalogDeployFullResult

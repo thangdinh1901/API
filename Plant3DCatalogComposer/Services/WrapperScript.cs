@@ -35,6 +35,33 @@ namespace Plant3DCatalogComposer.Services
             "(if (not (member \"PnP3dACPAdapter\" (arx))) (arxload \"PnP3dACPAdapter\")) " +
             eraseBlock +
             testacpscriptInvoke + " " +
+            "(while (> (getvar \"CMDACTIVE\") 0) (progn)) " +
             "(princ \"\\nP3D Composer: rebuild finished.\")) ";
+
+        public static string WrapTestCatalogInvoke(
+            int sequence,
+            string testacpscriptInvoke,
+            bool registerScripts = false,
+            bool erasePreviewGeometry = true)
+        {
+            string registerBlock = registerScripts
+                ? "(setq _p3d_cmdecho (getvar \"CMDECHO\")) (setvar \"CMDECHO\" 0) " +
+                  "(command-s \"_.PLANTREGISTERCUSTOMSCRIPTS\") " +
+                  "(while (> (getvar \"CMDACTIVE\") 0) (progn)) " +
+                  "(setvar \"CMDECHO\" _p3d_cmdecho) "
+                : "";
+
+            // Erase preview bodies before catalog test; vl-catch-all keeps "Function cancelled"
+            // from aborting the progn before testacpscript runs.
+            string eraseBlock = erasePreviewGeometry
+                ? "(setq _p3d_cmdecho (getvar \"CMDECHO\")) (setvar \"CMDECHO\" 0) " +
+                  "(vl-catch-all-apply 'command-s (list \"_.ERASE\" \"ALL\" \"\")) " +
+                  "(while (> (getvar \"CMDACTIVE\") 0) (progn)) " +
+                  "(setvar \"CMDECHO\" _p3d_cmdecho) "
+                : "";
+
+            _ = sequence;
+            return WrapProgn(eraseBlock, registerBlock + testacpscriptInvoke);
+        }
     }
 }

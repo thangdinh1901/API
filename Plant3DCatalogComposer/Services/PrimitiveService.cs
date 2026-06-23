@@ -15,8 +15,6 @@ namespace Plant3DCatalogComposer.Services
 
         public static Guid Insert(string? dwgPath, ValveProject project, PrimitiveDefinition primitive)
         {
-            FittingDimensionService.EnsureRunDimensions(project);
-
             if (project.Parameters.BodyOD <= 0)
                 throw new InvalidOperationException(
                     "Set catalog DN (Catalog → Apply) and design dimensions (Dimensions tab) before inserting primitives.");
@@ -28,16 +26,16 @@ namespace Plant3DCatalogComposer.Services
                 Type = primitive.Type,
             };
 
-            foreach (var (logical, expr, valueMm, _) in primitive.Parameters)
+            foreach (var (logical, _, valueMm, _) in primitive.Parameters)
             {
                 node.Parameters[logical] = new ParamValue
                 {
                     Value = valueMm(project.Parameters),
-                    Expression = expr,
                 };
             }
 
             project.Parts.Add(node);
+            SceneGraphCatalogService.AutoUnionIntoMainBody(project, node.Id);
             DocumentStore.Save(dwgPath, project);
             return node.Id;
         }

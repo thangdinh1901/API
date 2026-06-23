@@ -1,68 +1,85 @@
-# Plant 3D / Inventor API
+# Plant 3D Catalog Factory
 
-Workspace: `D:\02. Engineering\04. Autocad Plant 3D\API`
+Custom catalog authoring for **AutoCAD Plant 3D 2026**: scene graph → Python scripts → CustomScripts deploy → Excel → `.pcat` → spec.
 
-## Cấu trúc
+## Repository layout
 
 ```
-API/
-├── Plant3DCatalogComposer/     ← AutoCAD Plant 3D 2026 plugin (P3DCOMPOSER)
-├── Plant3DSkeletonManager/     ← Scene graph + primitives.py (+ Inventor add-in)
-├── catalog_generator/          ← Python nguồn (deploy → CustomScripts)
-│   ├── parts/                  ← catalog parts (part.json + catalog_entry.py)
-│   ├── pipe_sizes.py           ← DN/NPS, stub end, LJ ring tables
-│   ├── stubend_geom.py         ← lap-joint stub end geometry
-│   ├── lj_stud_bolts.py        ← LJ stud OAL / nut placement
-│   ├── sw_fitting_geom.py      ← socket-weld fittings
-│   ├── standard_sets.json      ← BW / LJ / SW part sets
-│   └── ScriptGroup.xml, variants.xml
-├── scripts/                    ← install, deploy, audit
-└── BoxExtrudeAddIn/            ← Inventor sample add-in
+├── Plant3DCatalogComposer/   AutoCAD plugin (P3DCOMPOSER palette)
+├── Plant3DSkeletonManager/   Core scene model + Inventor add-in + primitives.py
+├── catalog_generator/        Python catalog parts, tables, scene_builder
+│   ├── parts/                One folder per part (part.json + catalog_entry.py)
+│   └── p3d_composer/         Live preview / scene_builder
+├── scripts/                  Install, deploy, audits
+└── BoxExtrudeAddIn/          Inventor sample add-in
 ```
 
-## Hai vùng làm việc
+Architecture notes: see [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).
 
-| Vùng | Đường dẫn | Vai trò |
-|------|-----------|---------|
-| **Nguồn / dev** | `D:\02. Engineering\04. Autocad Plant 3D\API` | Sửa C#, Python, scene trong Composer |
-| **Runtime Plant 3D** | `C:\AutoCAD Plant 3D 2026 Content\CPak Common\CustomScripts` | Plant đọc catalog script |
+## Requirements
 
-**Luồng catalog chuẩn:**
+- Windows x64
+- AutoCAD / Plant 3D **2026** (default paths in `.csproj`; override with `-p:AcadDir=...`)
+- [.NET 8 SDK](https://dotnet.microsoft.com/download)
+- Python 3.x (for audits / table sync scripts)
 
-1. **Deploy Catalog** trong Composer (hoặc `.\scripts\Deploy-Catalog.ps1`) → copy Python sang CustomScripts, ghi `deploy_manifest.json`, queue `PLANTREGISTERCUSTOMSCRIPTS`.
-2. **Export Excel** → **Publish `.pcat`** → import spec.
-3. Lap joint: xóa joint cũ, chèn lại Stub → Ring → GSK_FF → Ring → Stub.
-
-Part mới: folder `catalog_generator/parts/{PART_ID}/` với `part.json` + `catalog_entry.py`, rồi `.\scripts\Sync-CatalogMetadata.ps1`. Install gộp entry + geometry thành `CUST_{PART_ID}.py` trên ổ C.
-
-## Build & cài
+## Quick start (clone → build → install)
 
 ```powershell
-cd "D:\02. Engineering\04. Autocad Plant 3D\API"
-dotnet build Plant3DCatalogComposer\Plant3DCatalogComposer.csproj -c Release
+git clone https://github.com/thangdinh1901/API.git
+cd API
+
+# Optional: point plugin at this repo's catalog_generator (recommended for dev)
+Copy-Item deploy.json.example "$env:APPDATA\Plant3DCatalogComposer\deploy.json"
+# Edit CatalogGenerator / ApiRoot to your clone path
+
+dotnet build Plant3DCatalogComposer\Plant3DCatalogComposer.csproj -c Release -p:SkipComposerDeploy=true
 .\scripts\Install-Plant3DCatalogComposer.ps1
 ```
 
-Restart Plant 3D (hoặc `NETLOAD`), chạy `P3DCOMPOSER`.
+Restart Plant 3D (or `NETLOAD`), run **`P3DCOMPOSER`**.
 
-## Scripts (QA / bảo trì)
+> Use `-p:SkipComposerDeploy=true` when building on CI or before running the install script manually.
 
-| Script | Mục đích |
-|--------|----------|
-| `Deploy-Catalog.ps1` | Wrapper deploy + register |
-| `Sync-CatalogMetadata.ps1` | Rebuild ScriptGroup / variants từ catalog_entry.py |
-| `sync_lap_joint_cs_tables.py` | Sync `CatalogStubEndTable.cs`, `CatalogLjRingCl150Table.cs` từ pipe_sizes.py |
-| `patch_gsk_template_dual_ports.py` | Sửa template GSK: port S1/S2 (chạy sau khi đổi template) |
-| `Export-CatalogExcel.ps1` | Export `.xlsx` headless (không cần mở Composer) |
-| `audit_lap_joint.py` | Python ↔ C# table sync, LJ DN coverage |
-| `audit_lj_placement.py` | Kiểm tra axial stack / overlap |
-| `audit_lj_stud_lengths.py` | Stud OAL tất cả DN |
-| `audit_asme_standard_parts.py` | ASME cho WN/SO/BLD/BW/SW (LJ user-data excluded) |
-| `verify_lj_deploy.py` | Kiểm tra CustomScripts + deploy_manifest sau deploy |
-| `compare_stub_ring.py` | Stub vs ring vs WN_G |
+## Dev vs runtime
 
-Sau sửa `pipe_sizes.py`: chạy `sync_lap_joint_cs_tables.py`, rồi audit LJ.
+| | Path | Role |
+|---|------|------|
+| **Source (this repo)** | Your clone | Edit C#, Python, scene in Composer |
+| **Plant 3D runtime** | `C:\AutoCAD Plant 3D 2026 Content\CPak Common\CustomScripts` | Plant loads `CUST_*.py` |
+
+**Workflow**
+
+1. Edit scene in **P3D Composer** → **Deploy Catalog** (or `.\scripts\Deploy-Catalog.ps1`)
+2. **Test Catalog** in drawing (preview ≠ test — always deploy after scene changes)
+3. **Publish** Excel → Catalog Builder → `.pcat` → import spec
+
+`deploy.json` (see `deploy.json.example`) tells the plugin where `catalog_generator` lives so **Generate / Deploy** write back to the repo instead of only the bundle copy.
+
+## Composer commands
+
+| Command | Purpose |
+|---------|---------|
+| `P3DCOMPOSER` | Open palette |
+| `P3DCOMPDEPLOY` | Export + deploy + register scripts |
+| `P3DCOMPPUBLISH` | Export Catalog Builder Excel |
+
+## Maintenance scripts
+
+| Script | Purpose |
+|--------|---------|
+| `Deploy-Catalog.ps1` | Deploy + `PLANTREGISTERCUSTOMSCRIPTS` |
+| `Sync-CatalogMetadata.ps1` | Rebuild ScriptGroup / variants from `catalog_entry.py` |
+| `sync_lap_joint_cs_tables.py` | Sync C# lap-joint tables from `pipe_sizes.py` |
+| `audit_lap_joint.py` | Python ↔ C# table coverage |
+| `verify_lj_deploy.py` | Post-deploy CustomScripts check |
+
+Ad-hoc scripts named `scripts/_*.py` are local scratch tools and are not part of the release workflow.
 
 ## Inventor
 
-Xem `BoxExtrudeAddIn\` và `scripts\Install-Plant3DAddIn.ps1`.
+See `BoxExtrudeAddIn/` and `scripts\Install-Plant3DAddIn.ps1`.
+
+## License
+
+Private / internal — add a license file before public release if needed.

@@ -1,6 +1,7 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using Plant3DCatalogComposer.Services;
 
 namespace Plant3DCatalogComposer
 {
@@ -39,7 +40,6 @@ namespace Plant3DCatalogComposer
             const int rowGap = 30;
             const int previewAfterName = 6;
             const int afterPreviewGap = 12;
-            const int applyGap = 12;
 
             int valueW = Math.Max(
                 100,
@@ -71,6 +71,14 @@ namespace Plant3DCatalogComposer
             row += rowGap;
             PlaceRow(_lblPrimaryEnd, _cmbPrimaryEnd!, row);
 
+            if (_lblFlangeFacing != null
+                && _cmbFlangeFacing != null
+                && CatalogFlangeFacing.PrimaryEndUsesFacing(GetPartFamilyPrimaryEnd()))
+            {
+                row += rowGap;
+                PlaceRow(_lblFlangeFacing, _cmbFlangeFacing, row);
+            }
+
             row += rowGap;
             PlaceRow(_lblCatalogDn, _cmbProjectDn!, row);
 
@@ -98,21 +106,8 @@ namespace Plant3DCatalogComposer
             row += rowGap;
             PlaceRow(_lblExcelClone, _cmbExcelClone!, row);
 
-            if (_btnApplyCatalogProject == null || _btnRegisterForPublish == null)
-                return;
-
-            const int applyH = 26;
-            int applyY = row + rowH + applyGap;
-            int gap = 8;
-            int totalBtnW = _btnApplyCatalogProject.Width + gap + _btnRegisterForPublish.Width;
-            int startX = (_grpCatalogProject.ClientSize.Width - totalBtnW) / 2;
-            _btnApplyCatalogProject.Location = new Point(Math.Max(FieldRightPad, startX), applyY);
-            _btnRegisterForPublish.Location = new Point(
-                _btnApplyCatalogProject.Right + gap,
-                applyY);
-
             const int groupChrome = 26;
-            int targetHeight = applyY + applyH + groupChrome;
+            int targetHeight = row + rowH + groupChrome;
             if (!_catalogLayoutSizing && Math.Abs(_grpCatalogProject.Height - targetHeight) > 1)
             {
                 _catalogLayoutSizing = true;

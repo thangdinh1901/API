@@ -324,7 +324,7 @@ API/
 
 | Vùng | Đường dẫn | Vai trò |
 |------|-----------|---------|
-| **Nguồn / dev** | `D:\02. Engineering\04. Autocad Plant 3D\API` | Sửa C#, Python, scene |
+| **Nguồn / dev** | Clone of this repo (see `deploy.json.example`) | Sửa C#, Python, scene |
 | **Runtime Plant 3D** | `C:\AutoCAD Plant 3D 2026 Content\CPak Common\CustomScripts` | Plant đọc catalog script |
 
 Cấu hình dev: `deploy.json` (AppData / plugin bundle / CustomScripts).

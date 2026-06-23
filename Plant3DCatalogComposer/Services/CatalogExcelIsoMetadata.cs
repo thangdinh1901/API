@@ -76,7 +76,9 @@ namespace Plant3DCatalogComposer.Services
                     ContentIsoSymbolDefinition = "TYPE=GASKET",
                 };
 
-            if (id.Contains("ELBOW", StringComparison.Ordinal))
+            if (id.Contains("ELBOW", StringComparison.Ordinal)
+                || id.Contains("BEND", StringComparison.Ordinal)
+                || part.PnpClassName.Equals("Elbow", StringComparison.OrdinalIgnoreCase))
             {
                 return isSw
                     ? Fitting("ASME B16.11", "B16.11", "ELBOW", "ELSW")

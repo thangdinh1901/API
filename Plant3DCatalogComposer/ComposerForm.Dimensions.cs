@@ -14,22 +14,16 @@ namespace Plant3DCatalogComposer
     {
         private const int ColDimName = 0;
         private const int ColDimValue = 1;
-        private const int ColDimBind = 2;
-        private const int ColDimUsedIn = 3;
 
         private GroupBox? _grpDimensions;
         private Label? _lblDimCatalogHint;
         private Label? _lblDimCatalogContext;
         private Label? _lblDimPickMode;
         private ComboBox? _cmbDimPickMode;
-        private Label? _lblDimBindParam;
-        private TextBox? _txtDimBindParam;
         private DataGridView? _dgvDimensions;
         private Button? _btnDimAdd;
         private Button? _btnDimDelete;
         private Button? _btnDimPick;
-        private Button? _btnDimBindScene;
-        private Button? _btnDimScanUsed;
         private Button? _btnDimApply;
         private Button? _btnDimResolveScene;
         private Label? _lblDimStatus;
@@ -47,7 +41,7 @@ namespace Plant3DCatalogComposer
             _lblDimCatalogHint = new Label
             {
                 AutoSize = true,
-                Text = "Pick or measure dimensions on the rebuilt preview. Bind links a row to Scene; Scan Used reads expressions.",
+                Text = "Part Family Apply seeds rows from Excel from. Edit values, Pick on preview, then Apply.",
             };
 
             _lblDimCatalogContext = new Label
@@ -57,24 +51,20 @@ namespace Plant3DCatalogComposer
                 Text = "Catalog: —",
             };
 
-            _lblDimPickMode = new Label { AutoSize = true, Text = "Pick mode:" };
+            _lblDimPickMode = new Label { AutoSize = true, Text = "Pick:" };
             _cmbDimPickMode = new ComboBox
             {
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Width = 100,
+                Width = 88,
             };
             _cmbDimPickMode.Items.AddRange(new object[]
             {
-                "|Δ| distance",
+                "|Δ|",
                 "ΔX",
                 "ΔY",
                 "ΔZ",
             });
             _cmbDimPickMode.SelectedIndex = 0;
-
-            _lblDimBindParam = new Label { AutoSize = true, Text = "Bind param:" };
-            _txtDimBindParam = new TextBox { Width = 48, Text = "" };
-            _toolTip.SetToolTip(_txtDimBindParam, "Optional primitive param key when binding Scene (D, L, H, W, …).");
 
             _dgvDimensions = new DataGridView
             {
@@ -92,36 +82,21 @@ namespace Plant3DCatalogComposer
             {
                 HeaderText = "Name",
                 Name = "colDimName",
-                FillWeight = 22,
+                FillWeight = 45,
             });
             _dgvDimensions.Columns.Add(new DataGridViewTextBoxColumn
             {
                 HeaderText = "Value (mm)",
                 Name = "colDimValue",
-                FillWeight = 18,
-            });
-            _dgvDimensions.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                HeaderText = "Bind",
-                Name = "colDimBind",
-                FillWeight = 18,
-                ReadOnly = true,
-            });
-            _dgvDimensions.Columns.Add(new DataGridViewTextBoxColumn
-            {
-                HeaderText = "Used in",
-                Name = "colDimUsedIn",
-                FillWeight = 42,
-                ReadOnly = true,
+                FillWeight = 55,
             });
 
-            _btnDimAdd = new Button { Text = "Add", Width = 58, Height = 28 };
-            _btnDimDelete = new Button { Text = "Delete", Width = 58, Height = 28 };
-            _btnDimPick = new Button { Text = "Pick", Width = 58, Height = 28 };
-            _btnDimBindScene = new Button { Text = "Bind Scene", Width = 82, Height = 28 };
-            _btnDimScanUsed = new Button { Text = "Scan Used", Width = 82, Height = 28 };
-            _btnDimApply = new Button { Text = "Apply", Width = 58, Height = 28 };
-            _btnDimResolveScene = new Button { Text = "Resolve", Width = 68, Height = 28 };
+            const int dimBtnH = 24;
+            _btnDimAdd = new Button { Text = "+", Width = 28, Height = dimBtnH };
+            _btnDimDelete = new Button { Text = "−", Width = 28, Height = dimBtnH };
+            _btnDimPick = new Button { Text = "Pick", Width = 44, Height = dimBtnH };
+            _btnDimApply = new Button { Text = "Apply", Width = 48, Height = dimBtnH };
+            _btnDimResolveScene = new Button { Text = "Scene", Width = 48, Height = dimBtnH };
 
             StyleAccentButton(_btnDimApply, Color.FromArgb(156, 39, 176));
             StyleAccentButton(_btnDimResolveScene, Color.FromArgb(123, 31, 162));
@@ -136,22 +111,10 @@ namespace Plant3DCatalogComposer
                 Color.FromArgb(225, 190, 231),
                 Color.FromArgb(186, 104, 200),
                 Color.FromArgb(74, 20, 87));
-            StyleLightActionButton(
-                _btnDimBindScene,
-                Color.FromArgb(225, 190, 231),
-                Color.FromArgb(186, 104, 200),
-                Color.FromArgb(74, 20, 87));
-            StyleLightActionButton(
-                _btnDimScanUsed,
-                Color.FromArgb(225, 190, 231),
-                Color.FromArgb(186, 104, 200),
-                Color.FromArgb(74, 20, 87));
 
             _btnDimAdd.Click += (_, _) => AddDimensionRow();
             _btnDimDelete.Click += (_, _) => DeleteSelectedDimensionRows();
             _btnDimPick.Click += (_, _) => BeginDimensionPick();
-            _btnDimBindScene.Click += (_, _) => BindSelectedDimensionToScene();
-            _btnDimScanUsed.Click += (_, _) => ScanAllDimensionUsedIn();
             _btnDimApply.Click += (_, _) => ApplyDimensionsFromGrid(save: true);
             _btnDimResolveScene.Click += (_, _) => ResolveSceneFromDimensions();
 
@@ -168,29 +131,22 @@ namespace Plant3DCatalogComposer
                 TabStop = false,
             };
             StyleGroupBoxCaption(_grpDimensions, "Design Dimensions");
-
             _grpDimensions.Controls.Add(_dgvDimensions);
-            foreach (Button b in new[]
-                     {
-                         _btnDimAdd!, _btnDimDelete!, _btnDimPick!,
-                         _btnDimBindScene!, _btnDimScanUsed!, _btnDimApply!, _btnDimResolveScene!,
-                     })
-            {
-                _grpDimensions.Controls.Add(b);
-            }
 
             tabDimensions.Controls.Add(_lblDimCatalogHint);
             tabDimensions.Controls.Add(_lblDimCatalogContext);
             tabDimensions.Controls.Add(_lblDimPickMode);
             tabDimensions.Controls.Add(_cmbDimPickMode);
-            tabDimensions.Controls.Add(_lblDimBindParam);
-            tabDimensions.Controls.Add(_txtDimBindParam);
             tabDimensions.Controls.Add(_grpDimensions);
+            foreach (Button b in new[] { _btnDimAdd!, _btnDimDelete!, _btnDimPick!, _btnDimApply!, _btnDimResolveScene! })
+                tabDimensions.Controls.Add(b);
             tabDimensions.Controls.Add(_lblDimStatus);
 
-            _toolTip.SetToolTip(_btnDimPick, "Pick two points in the drawing for the selected dimension row.");
-            _toolTip.SetToolTip(_btnDimBindScene, "Link selected row to the primitive selected on Scene tab.");
-            _toolTip.SetToolTip(_btnDimScanUsed, "Refresh Used in from Scene parameter expressions.");
+            _toolTip.SetToolTip(_btnDimAdd, "Add dimension row");
+            _toolTip.SetToolTip(_btnDimDelete, "Delete selected row");
+            _toolTip.SetToolTip(_btnDimPick, "Pick two points in the drawing for the selected row");
+            _toolTip.SetToolTip(_btnDimApply, "Save dimension values to the project");
+            _toolTip.SetToolTip(_btnDimResolveScene, "Save and push dimensions into Scene expressions");
 
             DimensionPickSession.Completed += OnDimensionPickSessionCompleted;
 
@@ -214,7 +170,7 @@ namespace Plant3DCatalogComposer
             DataGridViewRow? row = FindDimensionRow(result.DimensionName);
             if (row == null)
             {
-                int idx = _dgvDimensions.Rows.Add(result.DimensionName, FormatDimension(result.ValueMm), "", "");
+                int idx = _dgvDimensions.Rows.Add(result.DimensionName, FormatDimension(result.ValueMm));
                 row = _dgvDimensions.Rows[idx];
             }
             else
@@ -223,10 +179,10 @@ namespace Plant3DCatalogComposer
             }
 
             _dimensionBindings[result.DimensionName] = result.Binding;
-            row.Cells[ColDimBind].Value = ProjectDimensionService.FormatBinding(result.Binding);
 
             if (_lblDimStatus != null)
-                _lblDimStatus.Text = $"{result.DimensionName} = {FormatDimension(result.ValueMm)} mm (pick).";
+                _lblDimStatus.Text = $"{result.DimensionName} = {FormatDimension(result.ValueMm)} mm — saved.";
+            ApplyDimensionsFromGrid(save: true);
         }
 
         private void RelayoutDimensionsTab()
@@ -235,15 +191,12 @@ namespace Plant3DCatalogComposer
                 return;
 
             const int margin = 8;
+            const int btnH = 24;
+            const int btnGap = 4;
+            const int footerH = btnH + 28;
+
             int width = Math.Max(200, tabDimensions.ClientSize.Width - margin * 2);
             int y = margin;
-
-            void PlaceLabel(Label? lbl, int xRef, ref int rowY)
-            {
-                if (lbl == null)
-                    return;
-                lbl.Location = new Point(xRef, rowY + 2);
-            }
 
             if (_lblDimCatalogHint != null)
             {
@@ -259,61 +212,32 @@ namespace Plant3DCatalogComposer
                 y = _lblDimCatalogContext.Bottom + 6;
             }
 
-            int toolY = y;
-            PlaceLabel(_lblDimPickMode, margin, ref toolY);
+            if (_lblDimPickMode != null)
+                _lblDimPickMode.Location = new Point(margin, y + 2);
             if (_cmbDimPickMode != null)
-                _cmbDimPickMode.Location = new Point(margin + 68, toolY);
+                _cmbDimPickMode.Location = new Point(margin + 36, y);
+            y += btnH + 6;
 
-            PlaceLabel(_lblDimBindParam, margin + 180, ref toolY);
-            if (_txtDimBindParam != null)
-                _txtDimBindParam.Location = new Point(margin + 258, toolY);
-            y = toolY + 30;
+            int gridHeight = Math.Max(120, tabDimensions.ClientSize.Height - y - footerH);
+            _grpDimensions.SetBounds(margin, y, width, gridHeight);
+            _dgvDimensions.SetBounds(10, 20, width - 20, gridHeight - 28);
 
-            const int btnH = 28;
-            const int btnGap = 4;
-            const int btnRows = 62;
-            int gridHeight = Math.Max(100, tabDimensions.ClientSize.Height - y - btnRows - 36);
-
-            _grpDimensions.SetBounds(margin, y, width, gridHeight + btnRows);
-            _dgvDimensions.SetBounds(10, 22, width - 20, gridHeight);
-
-            int row1 = gridHeight + 28;
-            int row2 = row1 + btnH + btnGap;
-            int x = 10;
-            foreach (Button? b in new[]
-                     {
-                         _btnDimAdd, _btnDimDelete, _btnDimPick,
-                     })
+            int btnY = _grpDimensions.Bottom + 6;
+            int x = margin;
+            foreach (Button? b in new[] { _btnDimAdd, _btnDimDelete, _btnDimPick, _btnDimApply, _btnDimResolveScene })
             {
                 if (b == null)
                     continue;
-                PlaceDimButton(b, x, row1);
-                x += b.Width + btnGap;
-            }
-
-            x = 10;
-            foreach (Button? b in new[]
-                     {
-                         _btnDimBindScene, _btnDimScanUsed, _btnDimApply, _btnDimResolveScene,
-                     })
-            {
-                if (b == null)
-                    continue;
-                PlaceDimButton(b, x, row2);
+                b.Location = new Point(x, btnY);
+                b.Anchor = AnchorStyles.Top | AnchorStyles.Left;
                 x += b.Width + btnGap;
             }
 
             if (_lblDimStatus != null)
             {
                 _lblDimStatus.MaximumSize = new Size(width, 0);
-                _lblDimStatus.Location = new Point(margin, _grpDimensions.Bottom + 6);
+                _lblDimStatus.Location = new Point(margin, btnY + btnH + 4);
             }
-        }
-
-        private static void PlaceDimButton(Button button, int x, int y)
-        {
-            button.Anchor = AnchorStyles.None;
-            button.Location = new Point(x, y);
         }
 
         private void LoadDimensionFields(ValveProject project)
@@ -331,18 +255,12 @@ namespace Plant3DCatalogComposer
             foreach (string name in ProjectDimensionService.LoadRowNames(project))
             {
                 double value = ProjectDimensionService.GetValue(project, name);
-                project.DimensionBindings.TryGetValue(name, out DimensionBinding? binding);
-                if (!_dimensionBindings.TryGetValue(name, out binding))
-                    binding = null;
-
                 string valueText = value > 0 ? FormatDimension(value) : "";
-                string bindText = ProjectDimensionService.FormatBinding(binding);
-                string usedIn = ProjectDimensionService.ScanUsedIn(project, name);
-                _dgvDimensions.Rows.Add(name, valueText, bindText, usedIn);
+                _dgvDimensions.Rows.Add(name, valueText);
             }
 
             if (_lblDimStatus != null && _dgvDimensions.Rows.Count == 0)
-                _lblDimStatus.Text = "No dimensions yet — Add a row, then Pick on the preview.";
+                _lblDimStatus.Text = "No dimensions yet — Apply Part Family or Add a row.";
         }
 
         private void UpdateDimensionCatalogContext(ValveProject project)
@@ -364,7 +282,7 @@ namespace Plant3DCatalogComposer
                 return;
 
             string name = NextSuggestedDimensionName();
-            int index = _dgvDimensions.Rows.Add(name, "", "—", "—");
+            int index = _dgvDimensions.Rows.Add(name, "");
             _dimensionBindings[name] = new DimensionBinding { MeasureKind = "manual" };
             _dgvDimensions.CurrentCell = _dgvDimensions.Rows[index].Cells[ColDimValue];
             _dgvDimensions.BeginEdit(true);
@@ -510,84 +428,11 @@ namespace Plant3DCatalogComposer
                 SelectedPickMode(),
                 nodeId,
                 nodeName,
-                _txtDimBindParam?.Text);
+                paramKey: null);
 
             if (_lblDimStatus != null)
                 _lblDimStatus.Text = $"Pick two points for {name}…";
             doc.SendStringToExecute("P3DCOMPPICKDIM\n", true, false, false);
-        }
-
-        private void BindSelectedDimensionToScene()
-        {
-            if (!TryGetSelectedDimensionRow(out DataGridViewRow row, out string name))
-            {
-                ShowWarning("Select a dimension row.");
-                return;
-            }
-
-            if (_selectedNodeId == null)
-            {
-                ShowWarning("Select a primitive on the Scene tab first.");
-                return;
-            }
-
-            try
-            {
-                string dwg = DrawingContext.RequireActiveDrawingPath();
-                ValveProject project = DocumentStore.LoadOrCreate(
-                    dwg, Path.GetFileNameWithoutExtension(dwg));
-                PrimitiveNode? node = project.FindNode(_selectedNodeId.Value);
-                if (node == null)
-                {
-                    ShowWarning("Selected scene node not found.");
-                    return;
-                }
-
-                DimensionBinding binding = DimensionMeasureService.CreateSceneBind(
-                    node.Id,
-                    node.Name,
-                    _txtDimBindParam?.Text);
-
-                if (_dimensionBindings.TryGetValue(name, out DimensionBinding? existing))
-                {
-                    binding.MeasureKind = existing.MeasureKind;
-                    binding.FromPort = existing.FromPort;
-                    binding.ToPort = existing.ToPort;
-                    binding.PickFromWcs = existing.PickFromWcs;
-                    binding.PickToWcs = existing.PickToWcs;
-                }
-
-                _dimensionBindings[name] = binding;
-                row.Cells[ColDimBind].Value = ProjectDimensionService.FormatBinding(binding);
-
-                if (_lblDimStatus != null)
-                    _lblDimStatus.Text = $"Bound {name} → {ProjectDimensionService.FormatBinding(binding)}.";
-            }
-            catch (Exception ex)
-            {
-                ShowError(ex);
-            }
-        }
-
-        private void ScanAllDimensionUsedIn()
-        {
-            if (_dgvDimensions == null)
-                return;
-
-            try
-            {
-                string dwg = DrawingContext.RequireActiveDrawingPath();
-                ValveProject project = DocumentStore.LoadOrCreate(
-                    dwg, Path.GetFileNameWithoutExtension(dwg));
-                ProjectDimensionService.RefreshAllUsedIn(project, _dgvDimensions, ColDimUsedIn);
-
-                if (_lblDimStatus != null)
-                    _lblDimStatus.Text = "Used in column refreshed from Scene expressions.";
-            }
-            catch (Exception ex)
-            {
-                ShowError(ex);
-            }
         }
 
         private void ApplyDimensionsFromGrid(bool save)
@@ -597,7 +442,8 @@ namespace Plant3DCatalogComposer
 
             if (!TryReadDimensionRows(out List<(string Name, double ValueMm)> rows, out string? error))
             {
-                ShowWarning(error ?? "Invalid dimensions.");
+                if (!string.IsNullOrEmpty(error))
+                    ShowWarning(error);
                 return;
             }
 
@@ -611,10 +457,10 @@ namespace Plant3DCatalogComposer
                 if (save)
                     DocumentStore.Save(dwg, project);
 
-                ProjectDimensionService.RefreshAllUsedIn(project, _dgvDimensions, ColDimUsedIn);
-
                 if (_lblDimStatus != null)
-                    _lblDimStatus.Text = $"Saved {rows.Count} dimension(s) with bindings.";
+                    _lblDimStatus.Text = rows.Count == 0
+                        ? "No dimensions saved."
+                        : $"Saved {rows.Count} dimension(s).";
             }
             catch (Exception ex)
             {
@@ -637,10 +483,9 @@ namespace Plant3DCatalogComposer
                     dwg, Path.GetFileNameWithoutExtension(dwg));
 
                 ProjectDimensionService.ApplyToProject(project, rows, _dimensionBindings);
-                ProjectDimensionService.ResolveAllPrimitiveExpressions(project);
+                CatalogExportPrepareService.PrepareSceneForExport(project);
                 DocumentStore.Save(dwg, project);
                 RefreshSceneTree();
-                ProjectDimensionService.RefreshAllUsedIn(project, _dgvDimensions!, ColDimUsedIn);
                 if (_selectedNodeId.HasValue)
                 {
                     PrimitiveNode? node = project.FindNode(_selectedNodeId.Value);
@@ -649,7 +494,7 @@ namespace Plant3DCatalogComposer
                 }
 
                 if (_lblDimStatus != null)
-                    _lblDimStatus.Text = "Dimensions applied and Scene expressions resolved.";
+                    _lblDimStatus.Text = "Dimensions saved and Scene updated.";
             }
             catch (Exception ex)
             {
@@ -695,8 +540,6 @@ namespace Plant3DCatalogComposer
 
                 if (!_dimensionBindings.ContainsKey(normalized))
                     _dimensionBindings[normalized] = new DimensionBinding { MeasureKind = "manual" };
-
-                row.Cells[ColDimBind].Value = ProjectDimensionService.FormatBinding(_dimensionBindings[normalized]);
             }
 
             return true;

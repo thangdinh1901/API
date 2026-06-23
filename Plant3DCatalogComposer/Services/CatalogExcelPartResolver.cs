@@ -189,13 +189,47 @@ namespace Plant3DCatalogComposer.Services
             if (part.Id.Contains("TEE_EQ", StringComparison.OrdinalIgnoreCase))
                 return (CatalogExcelPortLayout.TriplePortBv, 3, true);
 
-            if (part.Id.Contains("ELBOW", StringComparison.OrdinalIgnoreCase))
-                return (CatalogExcelPortLayout.DualPortBv, 2, true);
+            if (IsDualPortFlangedFitting(part, catalogEntryPortCount))
+                return (CatalogExcelPortLayout.DualFlange, 2, true);
 
-            if (part.Id.Contains("REDUCER", StringComparison.OrdinalIgnoreCase))
+            if (IsDualPortBvFitting(part, catalogEntryPortCount))
                 return (CatalogExcelPortLayout.DualPortBv, 2, true);
 
             return (CatalogExcelPortLayout.SingleAll, catalogEntryPortCount, catalogEntryPortCount > 1);
+        }
+
+        private static bool IsDualPortFlangedFitting(CustomPartDefinition part, int catalogEntryPortCount)
+        {
+            if (catalogEntryPortCount < 2)
+                return false;
+
+            if (!part.Group.Equals("Fitting", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            return CatalogFlangeFacing.IsFlangedEndType(ResolveFittingEndType(part));
+        }
+
+        private static bool IsDualPortBvFitting(CustomPartDefinition part, int catalogEntryPortCount)
+        {
+            if (catalogEntryPortCount < 2)
+                return false;
+
+            if (!part.Group.Equals("Fitting", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (part.Id.Contains("TEE", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (part.Id.Contains("ELBOW", StringComparison.OrdinalIgnoreCase)
+                || part.Id.Contains("REDUCER", StringComparison.OrdinalIgnoreCase)
+                || part.Id.Contains("BEND", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (part.PnpClassName.Equals("Elbow", StringComparison.OrdinalIgnoreCase)
+                || part.PnpClassName.Equals("Reducer", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return true;
         }
 
         private static bool IsExportablePart(CustomPartDefinition part)
@@ -305,6 +339,9 @@ namespace Plant3DCatalogComposer.Services
 
         private static string ResolvePnPClassName(CustomPartDefinition part)
         {
+            if (!string.IsNullOrWhiteSpace(part.PnpClassName))
+                return part.PnpClassName.Trim();
+
             string id = part.Id.ToUpperInvariant();
             if (id.StartsWith("GSK_", StringComparison.Ordinal))
                 return "Gasket";
@@ -333,6 +370,12 @@ namespace Plant3DCatalogComposer.Services
 
         private static string ResolveFittingEndType(CustomPartDefinition part)
         {
+            if (!string.IsNullOrWhiteSpace(part.PrimaryEndType)
+                && !part.PrimaryEndType.Equals("Undefined_ET", StringComparison.OrdinalIgnoreCase))
+            {
+                return CatalogPortTemplates.MapPrimaryEndToPortEndTypePublic(part.PrimaryEndType);
+            }
+
             if (part.StandardSet.Equals(SwCl3000StandardCatalog.SetId, StringComparison.OrdinalIgnoreCase)
                 || part.Id.Contains("_SW_", StringComparison.OrdinalIgnoreCase))
                 return "SW";
@@ -345,7 +388,7 @@ namespace Plant3DCatalogComposer.Services
             CatalogExcelPortLayout layout,
             string? flangePort1)
         {
-            if (TryResolveElbowPortEndTypes(part.Id, out string? elbowP1, out _))
+            if (TryResolveElbowPortEndTypes(part, out string? elbowP1, out _))
                 return (elbowP1!, "S1");
 
             if (layout == CatalogExcelPortLayout.DualFlange)
@@ -377,11 +420,15 @@ namespace Plant3DCatalogComposer.Services
             CatalogExcelPortLayout layout,
             string? flangePort2)
         {
-            if (TryResolveElbowPortEndTypes(part.Id, out _, out string? elbowP2))
+            if (TryResolveElbowPortEndTypes(part, out _, out string? elbowP2))
                 return (elbowP2!, "S2");
 
-            if (layout == CatalogExcelPortLayout.DualFlange && flangePort2 != null)
-                return (flangePort2, "S2");
+            if (layout == CatalogExcelPortLayout.DualFlange)
+            {
+                if (flangePort2 != null)
+                    return (flangePort2, "S2");
+                return (ResolveFittingEndType(part), "S2");
+            }
 
             if (layout is CatalogExcelPortLayout.DualPortBv or CatalogExcelPortLayout.TriplePortBv)
                 return (ResolveFittingEndType(part), "S2");
@@ -449,14 +496,31 @@ namespace Plant3DCatalogComposer.Services
         /// Plant 3D joint tables connect PL pipe to BV/SW fittings — do not mark fitting port 2 as PL.
         /// </summary>
         private static bool TryResolveElbowPortEndTypes(
-            string partId,
+            CustomPartDefinition part,
             out string? port1EndType,
             out string? port2EndType)
         {
             port1EndType = null;
             port2EndType = null;
-            if (!partId.Contains("ELBOW", StringComparison.OrdinalIgnoreCase))
+            string partId = part.Id;
+
+            bool isElbowLike = partId.Contains("ELBOW", StringComparison.OrdinalIgnoreCase)
+                || partId.Contains("BEND", StringComparison.OrdinalIgnoreCase)
+                || part.PnpClassName.Equals("Elbow", StringComparison.OrdinalIgnoreCase);
+            if (!isElbowLike)
                 return false;
+
+            if (!string.IsNullOrWhiteSpace(part.PrimaryEndType)
+                && !part.PrimaryEndType.Equals("Undefined_ET", StringComparison.OrdinalIgnoreCase))
+            {
+                string mapped = CatalogPortTemplates.MapPrimaryEndToPortEndTypePublic(part.PrimaryEndType);
+                if (CatalogFlangeFacing.IsFlangedEndType(mapped))
+                    return false;
+
+                port1EndType = mapped;
+                port2EndType = mapped;
+                return true;
+            }
 
             if (partId.Contains("_SW_", StringComparison.OrdinalIgnoreCase))
             {

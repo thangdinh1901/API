@@ -188,6 +188,34 @@ namespace Plant3DCatalogComposer.Services
         public static string InferFirstPortEndtypesFromProject(ValveProject project) =>
             BuildPortEndtypesFromProject(project);
 
+        /// <summary>When Port Manager is empty, derive port end types from Part Family primary end.</summary>
+        public static string InferFirstPortEndtypesFromPrimaryEnd(ValveProject project, int portCount)
+        {
+            if (portCount <= 0)
+                return "FL";
+
+            string primary = CatalogStandardSetInference.ResolvePrimaryEndType(project);
+            string portEnd = MapPrimaryEndToPortEndType(primary);
+            return portCount <= 1
+                ? portEnd
+                : string.Join(",", Enumerable.Repeat(portEnd, portCount));
+        }
+
+        public static string MapPrimaryEndToPortEndTypePublic(string primaryEnd) =>
+            MapPrimaryEndToPortEndType(primaryEnd);
+
+        private static string MapPrimaryEndToPortEndType(string primaryEnd)
+        {
+            return Plant3DEndTypes.NormalizeCode(primaryEnd) switch
+            {
+                "BV" or "PL" or "PPL" or "P" => "BV",
+                "SW" or "PSW" => "SW",
+                "LAP" or "LLP" => "LAP",
+                "SO" => "SO",
+                _ => Plant3DEndTypes.NormalizeCode(primaryEnd),
+            };
+        }
+
         private static string Fmt(double value) =>
             value.ToString("0.######", CultureInfo.InvariantCulture);
 

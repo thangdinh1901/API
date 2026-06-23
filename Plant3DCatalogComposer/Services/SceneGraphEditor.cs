@@ -25,6 +25,7 @@ namespace Plant3DCatalogComposer.Services
             string newName = project.NextName(prefix);
             PrimitiveNode clone = SceneGraphHelpers.CloneNode(source, newName);
             project.Parts.Add(clone);
+            SceneParamBindingService.SanitizeManualParameterOverrides(project);
             DocumentStore.Save(dwgPath, project);
             return clone.Id;
         }
@@ -46,13 +47,43 @@ namespace Plant3DCatalogComposer.Services
 
         public static void ResolveExpressions(PrimitiveNode node, SkeletonParameters skeleton)
         {
-            foreach (ParamValue pv in node.Parameters.Values)
+            foreach (KeyValuePair<string, ParamValue> kv in node.Parameters)
             {
-                if (!string.IsNullOrWhiteSpace(pv.Expression))
+                ParamValue pv = kv.Value;
+                if (string.IsNullOrWhiteSpace(pv.Expression))
+                    continue;
+
+                if (SceneParamBindingService.HasManualOverride(pv, skeleton))
                 {
-                    pv.Value = ExpressionEvaluator.EvaluateOrValue(
-                        pv.Expression, skeleton, pv.Value);
+                    pv.Expression = null;
+                    continue;
                 }
+
+                string expression = pv.Expression.Trim();
+                double resolved = ExpressionEvaluator.EvaluateOrValue(
+                    expression, skeleton, pv.Value);
+
+                // Keep a positive manual override when the bound expression collapses to zero
+                // (e.g. HandwheelOD unset while the user typed D/T in the Scene grid).
+                if (node.Kind == SceneNodeKind.Primitive
+                    && PrimitiveParameterUnits.RequiresPositiveValue(node.Type, kv.Key)
+                    && resolved <= 0
+                    && pv.Value > 0)
+                {
+                    pv.Expression = null;
+                    continue;
+                }
+
+                // Optional params default to literal "0" (Pyramid HT, Cone D2, etc.) — do not
+                // clobber a user-entered value when the stored literal expression still says 0.
+                if (ExpressionEvaluator.IsNumericLiteral(expression)
+                    && Math.Abs(resolved - pv.Value) > 1e-9)
+                {
+                    pv.Expression = null;
+                    continue;
+                }
+
+                pv.Value = resolved;
             }
         }
     }

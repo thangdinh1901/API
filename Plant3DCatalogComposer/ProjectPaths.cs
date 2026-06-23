@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Security.Cryptography;
+using System.Text;
 using Plant3DCatalogComposer.Services;
 
 namespace Plant3DCatalogComposer
@@ -104,11 +106,17 @@ namespace Plant3DCatalogComposer
             if (string.IsNullOrWhiteSpace(dwgPath))
                 return "unsaved";
 
-            if (Path.IsPathRooted(dwgPath))
-            {
-                string full = Path.GetFullPath(dwgPath);
-                return SanitizeFileName(Path.GetFileNameWithoutExtension(full));
-            }
+            string full = Path.GetFullPath(dwgPath);
+            string name = SanitizeFileName(Path.GetFileNameWithoutExtension(full));
+            byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(full.ToLowerInvariant()));
+            string id = Convert.ToHexString(hash)[..12];
+            return $"{name}_{id}";
+        }
+
+        private static string LegacyDrawingSceneKey(string? dwgPath)
+        {
+            if (string.IsNullOrWhiteSpace(dwgPath))
+                return "unsaved";
 
             return SanitizeFileName(Path.GetFileNameWithoutExtension(dwgPath));
         }
@@ -120,7 +128,34 @@ namespace Plant3DCatalogComposer
             return string.IsNullOrWhiteSpace(name) ? "unsaved" : name;
         }
 
-        public static string GetSceneStorePath(string? dwgPath) =>
-            Path.Combine(SceneStoreDirectory, GetDrawingSceneKey(dwgPath) + ".scene.json");
+        public static string GetSceneStorePath(string? dwgPath)
+        {
+            if (string.IsNullOrWhiteSpace(dwgPath))
+                return Path.Combine(SceneStoreDirectory, "unsaved.scene.json");
+
+            string full = Path.GetFullPath(dwgPath);
+            string keyed = Path.Combine(SceneStoreDirectory, GetDrawingSceneKey(full) + ".scene.json");
+            if (File.Exists(keyed))
+                return keyed;
+
+            // Saved drawing: use keyed path so different folders with the same file name do not share one JSON.
+            if (Path.IsPathRooted(full) && File.Exists(full))
+                return keyed;
+
+            string legacy = Path.Combine(
+                SceneStoreDirectory,
+                LegacyDrawingSceneKey(full) + ".scene.json");
+            return File.Exists(legacy) ? legacy : keyed;
+        }
+
+        public static string LegacySceneStorePath(string? dwgPath)
+        {
+            if (string.IsNullOrWhiteSpace(dwgPath))
+                return Path.Combine(SceneStoreDirectory, "unsaved.scene.json");
+
+            return Path.Combine(
+                SceneStoreDirectory,
+                LegacyDrawingSceneKey(Path.GetFullPath(dwgPath)) + ".scene.json");
+        }
     }
 }

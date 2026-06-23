@@ -72,6 +72,32 @@ namespace Plant3DCatalogComposer.Services
             return 0;
         }
 
+        public static void SetValue(ValveProject project, string name, double valueMm)
+        {
+            if (valueMm <= 0)
+                return;
+
+            if (IsBuiltIn(name))
+                SetBuiltIn(project.Parameters, name, valueMm);
+            else
+                project.Parameters.CustomDimensions[name] = valueMm;
+        }
+
+        /// <summary>Replace all design dimensions; drop bindings for removed rows.</summary>
+        public static void ReplaceAll(ValveProject project, IReadOnlyList<(string Name, double ValueMm)> rows)
+        {
+            ApplyRows(project.Parameters, rows);
+
+            var keep = new HashSet<string>(
+                rows.Select(r => r.Name),
+                StringComparer.OrdinalIgnoreCase);
+            foreach (string key in project.DimensionBindings.Keys.ToList())
+            {
+                if (!keep.Contains(key))
+                    project.DimensionBindings.Remove(key);
+            }
+        }
+
         public static void ApplyToProject(
             ValveProject project,
             IReadOnlyList<(string Name, double ValueMm)> rows,
