@@ -4,10 +4,10 @@ from THANG_TEST.CUST_THANG_TEST import THANG_TEST
 
 
 @activate(  # type: ignore
-    Group="Fitting",
+    Group="Valve",
     TooltipShort="THANG_TEST",
     TooltipLong="THANG_TEST",
-    FirstPortEndtypes="BV,BV",
+    FirstPortEndtypes="FL,FL",
     LengthUnit="mm",
     Ports="2",
 )

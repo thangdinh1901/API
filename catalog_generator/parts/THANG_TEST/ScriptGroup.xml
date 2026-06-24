@@ -2,7 +2,7 @@
 <ScriptInfo>
 	<ScriptGroup>
 		<ScriptName>CUST_THANG_TEST</ScriptName>
-		<Group>Fitting</Group>
-		<FirstPortEndtypes>BV,BV</FirstPortEndtypes>
+		<Group>Valve</Group>
+		<FirstPortEndtypes>FL,FL</FirstPortEndtypes>
 	</ScriptGroup>
 </ScriptInfo>

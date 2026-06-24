@@ -558,6 +558,7 @@ __all__ = [""{ctx.LibraryClassName}""]";
             sb.AppendLine("    EllipsoidSegment, HalfSphere, Pyramid, Reduced_elbow,");
             sb.AppendLine("    RoundRectangle, SegmentedElbow, ShapeAssembly, Sphere,");
             sb.AppendLine("    SphereSegment, TorisPhericHead, TorisPhericHead2, TorisPhericHeadH, Torus,");
+            sb.AppendLine("    BoxWithFillet, CylinderChamfered, CylinderWithFillet, Fillet,");
             sb.AppendLine("    ShapeObject,");
             sb.AppendLine(")");
             AppendCatalogPartImports(sb, ctx.Project);

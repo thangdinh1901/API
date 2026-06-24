@@ -141,7 +141,10 @@ namespace Plant3DCatalogComposer.Services
             IdleRebuildService.CancelPending();
             CatalogDeployService.InvalidateBeforeCatalogTest(test.ScriptName);
             doc.Editor.WriteMessage($"\nP3D Composer: {test.Message}");
-            doc.SendStringToExecute(test.CommandLine + "\n", true, false, false);
+            // No trailing "\n": the wrapped LISP already ends with a space that executes it. An extra
+            // newline lands at the Command prompt as a second Enter, repeating TESTACPSCRIPT with no
+            // args, which pops up Autodesk Help. (Rebuild sends the same way without a newline.)
+            doc.SendStringToExecute(test.CommandLine, true, false, false);
             return true;
         }
 
@@ -187,7 +190,8 @@ namespace Plant3DCatalogComposer.Services
                 return false;
 
             doc.Editor.WriteMessage($"\nP3D Composer: {preview.Message}");
-            doc.SendStringToExecute(preview.CommandLine + "\n", true, false, false);
+            // See TryQueueTest: no trailing "\n" (avoids repeating TESTACPSCRIPT → Autodesk Help).
+            doc.SendStringToExecute(preview.CommandLine, true, false, false);
             return true;
         }
 

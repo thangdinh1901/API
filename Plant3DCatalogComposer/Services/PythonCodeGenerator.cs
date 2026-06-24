@@ -47,6 +47,7 @@ namespace Plant3DCatalogComposer.Services
             sb.AppendLine("    EllipsoidSegment, HalfSphere, Pyramid, Reduced_elbow,");
             sb.AppendLine("    RoundRectangle, SegmentedElbow, ShapeAssembly, Sphere,");
             sb.AppendLine("    SphereSegment, TorisPhericHead, TorisPhericHead2, TorisPhericHeadH, Torus,");
+            sb.AppendLine("    BoxWithFillet, CylinderChamfered, CylinderWithFillet, Fillet,");
             sb.AppendLine(")");
             foreach (string fn in catalogImports)
                 sb.AppendLine($"from {fn} import {fn}");

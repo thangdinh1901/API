@@ -54,18 +54,37 @@ def unhide_header_rows(wb: openpyxl.Workbook) -> int:
     return changed
 
 
+def _clone_sheet_within(wb: openpyxl.Workbook, src_name: str, dest_name: str) -> bool:
+    """Clone an existing sheet to a new name inside the same workbook."""
+    if src_name not in wb.sheetnames:
+        return False
+    _copy_sheet(wb[src_name], wb, dest_name)
+    return True
+
+
 def restore_native_support_sheets(wb: openpyxl.Workbook) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         src_path = Path(tmp) / "native_template.xlsx"
         _extract_template(NATIVE_SOURCE_REV, src_path)
         src_wb = openpyxl.load_workbook(src_path)
 
-        for sheet_name in (NATIVE_PIPE_SHEET, "STUD_RF_CL150,", "STUD_LJ_CL150,"):
+        # PIPE (native CPP) and STUD_RF exist in the original commit; copy them verbatim.
+        for sheet_name in (NATIVE_PIPE_SHEET, "STUD_RF_CL150,"):
             if sheet_name not in src_wb.sheetnames:
                 print(f"WARN: missing native sheet {sheet_name} in {NATIVE_SOURCE_REV}")
                 continue
             _copy_sheet(src_wb[sheet_name], wb, sheet_name)
             print(f"Restored {sheet_name}")
+
+        # STUD_LJ was never in the original template — clone it from STUD_RF (same columns;
+        # FillStudLjSheet overrides Facing=FF and the LJ bolting values at publish time).
+        if "STUD_LJ_CL150," in src_wb.sheetnames:
+            _copy_sheet(src_wb["STUD_LJ_CL150,"], wb, "STUD_LJ_CL150,")
+            print("Restored STUD_LJ_CL150,")
+        elif _clone_sheet_within(wb, "STUD_RF_CL150,", "STUD_LJ_CL150,"):
+            print("Created STUD_LJ_CL150, (cloned from STUD_RF_CL150,)")
+        else:
+            print("WARN: could not create STUD_LJ_CL150, (no STUD_RF source)")
 
         if LEGACY_BAD_PIPE in wb.sheetnames:
             del wb[LEGACY_BAD_PIPE]

@@ -217,27 +217,29 @@ namespace Plant3DCatalogComposer.Services
                 };
             }
 
-            if (partIdFilter is { Count: > 0 })
+            // Always drop unfilled clone-source/template sheets (e.g. VALVE_FL_CL150, VALVE_FL_RICH).
+            // They keep two title rows + a placeholder seed row and would make Build Catalog fail
+            // ("Invalid Custom Script path", "ContentGeometryParamDefinition=ContentGeometryParamDefinition").
+            // Single-part publish also drops the static support sheets; full / multi-part keeps them.
+            bool singlePart = partIdFilter is { Count: 1 };
+            int removedSheets = PruneUnexportedPartSheets(
+                workbook,
+                filledSheets,
+                keepStaticSupportSheets: !singlePart);
+            if (removedSheets > 0)
             {
-                int removedSheets = PruneUnexportedPartSheets(
-                    workbook,
-                    filledSheets,
-                    keepStaticSupportSheets: partIdFilter.Count > 1);
-                if (removedSheets > 0)
-                {
-                    warnings.Add(
-                        partIdFilter.Count == 1
-                            ? $"Workbook trimmed to {filledSheets.Count} part sheet(s) only."
-                            : $"Removed {removedSheets} unused part sheet(s) from workbook.");
-                }
-
-                if (partIdFilter.Count == 1)
-                    RemoveCatalogDataFlagSheet(workbook);
+                warnings.Add(
+                    singlePart
+                        ? $"Workbook trimmed to {filledSheets.Count} part sheet(s) only."
+                        : $"Removed {removedSheets} unused clone-template sheet(s) from workbook.");
             }
+
+            if (singlePart)
+                RemoveCatalogDataFlagSheet(workbook);
 
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? ".");
             if (partIdFilter is not { Count: 1 })
-                FillStaticTemplateSheets(workbook);
+                FillStaticTemplateSheets(workbook, warnings);
             workbook.SaveAs(outputPath);
 
             string skippedNote = skipped.Count > 0
@@ -328,11 +330,32 @@ namespace Plant3DCatalogComposer.Services
             workbook.Worksheets.FirstOrDefault(w =>
                 w.Name.StartsWith(sheetPrefix, StringComparison.OrdinalIgnoreCase));
 
-        private static void FillStaticTemplateSheets(XLWorkbook workbook)
+        private static void FillStaticTemplateSheets(XLWorkbook workbook, List<string> warnings)
         {
+            // Pipe (native CPP) and stud-bolt sheets are static support families. If the template is
+            // missing them, surface a warning (rather than silently dropping Pipe / Bolt stud) so the
+            // user knows to restore CatalogBuilderTemplate.xlsx.
+            WarnIfStaticSheetMissing(workbook, "PIPE_SCH40", "Pipe (native CPP)", warnings);
+            WarnIfStaticSheetMissing(workbook, "STUD_RF", "Stud bolts (RF)", warnings);
+            WarnIfStaticSheetMissing(workbook, "STUD_LJ", "Stud bolts (LJ)", warnings);
+
             FillPipeSheet(workbook);
             FillStudRfSheet(workbook);
             FillStudLjSheet(workbook);
+        }
+
+        private static void WarnIfStaticSheetMissing(
+            XLWorkbook workbook,
+            string sheetPrefix,
+            string label,
+            List<string> warnings)
+        {
+            if (FindStaticSheet(workbook, sheetPrefix) == null)
+            {
+                warnings.Add(
+                    $"{label}: template sheet '{sheetPrefix}*' missing — not exported. "
+                    + "Run scripts/add_static_support_template_sheets.py to restore CatalogBuilderTemplate.xlsx.");
+            }
         }
 
         private static void FillPipeSheet(XLWorkbook workbook)
@@ -719,7 +742,7 @@ namespace Plant3DCatalogComposer.Services
 
             Set(sheet, header, rowIndex, "ShortDescription", row.ShortDescription);
             Set(sheet, header, rowIndex, "PartFamilyLongDesc", familyDesc);
-            Set(sheet, header, rowIndex, "PartSizeLongDesc", BuildPartSizeLongDesc(row.Part, familyDesc, size));
+            Set(sheet, header, rowIndex, "PartSizeLongDesc", BuildPartSizeLongDesc(row.ShortDescription, size));
             Set(sheet, header, rowIndex, "PartFamilyId", familyId.ToString("D"));
             Set(sheet, header, rowIndex, "CatalogPartFamilyId", familyId.ToString("D"));
             Set(sheet, header, rowIndex, "ConnectionPortCount", row.PortCount.ToString(CultureInfo.InvariantCulture));
@@ -1006,89 +1029,15 @@ namespace Plant3DCatalogComposer.Services
             row.Part.Group.Equals("Fitting", StringComparison.OrdinalIgnoreCase)
             && CatalogFlangeFacing.IsButtWeldEndType(row.FittingEndType);
 
-        private static string BuildPartSizeLongDesc(
-            CustomPartDefinition part,
-            string familyDesc,
-            CatalogExcelSizeVariant size)
+        /// <summary>Long Description = Short Description + Size (e.g. "FLANGE WN DN50", reducers "DN80x50").</summary>
+        private static string BuildPartSizeLongDesc(string shortDescription, CatalogExcelSizeVariant size)
         {
             string dnTag = size.Dn2.HasValue
                 ? $"DN{size.Dn}x{size.Dn2.Value}"
                 : $"DN{size.Dn}";
 
-            string id = part.Id.ToUpperInvariant();
-            string trimmed = familyDesc.Trim();
-
-            if (id.Contains("ELBOW", StringComparison.Ordinal) && trimmed.Contains(" deg ", StringComparison.OrdinalIgnoreCase))
-                return trimmed.Replace(" deg ", $" deg {dnTag} ", StringComparison.OrdinalIgnoreCase);
-
-            if (id.StartsWith("BLD_", StringComparison.Ordinal) && trimmed.StartsWith("Flange. Blind ", StringComparison.OrdinalIgnoreCase))
-                return $"Flange. Blind {dnTag} {trimmed["Flange. Blind ".Length..]}".Trim();
-
-            if (id.StartsWith("WN_", StringComparison.Ordinal) && trimmed.Contains("WN", StringComparison.Ordinal))
-                return InsertAfterFlangeKeyword(trimmed, "WN", dnTag);
-
-            if (id.StartsWith("SO_", StringComparison.Ordinal) && trimmed.Contains("SO", StringComparison.Ordinal))
-                return InsertAfterFlangeKeyword(trimmed, "SO", dnTag);
-
-            if (CatalogLapJointIds.IsCollarExport(id))
-            {
-                var pat = CatalogStubEndTable.ResolvePattern(part.Id);
-                string patLabel = pat == CatalogStubEndTable.Pattern.Short
-                    ? "Short Pattern"
-                    : "Long Pattern (Standard)";
-                string lg = CatalogStubEndTable.TryGet(
-                    size.Dn,
-                    pat,
-                    out CatalogStubEndTable.StubEndDims stub)
-                    ? $"{stub.L:0.#}mm LG"
-                    : "LG";
-                return $"Collar, {dnTag}, SCH 40, {patLabel}, {lg}, ASME B16.9";
-            }
-
-            if (id.StartsWith("STUBEND_", StringComparison.Ordinal))
-            {
-                var pat = CatalogStubEndTable.ResolvePattern(part.Id);
-                string patLabel = pat == CatalogStubEndTable.Pattern.Short
-                    ? "Short Pattern"
-                    : "Long Pattern (Standard)";
-                string lg = CatalogStubEndTable.TryGet(
-                    size.Dn,
-                    pat,
-                    out CatalogStubEndTable.StubEndDims stub)
-                    ? $"{stub.L:0.#}mm LG"
-                    : "LG";
-                return $"STUB-END FOR LAP FLANGE, {dnTag}, SCH 40, {patLabel}, {lg}, ASME B16.9";
-            }
-
-            if (id.StartsWith("LJ_RING_", StringComparison.Ordinal))
-            {
-                if (CatalogLjRingCl150Table.TryGet(size.Dn, out CatalogLjRingCl150Table.LjRingDims lj))
-                    return $"FLANGE LJ, {dnTag}, 150 LB, FF, ASME B16.5";
-                return $"FLANGE LJ, {dnTag}, 150 LB, FF, ASME B16.5";
-            }
-
-            if (id.StartsWith("GSK_", StringComparison.Ordinal))
-            {
-                if (trimmed.StartsWith("Gasket CNAF ", StringComparison.OrdinalIgnoreCase))
-                    return $"Gasket CNAF {dnTag} {trimmed["Gasket CNAF ".Length..]}".Trim();
-                return $"Gasket CNAF {dnTag} Ring-Type CL150 Klingersil C4500";
-            }
-
-            return $"{trimmed} {dnTag}".Trim();
-        }
-
-        private static string InsertAfterFlangeKeyword(string familyDesc, string keyword, string dnTag)
-        {
-            string marker = $"Flange. {keyword} ";
-            if (familyDesc.StartsWith(marker, StringComparison.OrdinalIgnoreCase))
-                return $"{marker}{dnTag} {familyDesc[marker.Length..]}".Trim();
-
-            int idx = familyDesc.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
-            if (idx < 0)
-                return $"{familyDesc} {dnTag}".Trim();
-
-            int insertAt = idx + keyword.Length;
-            return $"{familyDesc[..insertAt]} {dnTag}{familyDesc[insertAt..]}".Trim();
+            string shortDesc = (shortDescription ?? string.Empty).Trim();
+            return shortDesc.Length > 0 ? $"{shortDesc} {dnTag}" : dnTag;
         }
 
         private static void WriteValveGeometryFromProject(
