@@ -22,7 +22,13 @@ namespace Plant3DCatalogComposer.Services
         /// </summary>
         public static void AutoUnionIntoMainBody(ValveProject project, Guid newPartId)
         {
-            if (project.Parts.Count <= 1 || project.FindNode(newPartId) == null)
+            PrimitiveNode? newNode = project.FindNode(newPartId);
+            if (project.Parts.Count <= 1 || newNode == null)
+                return;
+
+            // Cutters (fillet/chamfer) are subtract tools — auto-unioning them into the body would
+            // cancel the intended subtract, so they are never auto-combined.
+            if (newNode.Kind == SceneNodeKind.Primitive && PrimitiveCatalog.IsCutterType(newNode.Type))
                 return;
 
             Guid targetId = ResolveUnionTarget(project, newPartId);

@@ -42,12 +42,19 @@ namespace Plant3DCatalogComposer.Services
         public string IsoType { get; init; } = "";
 
         public string ContentIsoSymbolDefinition { get; init; } = "";
+
+        /// <summary>Clone-template seed row CGPD (e.g. DN,L for VALVE_FL_CL150).</summary>
+        public string ContentGeometryParamDefinition { get; init; } = "";
     }
 
     internal static class CatalogExcelExportService
     {
-        private const int DataStartRow = 3;
-        private const int HeaderRow = 2;
+        private const int TemplateSeedRow = 3;
+        /// <summary>Published workbook: one machine-name header row, data from row 2.</summary>
+        private const int PublishedDataStartRow = 2;
+        /// <summary>Template workbook layout (seed + static sheets) still uses row 3+.</summary>
+        private const int DataStartRow = TemplateSeedRow;
+        private const int HeaderRow = 1;
 
         private readonly record struct PortWriteSpec(
             (string EndType, string PortName) Port,
@@ -56,22 +63,88 @@ namespace Plant3DCatalogComposer.Services
             double Od,
             Guid SizeRecordId);
 
+        private static readonly object TemplatePathCacheLock = new();
+        private static string? _cachedBestPath;
+        private static string _cachedStamp = "";
+
+        /// <summary>
+        /// Pick the best Catalog Builder template (most valve sheets). The chosen path is cached and
+        /// only re-scored when a candidate file's size/write-time changes, so UI refreshes do not
+        /// repeatedly open the 30-sheet workbook (the main palette lag source).
+        /// </summary>
         public static string ResolveTemplatePath()
         {
-            string pluginPath = Path.Combine(ProjectPaths.PluginDirectory, "Resources", "CatalogBuilderTemplate.xlsx");
-            if (File.Exists(pluginPath))
-                return pluginPath;
+            var candidates = new List<string>();
+            if (ProjectPaths.TryResolveApiRoot() != null)
+                candidates.Add(DevTemplatePath());
+            candidates.Add(PluginTemplatePath());
 
-            string devPath = Path.Combine(
-                ProjectPaths.TryResolveApiRoot() ?? ProjectPaths.PluginDirectory,
-                "Plant3DCatalogComposer",
-                "Resources",
-                "CatalogBuilderTemplate.xlsx");
-            if (File.Exists(devPath))
-                return devPath;
+            var existing = candidates
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(File.Exists)
+                .ToList();
 
-            throw new FileNotFoundException(
-                "Catalog Builder Excel template not found. Rebuild the plugin to deploy Resources/CatalogBuilderTemplate.xlsx.");
+            string stamp = string.Join("|", existing.Select(p =>
+            {
+                var fi = new FileInfo(p);
+                return $"{p};{fi.Length};{fi.LastWriteTimeUtc.Ticks}";
+            }));
+
+            lock (TemplatePathCacheLock)
+            {
+                if (_cachedBestPath != null && _cachedStamp == stamp)
+                    return _cachedBestPath;
+            }
+
+            string? best = null;
+            int bestScore = -1;
+            foreach (string path in existing)
+            {
+                int score = ScoreTemplate(path);
+                if (score > bestScore)
+                {
+                    bestScore = score;
+                    best = path;
+                }
+            }
+
+            if (best == null)
+            {
+                throw new FileNotFoundException(
+                    "Catalog Builder Excel template not found. Rebuild the plugin to deploy Resources/CatalogBuilderTemplate.xlsx.");
+            }
+
+            lock (TemplatePathCacheLock)
+            {
+                _cachedBestPath = best;
+                _cachedStamp = stamp;
+            }
+
+            return best;
+        }
+
+        private static int ScoreTemplate(string path)
+        {
+            try
+            {
+                using var workbook = new XLWorkbook(path);
+                int valveSheets = workbook.Worksheets.Count(w =>
+                    w.Name.StartsWith("VALVE_", StringComparison.OrdinalIgnoreCase));
+                return workbook.Worksheets.Count + valveSheets * 100;
+            }
+            catch
+            {
+                return -1;
+            }
+        }
+
+        internal static string PluginTemplatePath() =>
+            Path.Combine(ProjectPaths.PluginDirectory, "Resources", "CatalogBuilderTemplate.xlsx");
+
+        internal static string DevTemplatePath()
+        {
+            string root = ProjectPaths.TryResolveApiRoot() ?? ProjectPaths.PluginDirectory;
+            return Path.Combine(root, "Plant3DCatalogComposer", "Resources", "CatalogBuilderTemplate.xlsx");
         }
 
         public static CatalogExcelExportResult Export(
@@ -119,7 +192,7 @@ namespace Plant3DCatalogComposer.Services
                 Guid familyId = ResolveFamilyId(metadata, row.Part.Id);
                 IReadOnlyList<CatalogExcelSizeVariant> sizes = CatalogExcelSizeCatalog.BuildSizes(row.Part);
 
-                int written = WriteSizeRows(sheet, row, metadata, familyId, scriptPath, sizes);
+                int written = WriteSizeRows(sheet, row, metadata, familyId, scriptPath, sizes, project);
                 totalRows += written;
                 filledSheets.Add(sheet.Name);
             }
@@ -157,6 +230,9 @@ namespace Plant3DCatalogComposer.Services
                             ? $"Workbook trimmed to {filledSheets.Count} part sheet(s) only."
                             : $"Removed {removedSheets} unused part sheet(s) from workbook.");
                 }
+
+                if (partIdFilter.Count == 1)
+                    RemoveCatalogDataFlagSheet(workbook);
             }
 
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? ".");
@@ -243,6 +319,8 @@ namespace Plant3DCatalogComposer.Services
                 IsoSkey = GetString(sheet, header, DataStartRow, "SKEY"),
                 IsoType = GetString(sheet, header, DataStartRow, "TYPE"),
                 ContentIsoSymbolDefinition = GetString(sheet, header, DataStartRow, "ContentIsoSymbolDefinition"),
+                ContentGeometryParamDefinition = CatalogExcelGeometryParams.NormalizeParamDefinition(
+                    GetString(sheet, header, DataStartRow, "ContentGeometryParamDefinition")),
             };
         }
 
@@ -304,7 +382,7 @@ namespace Plant3DCatalogComposer.Services
                 Set(sheet, header, rowIndex, "ConnectionPortCount", "1");
                 Set(sheet, header, rowIndex, "SizeRecordId_S-ALL", sizeRecordId.ToString("D"));
                 Set(sheet, header, rowIndex, "PortName_S-ALL", "ALL");
-                Set(sheet, header, rowIndex, "NominalDiameter_S-ALL", dn.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                Set(sheet, header, rowIndex, "NominalDiameter_S-ALL", dn.ToString(CultureInfo.InvariantCulture));
                 Set(sheet, header, rowIndex, "NominalUnit_S-ALL", "mm");
                 Set(sheet, header, rowIndex, "MatchingPipeOd_S-ALL", FormatOd(PipeSizeCatalog.OdSch40Mm(dn)));
                 Clear(sheet, header, rowIndex, "EndType_S-ALL");
@@ -321,6 +399,8 @@ namespace Plant3DCatalogComposer.Services
                 Set(sheet, header, rowIndex, "StudDescription", "Lg, ASTM A193, B7");
                 Set(sheet, header, rowIndex, "BoltCompatibleStd", "ASTM A193");
             }
+
+            PromoteStaticSheetToPublishedLayout(sheet);
         }
 
         private static void FillStudLjSheet(XLWorkbook workbook)
@@ -376,6 +456,8 @@ namespace Plant3DCatalogComposer.Services
                 Set(sheet, header, rowIndex, "StudDescription", "Lg, ASTM A193, B7, LJ");
                 Set(sheet, header, rowIndex, "BoltCompatibleStd", "ASTM A193");
             }
+
+            PromoteStaticSheetToPublishedLayout(sheet);
         }
 
         private static void FillStaticSheet(
@@ -406,13 +488,68 @@ namespace Plant3DCatalogComposer.Services
                 ApplyIsoMetadata(sheet, header, rowIndex, iso, new CatalogExcelTemplateMetadata());
                 Set(sheet, header, rowIndex, "PartFamilyLongDesc", familyDesc);
                 Set(sheet, header, rowIndex, "PartSizeLongDesc", buildSizeDesc(dn, familyDesc));
+                if (sheetPrefix.StartsWith("PIPE", StringComparison.OrdinalIgnoreCase))
+                    ApplyNativePipeShapeRow(sheet, header, rowIndex, dn);
                 if (!string.IsNullOrEmpty(endType))
                     Set(sheet, header, rowIndex, "EndType_S-ALL", endType);
                 if (header.ContainsKey("PressureClass_S-ALL"))
                     Set(sheet, header, rowIndex, "PressureClass_S-ALL", "150");
                 if (header.ContainsKey("Schedule_S-ALL") && sheetPrefix.StartsWith("PIPE", StringComparison.OrdinalIgnoreCase))
                     Set(sheet, header, rowIndex, "Schedule_S-ALL", "40");
+                if (header.ContainsKey("WallThickness_S-ALL") && sheetPrefix.StartsWith("PIPE", StringComparison.OrdinalIgnoreCase))
+                    Set(sheet, header, rowIndex, "WallThickness_S-ALL", FormatOd(ResolvePipeWallThicknessMm(dn)));
+                if (header.ContainsKey("MatchingPipeOd_S-ALL") && sheetPrefix.StartsWith("PIPE", StringComparison.OrdinalIgnoreCase))
+                    Set(sheet, header, rowIndex, "MatchingPipeOd_S-ALL", FormatOd(PipeSizeCatalog.OdSch40Mm(dn)));
+                if (header.ContainsKey("NominalDiameter_S-ALL") && sheetPrefix.StartsWith("PIPE", StringComparison.OrdinalIgnoreCase))
+                    Set(sheet, header, rowIndex, "NominalDiameter_S-ALL", dn.ToString(CultureInfo.InvariantCulture));
             }
+
+            PromoteStaticSheetToPublishedLayout(sheet);
+        }
+
+        /// <summary>Plant 3D native pipe parametric (CPP) — not a custom CUST_*.py script.</summary>
+        private static void ApplyNativePipeShapeRow(
+            IXLWorksheet sheet,
+            Dictionary<string, int> header,
+            int rowIndex,
+            int dn)
+        {
+            Set(sheet, header, rowIndex, "ShapeName", "CPP");
+            Set(sheet, header, rowIndex, "ContentGeometryParamDefinition", "D,L,OF,");
+            if (header.ContainsKey("D"))
+                Set(sheet, header, rowIndex, "D", FormatOd(PipeSizeCatalog.OdSch40Mm(dn)));
+            Clear(sheet, header, rowIndex, "ScriptPath");
+        }
+
+        /// <summary>Drop template display-label row 2 and show machine headers on row 1.</summary>
+        private static void PromoteStaticSheetToPublishedLayout(IXLWorksheet sheet)
+        {
+            HeaderRowSnapshot headerSnapshot = SnapshotMachineHeaderRow(sheet);
+            if (sheet.LastRowUsed()?.RowNumber() >= 2
+                && LooksLikeDisplayHeaderRow(sheet, 2))
+            {
+                sheet.Row(2).Delete();
+            }
+
+            FinalizePublishedHeaderRow(sheet, headerSnapshot);
+        }
+
+        private static bool LooksLikeDisplayHeaderRow(IXLWorksheet sheet, int row)
+        {
+            int maxCol = sheet.LastColumnUsed()?.ColumnNumber() ?? 20;
+            for (int col = 1; col <= maxCol; col++)
+            {
+                string? text = sheet.Cell(row, col).GetString()?.Trim();
+                if (string.IsNullOrEmpty(text))
+                    continue;
+
+                if (string.Equals(text, "Sizes", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(text, "Shape Name", StringComparison.OrdinalIgnoreCase)
+                    || text.Contains("Size Record Id", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            return false;
         }
 
         private static string BuildPipeSizeLongDesc(int dn, string familyDesc)
@@ -432,24 +569,30 @@ namespace Plant3DCatalogComposer.Services
             CatalogExcelTemplateMetadata metadata,
             Guid familyId,
             string scriptPath,
-            IReadOnlyList<CatalogExcelSizeVariant> sizes)
+            IReadOnlyList<CatalogExcelSizeVariant> sizes,
+            ValveProject? project = null)
         {
-            ClearDataRows(sheet);
+            HeaderRowSnapshot headerSnapshot = SnapshotMachineHeaderRow(sheet);
+            ClearPublishedDataRows(sheet);
 
             var header = ReadHeaderMap(sheet, HeaderRow);
             bool hasDn2 = header.ContainsKey("DN2");
             bool hasCel = header.ContainsKey("CEL");
             bool hasT = header.ContainsKey("T");
+            bool hasL = header.ContainsKey("L");
+            bool hasD1 = header.ContainsKey("D1");
 
             string familyDesc = IsUsableFamilyLongDesc(metadata.FamilyLongDesc)
                 ? metadata.FamilyLongDesc
                 : row.FamilyLongDesc;
             string material = string.IsNullOrWhiteSpace(metadata.Material) ? row.Material : metadata.Material;
             CatalogExcelIsoMetadata iso = CatalogExcelIsoMetadata.Resolve(row.Part);
-            string paramDef = BuildContentGeometryParamDefinition(row.Part.Id, hasDn2, hasCel, hasT);
+            string paramDef = !string.IsNullOrWhiteSpace(metadata.ContentGeometryParamDefinition)
+                ? metadata.ContentGeometryParamDefinition
+                : BuildContentGeometryParamDefinition(row.Part.Id, hasDn2, hasCel, hasT, hasL, hasD1);
 
             int written = 0;
-            int rowIndex = DataStartRow;
+            int rowIndex = PublishedDataStartRow;
 
             foreach (CatalogExcelSizeVariant size in sizes)
             {
@@ -465,12 +608,50 @@ namespace Plant3DCatalogComposer.Services
                     size,
                     paramDef,
                     familyDesc,
-                    material);
+                    material,
+                    project);
                 rowIndex++;
                 written++;
             }
 
+            FinalizePublishedHeaderRow(sheet, headerSnapshot);
             return written;
+        }
+
+        private sealed class HeaderRowSnapshot
+        {
+            public Dictionary<int, string> Row1 { get; } = [];
+        }
+
+        /// <summary>Preserve row 1 machine field names; row 2 display labels are dropped on publish.</summary>
+        private static HeaderRowSnapshot SnapshotMachineHeaderRow(IXLWorksheet sheet)
+        {
+            var snapshot = new HeaderRowSnapshot();
+            int maxCol = sheet.LastColumnUsed()?.ColumnNumber() ?? 1;
+            for (int col = 1; col <= maxCol; col++)
+                snapshot.Row1[col] = sheet.Cell(HeaderRow, col).GetString();
+
+            return snapshot;
+        }
+
+        /// <summary>Restore machine headers and unhide row 1 (template hides row 1 in favor of row 2 labels).</summary>
+        private static void FinalizePublishedHeaderRow(IXLWorksheet sheet, HeaderRowSnapshot snapshot)
+        {
+            foreach (KeyValuePair<int, string> entry in snapshot.Row1)
+            {
+                if (!string.IsNullOrEmpty(entry.Value))
+                    sheet.Cell(HeaderRow, entry.Key).SetValue(entry.Value);
+            }
+
+            sheet.Row(HeaderRow).Unhide();
+        }
+
+        private static void RemoveCatalogDataFlagSheet(XLWorkbook workbook)
+        {
+            IXLWorksheet? flag = workbook.Worksheets.FirstOrDefault(w =>
+                w.Name.Equals("Catalog Data Flag", StringComparison.OrdinalIgnoreCase));
+            if (flag != null)
+                workbook.Worksheets.Delete(flag.Name);
         }
 
         private static void WriteSizeRow(
@@ -485,7 +666,8 @@ namespace Plant3DCatalogComposer.Services
             CatalogExcelSizeVariant size,
             string paramDef,
             string familyDesc,
-            string material)
+            string material,
+            ValveProject? project = null)
         {
             int dn = size.Dn;
             double od = PipeSizeCatalog.OdSch40Mm(dn);
@@ -493,9 +675,7 @@ namespace Plant3DCatalogComposer.Services
             Set(sheet, header, rowIndex, "Sizes", BuildCatalogSizesLabel(row.Part.Id, size));
             Set(sheet, header, rowIndex, "DN", dn);
 
-            Set(sheet, header, rowIndex, "Shape Name", row.Part.CatalogFunctionName);
             Set(sheet, header, rowIndex, "ShapeName", row.Part.CatalogFunctionName);
-            Set(sheet, header, rowIndex, "Script Path", scriptPath);
             Set(sheet, header, rowIndex, "ScriptPath", scriptPath);
             if (size.Dn2.HasValue)
                 Set(sheet, header, rowIndex, "DN2", size.Dn2.Value);
@@ -524,9 +704,15 @@ namespace Plant3DCatalogComposer.Services
                 if (CatalogLjRingCl150Table.TryGet(dn, out CatalogLjRingCl150Table.LjRingDims ljRing))
                 {
                     Set(sheet, header, rowIndex, "L", FormatOd(ljRing.L));
+                    // CollarLapped native path: B = lap-joint flange plate thickness (ASME Table 8 col 4 tf).
+                    Set(sheet, header, rowIndex, "B", FormatOd(ljRing.Tf));
                     Set(sheet, header, rowIndex, "D1", FormatOd(ljRing.D1));
                     Set(sheet, header, rowIndex, "D2", FormatOd(ljRing.D2));
                 }
+            }
+            else
+            {
+                WriteValveGeometryFromProject(sheet, header, rowIndex, row, dn, paramDef, project);
             }
 
             WritePorts(sheet, header, rowIndex, row, size, dn, od);
@@ -542,7 +728,7 @@ namespace Plant3DCatalogComposer.Services
             Set(sheet, header, rowIndex, "Material", material);
             ApplyIsoMetadata(sheet, header, rowIndex, iso, metadata);
 
-            WritePressureAndSchedule(sheet, header, rowIndex, row, dn);
+            WritePressureAndSchedule(sheet, header, rowIndex, row, dn, ResolveEffectivePortLayout(header, row));
         }
 
         private static void WritePorts(
@@ -554,15 +740,42 @@ namespace Plant3DCatalogComposer.Services
             int dn,
             double od)
         {
-            foreach (PortWriteSpec port in EnumeratePorts(row, size, dn, od))
+            CatalogExcelPortLayout layout = ResolveEffectivePortLayout(header, row);
+            foreach (PortWriteSpec port in EnumeratePorts(row, size, dn, od, layout))
                 WritePortColumns(sheet, header, rowIndex, port, row);
+        }
+
+        private static CatalogExcelPortLayout ResolveEffectivePortLayout(
+            Dictionary<string, int> header,
+            CatalogExcelPartRow row)
+        {
+            if (row.PortLayout is CatalogExcelPortLayout.DualFlange
+                or CatalogExcelPortLayout.DualPortBv
+                or CatalogExcelPortLayout.TriplePortBv)
+            {
+                return row.PortLayout;
+            }
+
+            // Valve / dual-port clone sheets use EndType_S1/S2 — not EndType_S-ALL (blind flange).
+            bool sheetUsesDualPorts = header.ContainsKey("EndType_S1")
+                && header.ContainsKey("EndType_S2")
+                && !header.ContainsKey("EndType_S-ALL");
+
+            if (sheetUsesDualPorts
+                && (row.Part.Group.Equals("Valve", StringComparison.OrdinalIgnoreCase) || row.PortCount >= 2))
+            {
+                return CatalogExcelPortLayout.DualFlange;
+            }
+
+            return row.PortLayout;
         }
 
         private static IEnumerable<PortWriteSpec> EnumeratePorts(
             CatalogExcelPartRow row,
             CatalogExcelSizeVariant size,
             int dn,
-            double od)
+            double od,
+            CatalogExcelPortLayout layout)
         {
             string partId = row.Part.Id;
             int? dn2 = size.Dn2;
@@ -572,12 +785,11 @@ namespace Plant3DCatalogComposer.Services
             Guid RecordId(int portIndex) =>
                 CatalogExcelPartResolver.StableSizeRecordId(partId, dn, dn2, portIndex);
 
-            switch (row.PortLayout)
+            switch (layout)
             {
                 case CatalogExcelPortLayout.DualFlange:
                     yield return new PortWriteSpec(row.Port1, "S1", dn, od, RecordId(1));
-                    if (row.HasSecondPort)
-                        yield return new PortWriteSpec(row.Port2, "S2", dn, od, RecordId(2));
+                    yield return new PortWriteSpec(row.Port2, "S2", dn, od, RecordId(2));
                     yield break;
 
                 case CatalogExcelPortLayout.DualPortBv:
@@ -648,7 +860,8 @@ namespace Plant3DCatalogComposer.Services
             Dictionary<string, int> header,
             int rowIndex,
             CatalogExcelPartRow row,
-            int dn)
+            int dn,
+            CatalogExcelPortLayout layout)
         {
             if (CatalogLapJointIds.IsLjStubOrCollar(row.Part.Id))
             {
@@ -662,7 +875,7 @@ namespace Plant3DCatalogComposer.Services
                 return;
             }
 
-            switch (row.PortLayout)
+            switch (layout)
             {
                 case CatalogExcelPortLayout.DualFlange:
                     SetFlangePortExtras(sheet, header, rowIndex, row.PressureClass, "S1", "S2");
@@ -734,6 +947,8 @@ namespace Plant3DCatalogComposer.Services
 
             foreach (string suffix in new[] { "S1", "S2" })
             {
+                if (header.ContainsKey($"PressureClass_{suffix}"))
+                    Set(sheet, header, rowIndex, $"PressureClass_{suffix}", row.PressureClass);
                 if (!string.IsNullOrEmpty(row.PipeSchedule))
                     Set(sheet, header, rowIndex, $"Schedule_{suffix}", row.PipeSchedule);
                 // S1 LAP = lap thickness; S2 BV = pipe end (no collar wall on weld port).
@@ -768,6 +983,8 @@ namespace Plant3DCatalogComposer.Services
             bool isBwFitting = IsBwFitting(row);
             foreach (string suffix in suffixes)
             {
+                if (header.ContainsKey($"PressureClass_{suffix}"))
+                    Set(sheet, header, rowIndex, $"PressureClass_{suffix}", row.PressureClass);
                 if (isBwFitting && !string.IsNullOrEmpty(row.PipeSchedule))
                     Set(sheet, header, rowIndex, $"Schedule_{suffix}", row.PipeSchedule);
                 SetPortLengthExtras(sheet, header, rowIndex, suffix);
@@ -874,14 +1091,78 @@ namespace Plant3DCatalogComposer.Services
             return $"{familyDesc[..insertAt]} {dnTag}{familyDesc[insertAt..]}".Trim();
         }
 
+        private static void WriteValveGeometryFromProject(
+            IXLWorksheet sheet,
+            Dictionary<string, int> header,
+            int rowIndex,
+            CatalogExcelPartRow row,
+            int dn,
+            string paramDef,
+            ValveProject? project)
+        {
+            if (!row.Part.Group.Equals("Valve", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            IReadOnlyList<string> paramNames = CatalogExcelGeometryParams.ParseParamNames(paramDef);
+
+            if (paramNames.Any(n => n.Equals("L", StringComparison.OrdinalIgnoreCase))
+                && header.ContainsKey("L"))
+            {
+                double l = ResolveValveFaceToFaceMm(dn, project);
+                Set(sheet, header, rowIndex, "L", FormatOd(l));
+            }
+
+            if (paramNames.Any(n => n.Equals("D1", StringComparison.OrdinalIgnoreCase))
+                && header.ContainsKey("D1"))
+            {
+                double d1 = ResolveValveBodyOdMm(dn, project);
+                Set(sheet, header, rowIndex, "D1", FormatOd(d1));
+            }
+        }
+
+        private static double ResolveValveFaceToFaceMm(int dn, ValveProject? project)
+        {
+            if (project != null && project.Parameters.FaceToFace > 0)
+                return project.Parameters.FaceToFace;
+
+            // Placeholder face-to-face (mm) so Catalog Builder accepts CGPD=DN,L rows.
+            return Math.Max(150, dn * 2);
+        }
+
+        private static double ResolveValveBodyOdMm(int dn, ValveProject? project)
+        {
+            if (project != null
+                && project.Parameters.BodyOD > 0
+                && (int)Math.Round(project.Parameters.DN) == dn)
+            {
+                return project.Parameters.BodyOD;
+            }
+
+            return PipeSizeCatalog.OdSch40Mm(dn);
+        }
+
         private static string BuildContentGeometryParamDefinition(
             string partId,
             bool hasDn2,
             bool hasCel,
-            bool hasT)
+            bool hasT,
+            bool hasL = false,
+            bool hasD1 = false)
         {
             // Catalog Builder template: parameter NAMES in ContentGeometryParamDefinition;
-            // per-size VALUES go in DN / DN2 / CEL / T columns (PreviewLisp builds DN=15 at preview time).
+            // per-size VALUES go in DN / DN2 / CEL / T / L / D1 columns.
+            if (hasL || hasD1)
+            {
+                var names = new List<string> { "DN" };
+                if (hasL)
+                    names.Add("L");
+                if (hasD1)
+                    names.Add("D1");
+                if (hasDn2)
+                    names.Add("DN2");
+                return string.Join(",", names);
+            }
+
             if (partId.StartsWith("SO_", StringComparison.OrdinalIgnoreCase) && hasCel)
                 return "DN,CEL";
 
@@ -1077,6 +1358,12 @@ namespace Plant3DCatalogComposer.Services
             }
         }
 
+        private static void ClearPublishedDataRows(IXLWorksheet sheet)
+        {
+            if (sheet.LastRowUsed()?.RowNumber() >= PublishedDataStartRow)
+                sheet.Rows(PublishedDataStartRow, sheet.LastRowUsed()!.RowNumber()).Delete();
+        }
+
         private static void ClearDataRows(IXLWorksheet sheet)
         {
             if (sheet.LastRowUsed()?.RowNumber() >= DataStartRow)
@@ -1085,6 +1372,30 @@ namespace Plant3DCatalogComposer.Services
 
         private static string FormatOd(double od) =>
             od.ToString("0.##", CultureInfo.InvariantCulture);
+
+        /// <summary>ASME B36.10M Sch-40 nominal wall (mm) — mirrors catalog_generator/pipe_sizes.py.</summary>
+        private static double ResolvePipeWallThicknessMm(int dn) => dn switch
+        {
+            15 => 2.77,
+            20 => 2.87,
+            25 => 3.38,
+            32 => 3.56,
+            40 => 3.68,
+            50 => 3.91,
+            65 => 4.78,
+            80 => 5.49,
+            90 => 5.74,
+            100 => 6.02,
+            125 => 6.55,
+            150 => 7.11,
+            200 => 8.18,
+            250 => 9.27,
+            300 => 10.31,
+            350 => 11.13,
+            400 => 12.70,
+            450 => 14.27,
+            _ => 0,
+        };
 
     }
 }

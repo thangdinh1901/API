@@ -5,12 +5,11 @@ import primitives as prim
 
 
 class LJRINGCL150RF(prim.ShapeObject):
-    """Lap-joint backing ring CL150 FF — Iplex plate + Plant catalog collar length L.
+    """Lap-joint backing ring CL150 FF — flat plate (ASME B16.5 Table 7 O/W, Table 8 tf).
 
     Part-local +X after rotateY(90):
-      x=0..tf   FF flange plate (bolt holes)
-      x=tf..L   collar over stub pipe barrel (bore = pipe OD, not lap OD)
-      FL @0 −X; LAP @stub lap B +X (CollarLapped mates stub shoulder; catalog L = overall depth).
+      x=0..tf   FF flat plate (OD O, bore model_bore, bolt holes on PCD W)
+      FL @0 −X; LAP @tf +X (stub side).
     """
 
     def __init__(self, s, size, *, add_ports=True):
@@ -26,17 +25,9 @@ class LJRINGCL150RF(prim.ShapeObject):
         self.bcd = d["bcd"]
         self.hd = d["hd"]
         self.n = int(d["n"])
-        self._collar_h = max(self.L - self.tf, 0.5)
-        self.lap_port_x = float(d["stub_lap_t"])
 
         plate = prim.Cylinder(s, diameter=self.O, height=self.tf)
-        collar = prim.Cylinder(s, diameter=self.O, height=self._collar_h).move(
-            z=self.tf
-        )
-        body = plate.combine([collar])
-        bore = prim.Cylinder(s, diameter=self.bore_od, height=self.L + 2.0).move(
-            z=-1.0
-        )
+        bore = prim.Cylinder(s, diameter=self.bore_od, height=self.tf + 2.0).move(z=-1.0)
 
         holes = []
         offset_deg = 360.0 / self.n / 2.0
@@ -49,7 +40,7 @@ class LJRINGCL150RF(prim.ShapeObject):
             )
             holes.append(hole)
 
-        body.subtract([bore] + holes)
+        body = plate.subtract([bore] + holes)
         body.rotateY(90)
 
         super().__init__(body.obj)
@@ -57,7 +48,7 @@ class LJRINGCL150RF(prim.ShapeObject):
             self.add_ports(s)
 
     def add_ports(self, s):
-        """FL @ gasket x=0. LAP @ stub lap thickness B — same axial point as stub shoulder."""
+        """FL @ gasket face x=0; LAP @ stub-side face x=tf."""
         prim.set_port(
             s,
             prim.Point3d(0.0, 0.0, 0.0),
@@ -65,7 +56,7 @@ class LJRINGCL150RF(prim.ShapeObject):
         )
         prim.set_port(
             s,
-            prim.Point3d(self.lap_port_x, 0.0, 0.0),
+            prim.Point3d(self.tf, 0.0, 0.0),
             prim.Point3d(1.0, 0.0, 0.0),
         )
         return self

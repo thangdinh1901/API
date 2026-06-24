@@ -35,6 +35,7 @@ namespace Plant3DCatalogComposer
         private TextBox? _txtShortDescription;
         private Label? _lblExcelClone;
         private ComboBox? _cmbExcelClone;
+        private int _partFamilyLoadDepth;
         private Label? _lblFlangeFacing;
         private ComboBox? _cmbFlangeFacing;
 
@@ -64,6 +65,9 @@ namespace Plant3DCatalogComposer
 
         private void BuildCatalogProjectPanel()
         {
+            _partFamilyLoadDepth++;
+            try
+            {
             _grpCatalogProject = new GroupBox
             {
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
@@ -72,14 +76,22 @@ namespace Plant3DCatalogComposer
                 TabStop = false,
             };
             StyleGroupBoxCaption(_grpCatalogProject, "Part Family");
-            _grpCatalogProject.Resize += (_, _) => LayoutCatalogProjectFields();
+            _grpCatalogProject.Resize += (_, _) =>
+            {
+                if (!_catalogLayoutSizing)
+                    LayoutCatalogProjectFields();
+            };
 
             _lblCatalogName = new Label { Text = "Script name:" };
             _txtCatalogName = new TextBox
             {
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             };
-            _txtCatalogName.TextChanged += (_, _) => UpdateScriptPreviewLabel();
+            _txtCatalogName.TextChanged += (_, _) =>
+            {
+                UpdateScriptPreviewLabel();
+                OnPartFamilySuggestFieldsChanged(refreshPrimaryEnd: true);
+            };
 
             _lblScriptPreview = new Label
             {
@@ -113,7 +125,6 @@ namespace Plant3DCatalogComposer
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 DropDownStyle = ComboBoxStyle.DropDownList,
             };
-            _cmbClassSch.SelectedIndexChanged += (_, _) => RefreshCatalogPartList();
             _toolTip.SetToolTip(_cmbClassSch, "Pressure class or pipe schedule (depends on Category / Component / Prim. End)");
             RefreshClassSchCombo();
 
@@ -140,8 +151,8 @@ namespace Plant3DCatalogComposer
             _cmbPartCategory.SelectedIndexChanged += (_, _) =>
             {
                 RefreshPipingComponentCombo();
-                RefreshClassSchCombo();
                 UpdateDnSmallFieldState();
+                OnPartFamilySuggestFieldsChanged(refreshPrimaryEnd: true);
             };
 
             _lblPipingComponent = new Label { Text = "Component:" };
@@ -153,23 +164,20 @@ namespace Plant3DCatalogComposer
             RefreshPipingComponentCombo();
             _cmbPipingComponent.SelectedIndexChanged += (_, _) =>
             {
-                RefreshClassSchCombo();
                 UpdateDnSmallFieldState();
+                OnPartFamilySuggestFieldsChanged(refreshPrimaryEnd: true);
             };
+            _lblPrimaryEnd = new Label { Text = "Prim. End:" };
             _cmbPrimaryEnd = new ComboBox
             {
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 DisplayMember = nameof(PrimaryEndTypeOption.Display),
             };
-            foreach ((string code, string description) in Plant3DEndTypes.All)
-                _cmbPrimaryEnd.Items.Add(new PrimaryEndTypeOption(code, $"{code} — {description}"));
-            _toolTip.SetToolTip(_cmbPrimaryEnd, "Plant 3D Primary End Type (Create New Component)");
+            RefreshPrimaryEndCombo();
+            _toolTip.SetToolTip(_cmbPrimaryEnd, "Plant 3D Primary End Type — filtered by Category / Component");
             _cmbPrimaryEnd.SelectedIndexChanged += (_, _) =>
-            {
-                RefreshClassSchCombo();
-                UpdateFacingFieldState();
-            };
+                OnPartFamilySuggestFieldsChanged();
 
             _lblFlangeFacing = new Label { Text = "Facing:", Visible = false };
             _cmbFlangeFacing = new ComboBox
@@ -178,9 +186,7 @@ namespace Plant3DCatalogComposer
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Visible = false,
             };
-            foreach (string facing in CatalogFlangeFacing.Options)
-                _cmbFlangeFacing.Items.Add(facing);
-            _toolTip.SetToolTip(_cmbFlangeFacing, "Flange facing for Excel export (RF / FF)");
+            _toolTip.SetToolTip(_cmbFlangeFacing, "Flange facing (RF / FF) — filtered by end type and Excel template");
 
             _lblShortDescription = new Label { Text = "Short desc:" };
             _txtShortDescription = new TextBox { Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
@@ -193,7 +199,9 @@ namespace Plant3DCatalogComposer
                 DropDownStyle = ComboBoxStyle.DropDownList,
             };
             RefreshExcelCloneCombo();
-            _toolTip.SetToolTip(_cmbExcelClone, "Clone CatalogBuilderTemplate sheet from this part on Generate Code");
+            RefreshFacingCombo();
+            UpdateFacingFieldState();
+            _toolTip.SetToolTip(_cmbExcelClone, "Excel clone template — suggested from Category, Component, End type, and Class/Sch");
 
             _grpCatalogProject.Controls.AddRange(new Control[]
             {
@@ -212,11 +220,17 @@ namespace Plant3DCatalogComposer
 
             tabSetup.Controls.Add(_grpCatalogProject);
             LayoutCatalogProjectFields();
+            }
+            finally
+            {
+                _partFamilyLoadDepth--;
+            }
         }
 
         private void RelayoutSetupTab()
         {
             const int margin = 8;
+            const int partFamilyToLibraryGap = 20;
             int contentWidth = Math.Max(200, tabSetup.ClientSize.Width - margin * 2);
             int y = margin;
 
@@ -224,7 +238,7 @@ namespace Plant3DCatalogComposer
             {
                 _grpCatalogProject.Width = contentWidth;
                 _grpCatalogProject.Location = new Point(margin, y);
-                y = _grpCatalogProject.Bottom + margin;
+                y = _grpCatalogProject.Bottom + partFamilyToLibraryGap;
             }
 
             grpCatalogParts.Width = contentWidth;
@@ -270,43 +284,147 @@ namespace Plant3DCatalogComposer
             if (_txtCatalogName == null)
                 return;
 
-            _txtCatalogName.Text = string.IsNullOrWhiteSpace(project.ValveName)
-                ? "COMPOSER_PART"
-                : project.ValveName;
+            _partFamilyLoadDepth++;
+            try
+            {
+                _txtCatalogName.Text = string.IsNullOrWhiteSpace(project.ValveName)
+                    ? "COMPOSER_PART"
+                    : project.ValveName;
 
-            if (project.Parameters.DN > 0)
-                SelectDnCombo(_cmbProjectDn!, project.Parameters.DN);
-            else if (_cmbProjectDn!.Items.Count > 0 && _cmbProjectDn.SelectedIndex < 0)
-                _cmbProjectDn.SelectedIndex = 0;
+                if (project.Parameters.DN > 0)
+                    SelectDnCombo(_cmbProjectDn!, project.Parameters.DN);
+                else if (_cmbProjectDn!.Items.Count > 0 && _cmbProjectDn.SelectedIndex < 0)
+                    _cmbProjectDn.SelectedIndex = 0;
 
-            LoadPartFamilyFields(project);
+                LoadPartFamilyFields(project);
 
-            _txtTooltipShort!.Text = project.TooltipShort ?? "";
-            _txtTooltipLong!.Text = project.TooltipLong ?? "";
-            UpdateScriptPreviewLabel(project);
-            RefreshCatalogPartList();
+                _txtTooltipShort!.Text = project.TooltipShort ?? "";
+                _txtTooltipLong!.Text = project.TooltipLong ?? "";
+                UpdateScriptPreviewLabel(project);
+                RefreshCatalogPartList();
+                LayoutCatalogProjectFields();
+            }
+            finally
+            {
+                _partFamilyLoadDepth--;
+            }
         }
 
         private void LoadPartFamilyFields(ValveProject project)
         {
-            string category = !string.IsNullOrWhiteSpace(project.CatalogCategory)
-                ? project.CatalogCategory
-                : CatalogCategories.FromActivateGroup(project.CatalogGroup);
-            SelectCategoryCombo(category);
-            RefreshPipingComponentCombo(project.PnpClassName);
-            SelectPrimaryEndCombo(CatalogStandardSetInference.ResolvePrimaryEndType(project));
-            SelectFacingCombo(project.FlangeFacing);
+            _partFamilyLoadDepth++;
+            try
+            {
+                string category = !string.IsNullOrWhiteSpace(project.CatalogCategory)
+                    ? project.CatalogCategory
+                    : CatalogCategories.FromActivateGroup(project.CatalogGroup);
+                SelectCategoryCombo(category);
+                RefreshPipingComponentCombo(project.PnpClassName);
+                RefreshPrimaryEndCombo(CatalogStandardSetInference.ResolvePrimaryEndType(project));
+                _txtShortDescription!.Text = project.ShortDescription ?? "";
+
+                RefreshClassSchCombo(
+                    project.Parameters.PressureClass,
+                    project.Parameters.PipeSchedule);
+
+                UpdateDnSmallFieldState(project.Parameters.DN2);
+
+                string? savedClone = string.IsNullOrWhiteSpace(project.ExcelCloneSourcePartId)
+                    ? null
+                    : project.ExcelCloneSourcePartId.Trim();
+                RefreshExcelCloneCombo(savedClone);
+                RefreshFacingCombo(project.FlangeFacing);
+                UpdateFacingFieldState();
+            }
+            finally
+            {
+                _partFamilyLoadDepth--;
+            }
+        }
+
+        private void OnPartFamilySuggestFieldsChanged(bool refreshPrimaryEnd = false)
+        {
+            if (_partFamilyLoadDepth > 0)
+                return;
+
+            if (refreshPrimaryEnd)
+                RefreshPrimaryEndCombo();
+
+            RefreshClassSchCombo();
+            RefreshExcelCloneCombo();
+            RefreshFacingCombo();
             UpdateFacingFieldState();
-            _txtShortDescription!.Text = project.ShortDescription ?? "";
-            SelectStringCombo(_cmbExcelClone!, project.ExcelCloneSourcePartId, null, allowEmpty: true);
-            if (_cmbExcelClone!.SelectedIndex < 0 && _cmbExcelClone.Items.Count > 0)
-                _cmbExcelClone.SelectedIndex = 0;
+            RefreshPortTypeComboFromPartFamily();
+            LayoutCatalogProjectFields();
+        }
 
-            RefreshClassSchCombo(
-                project.Parameters.PressureClass,
-                project.Parameters.PipeSchedule);
+        private void RefreshPrimaryEndCombo(string? selectCode = null)
+        {
+            if (_cmbPrimaryEnd == null)
+                return;
 
-            UpdateDnSmallFieldState(project.Parameters.DN2);
+            string? keep = selectCode ?? (_cmbPrimaryEnd.SelectedItem as PrimaryEndTypeOption)?.Code;
+            IReadOnlyList<string> codes = CatalogPartFamilySuggestService.ListPrimaryEndTypes(
+                GetPartFamilyCategoryId(),
+                GetPartFamilyComponent(),
+                GetPartFamilyScriptName());
+
+            _cmbPrimaryEnd.Items.Clear();
+            foreach (string code in codes)
+            {
+                _cmbPrimaryEnd.Items.Add(new PrimaryEndTypeOption(
+                    code,
+                    Plant3DEndTypes.FormatDisplay(code)));
+            }
+
+            if (_cmbPrimaryEnd.Items.Count == 0)
+                return;
+
+            string inferred = CatalogPartFamilySuggestService.InferPrimaryEndType(
+                GetPartFamilyCategoryId(),
+                GetPartFamilyComponent(),
+                GetPartFamilyScriptName());
+
+            string target = !string.IsNullOrWhiteSpace(keep)
+                && codes.Any(c => c.Equals(keep, StringComparison.OrdinalIgnoreCase))
+                    ? Plant3DEndTypes.NormalizeCode(keep)
+                    : inferred;
+
+            SelectPrimaryEndCombo(target);
+        }
+
+        private void RefreshFacingCombo(string? selectFacing = null)
+        {
+            if (_cmbFlangeFacing == null)
+                return;
+
+            string excelClone = _cmbExcelClone?.SelectedItem as string ?? InferExcelCloneForCurrentFamily();
+            IReadOnlyList<string> options = CatalogPartFamilySuggestService.ListFacingOptions(
+                GetPartFamilyCategoryId(),
+                GetPartFamilyComponent(),
+                GetPartFamilyPrimaryEnd(),
+                GetPartFamilyScriptName(),
+                excelClone);
+
+            _cmbFlangeFacing.Items.Clear();
+            foreach (string facing in options)
+                _cmbFlangeFacing.Items.Add(facing);
+
+            if (options.Count == 0)
+            {
+                _cmbFlangeFacing.SelectedIndex = -1;
+                return;
+            }
+
+            string target = CatalogPartFamilySuggestService.InferFacing(
+                GetPartFamilyCategoryId(),
+                GetPartFamilyComponent(),
+                GetPartFamilyPrimaryEnd(),
+                GetPartFamilyScriptName(),
+                excelClone,
+                selectFacing ?? GetPartFamilyFacing());
+
+            SelectFacingCombo(target);
         }
 
         private string GetPartFamilyCategoryId() =>
@@ -331,8 +449,8 @@ namespace Plant3DCatalogComposer
                 return;
 
             ClassScheduleOption? current = GetSelectedClassSchedule();
-            string keepPc = pressureClass ?? current?.PressureClass ?? "150";
-            string keepSch = pipeSchedule ?? current?.PipeSchedule ?? "";
+            bool explicitValues = !string.IsNullOrWhiteSpace(pressureClass)
+                || !string.IsNullOrWhiteSpace(pipeSchedule);
 
             IReadOnlyList<ClassScheduleOption> options = CatalogClassScheduleOptions.Resolve(
                 GetPartFamilyCategoryId(),
@@ -346,24 +464,42 @@ namespace Plant3DCatalogComposer
             if (_cmbClassSch.Items.Count == 0)
                 return;
 
-            ClassScheduleOption match = CatalogClassScheduleOptions.Match(
-                keepPc,
-                keepSch,
-                GetPartFamilyCategoryId(),
-                GetPartFamilyComponent(),
-                GetPartFamilyPrimaryEnd());
+            ClassScheduleOption match;
+            if (explicitValues)
+            {
+                match = CatalogClassScheduleOptions.Match(
+                    pressureClass,
+                    pipeSchedule,
+                    GetPartFamilyCategoryId(),
+                    GetPartFamilyComponent(),
+                    GetPartFamilyPrimaryEnd());
+            }
+            else if (current != null
+                     && options.Any(o => o.Id.Equals(current.Id, StringComparison.OrdinalIgnoreCase)))
+            {
+                match = current;
+            }
+            else
+            {
+                match = CatalogClassScheduleOptions.InferDefault(
+                    GetPartFamilyCategoryId(),
+                    GetPartFamilyComponent(),
+                    GetPartFamilyPrimaryEnd());
+            }
 
             for (int i = 0; i < _cmbClassSch.Items.Count; i++)
             {
                 if (_cmbClassSch.Items[i] is ClassScheduleOption opt &&
                     opt.Id.Equals(match.Id, StringComparison.OrdinalIgnoreCase))
                 {
-                    _cmbClassSch.SelectedIndex = i;
+                    if (_cmbClassSch.SelectedIndex != i)
+                        _cmbClassSch.SelectedIndex = i;
                     return;
                 }
             }
 
-            _cmbClassSch.SelectedIndex = 0;
+            if (_cmbClassSch.SelectedIndex != 0)
+                _cmbClassSch.SelectedIndex = 0;
         }
 
         private void SelectClassSchCombo(string? pressureClass, string? pipeSchedule) =>
@@ -459,7 +595,7 @@ namespace Plant3DCatalogComposer
                     }
                 }
 
-                if (allowed == null || allowed.Any(x => x.Equals(value, StringComparison.OrdinalIgnoreCase)))
+                if (allowed != null && allowed.Any(x => x.Equals(value, StringComparison.OrdinalIgnoreCase)))
                 {
                     combo.Items.Add(value);
                     combo.SelectedItem = value;
@@ -477,27 +613,86 @@ namespace Plant3DCatalogComposer
                 combo.SelectedIndex = 0;
         }
 
-        private void RefreshExcelCloneCombo()
+        private void RefreshExcelCloneCombo(string? selectPartId = null)
         {
             if (_cmbExcelClone == null)
                 return;
 
-            string? keep = _cmbExcelClone.SelectedItem as string;
+            _cmbExcelClone.BeginUpdate();
             _cmbExcelClone.Items.Clear();
             try
             {
-                foreach (string partId in CatalogExcelTemplateService.ListTemplatePartIds())
+                foreach (string partId in CatalogExcelCloneSuggestService.ListForPartFamily(
+                             GetPartFamilyCategoryId(),
+                             GetPartFamilyComponent(),
+                             GetPartFamilyPrimaryEnd(),
+                             GetSelectedClassSchedule()?.PressureClass,
+                             GetProjectSchedule()))
+                {
                     _cmbExcelClone.Items.Add(partId);
+                }
+
+                if (_cmbExcelClone.Items.Count == 0)
+                    lblStatus.Text = "Excel from empty — check Part Family fields / template.";
             }
-            catch
+            catch (Exception ex)
             {
-                // template may be unavailable outside deployed plugin
+                lblStatus.Text = "Excel template error: " + ex.Message;
+            }
+            finally
+            {
+                _cmbExcelClone.EndUpdate();
             }
 
-            if (!string.IsNullOrWhiteSpace(keep))
-                SelectStringCombo(_cmbExcelClone, keep, null, allowEmpty: true);
+            string target = !string.IsNullOrWhiteSpace(selectPartId)
+                ? selectPartId.Trim()
+                : InferExcelCloneForCurrentFamily();
+
+            if (!string.IsNullOrWhiteSpace(target))
+            {
+                bool selected = false;
+                for (int i = 0; i < _cmbExcelClone.Items.Count; i++)
+                {
+                    if (_cmbExcelClone.Items[i]?.ToString()?.Equals(target, StringComparison.OrdinalIgnoreCase) == true)
+                    {
+                        _cmbExcelClone.SelectedIndex = i;
+                        selected = true;
+                        break;
+                    }
+                }
+
+                if (!selected && _cmbExcelClone.Items.Count > 0)
+                    _cmbExcelClone.SelectedIndex = 0;
+            }
             else if (_cmbExcelClone.Items.Count > 0)
                 _cmbExcelClone.SelectedIndex = 0;
+        }
+
+        private string GetPartFamilyScriptName() =>
+            _txtCatalogName?.Text?.Trim() ?? "";
+
+        private string InferExcelCloneForCurrentFamily()
+        {
+            string category = GetPartFamilyCategoryId();
+            string component = GetPartFamilyComponent();
+            string group = CatalogPartFamilyOptions.ResolveActivateGroup(category, component);
+
+            return CatalogExcelTemplateService.InferCloneSourcePartId(
+                "",
+                category,
+                component,
+                "",
+                group,
+                GetPartFamilyPrimaryEnd(),
+                GetSelectedClassSchedule()?.PressureClass,
+                GetProjectSchedule());
+        }
+
+        private void RefreshPartLibraryFromDisk()
+        {
+            CatalogPartLibrarySyncService.SyncFromDisk();
+            RefreshCatalogPartList();
+            RefreshExcelCloneCombo();
         }
 
         private void UpdateFacingFieldState()
@@ -510,6 +705,7 @@ namespace Plant3DCatalogComposer
             _cmbFlangeFacing.Visible = show;
             if (show && _cmbFlangeFacing.SelectedIndex < 0 && _cmbFlangeFacing.Items.Count > 0)
                 _cmbFlangeFacing.SelectedIndex = 0;
+
             LayoutCatalogProjectFields();
         }
 
@@ -652,10 +848,11 @@ namespace Plant3DCatalogComposer
 
         private double GetProjectDn(ValveProject project)
         {
+            // UI combo is what the user sees — do not use stale project.Parameters.DN after they change DN large.
+            if (_cmbProjectDn != null && TryGetSelectedDn(_cmbProjectDn, out double uiDn))
+                return uiDn;
             if (project.Parameters.DN > 0)
                 return project.Parameters.DN;
-            if (_cmbProjectDn != null && TryGetSelectedDn(_cmbProjectDn, out double dn))
-                return dn;
             return 100;
         }
 

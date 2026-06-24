@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <MsgList xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
 	<ToolTipLongColl>
 		<Data id="CUST_BLD_FLRF_CL150_L">Blind flange raised face ASME B16.5 Class 150</Data>
@@ -20,7 +20,7 @@
 		<Data id="CUST_TEE_EQ_SW_CL3000_L">ASME B16.11 Class 3000 socket weld equal tee</Data>
 		<Data id="CUST_TEE_REDUCE_BW_SCH40_L">ASME B16.9 reducing butt weld tee</Data>
 		<Data id="CUST_TEE_REDUCE_SW_CL3000_L">ASME B16.11 Class 3000 reducing socket weld tee</Data>
-		<Data id="CUST_TEST_BEND_3D_L">TEST_BEND_3D</Data>
+		<Data id="CUST_THANG_TEST_L">THANG_TEST</Data>
 		<Data id="CUST_WN_FLRF_CL150_L">Weld neck flange raised face ASME B16.5 Class 150</Data>
 	</ToolTipLongColl>
 	<ToolTipShortColl>
@@ -43,7 +43,7 @@
 		<Data id="CUST_TEE_EQ_SW_CL3000">Tee Equal SW</Data>
 		<Data id="CUST_TEE_REDUCE_BW_SCH40">Tee Reduce BW</Data>
 		<Data id="CUST_TEE_REDUCE_SW_CL3000">Tee Reduce SW</Data>
-		<Data id="CUST_TEST_BEND_3D">TEST_BEND_3D</Data>
+		<Data id="CUST_THANG_TEST">THANG_TEST</Data>
 		<Data id="CUST_WN_FLRF_CL150">WN FLRF CL150</Data>
 	</ToolTipShortColl>
 	<ParamGroups>

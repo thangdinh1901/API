@@ -123,7 +123,13 @@ namespace Plant3DCatalogComposer.Services
 
             if (category.Equals(CatalogCategories.Valves, StringComparison.OrdinalIgnoreCase))
             {
-                return IsScheduleEnd(end) ? BwFitting : Flanged;
+                if (IsSwEnd(end))
+                    return SwFitting;
+                if (IsThreadedEnd(end))
+                    return Threaded;
+                if (IsScheduleEnd(end))
+                    return BwFitting;
+                return Flanged;
             }
 
             if (category.Equals(CatalogCategories.Olet, StringComparison.OrdinalIgnoreCase))
@@ -155,6 +161,15 @@ namespace Plant3DCatalogComposer.Services
                 return Flanged;
 
             return DefaultList;
+        }
+
+        public static ClassScheduleOption InferDefault(
+            string? categoryId,
+            string? pipingComponent,
+            string? primaryEndType)
+        {
+            IReadOnlyList<ClassScheduleOption> options = Resolve(categoryId, pipingComponent, primaryEndType);
+            return options.Count > 0 ? options[0] : DefaultList[0];
         }
 
         public static ClassScheduleOption Match(

@@ -41,15 +41,10 @@ namespace Plant3DCatalogComposer.Services
 
         public static IReadOnlyList<int> AllDns { get; } = ByDn.Keys.OrderBy(k => k).ToList();
 
-        public static Pattern ResolvePattern(string partId)
-        {
-            if (partId.StartsWith("COLLAR_LJ_", StringComparison.OrdinalIgnoreCase))
-                partId = CatalogLapJointIds.StubExportIdFromCollar(partId);
-
-            return partId.Contains("_SH_", StringComparison.OrdinalIgnoreCase)
+        public static Pattern ResolvePattern(string partId) =>
+            partId.Contains("_SH_", StringComparison.OrdinalIgnoreCase)
                 ? Pattern.Short
                 : Pattern.Long;
-        }
 
         public static bool TryGet(int dn, Pattern pattern, out StubEndDims dims)
         {

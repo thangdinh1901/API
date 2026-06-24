@@ -36,6 +36,9 @@ namespace Plant3DCatalogComposer.Services
         /// <summary>Plant 3D Primary End Type from part.json (BV, FL, …).</summary>
         public string PrimaryEndType { get; init; } = "";
 
+        /// <summary>Catalog Builder clone sheet id from part.json (e.g. VALVE_FL_CL150).</summary>
+        public string ExcelCloneSourcePartId { get; init; } = "";
+
         /// <summary>Flange facing (RF / FF) from part.json.</summary>
         public string FlangeFacing { get; init; } = "RF";
 

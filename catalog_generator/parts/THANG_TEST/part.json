@@ -1,7 +1,7 @@
 {
   "role": "standard",
-  "id": "TEST_BEND_3D",
-  "displayName": "Bend 3D Cermic Lining",
+  "id": "THANG_TEST",
+  "displayName": "Gate Valve Flanged RF (Smooth Finish) CL150 CI AG",
   "category": "Fittings",
   "group": "Fitting",
   "defaultDN": 50,
@@ -18,6 +18,6 @@
   "standardSet": "SW_CL3000",
   "primaryEndType": "SW",
   "pnpClassName": "Elbow",
-  "shortDescription": "Bend 3D Cermic Lining",
-  "excelCloneSourcePartId": "ELBOW_90_LR_BW_SCH40"
+  "shortDescription": "Gate Valve Flanged RF (Smooth Finish) CL150 CI AG",
+  "excelCloneSourcePartId": "ELBOW_90_SW_CL3000"
 }

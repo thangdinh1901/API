@@ -11,6 +11,18 @@ namespace Plant3DCatalogComposer.Services
         private static Document? _doc;
         private static ValveProject? _pendingProject;
 
+        public static void CancelPending()
+        {
+            _pending = false;
+            _pendingProject = null;
+            _doc = null;
+            if (!_hooked)
+                return;
+
+            Application.Idle -= OnIdle;
+            _hooked = false;
+        }
+
         public static void Request(Document doc, ValveProject project)
         {
             _doc = doc;

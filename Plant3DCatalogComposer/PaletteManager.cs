@@ -43,8 +43,11 @@ namespace Plant3DCatalogComposer
             Initialize();
             _paletteSet!.Visible = true;
             _paletteSet.Activate(0);
-            _form?.RefreshFromDocument();
+            _form?.QueueRefreshFromDocument(deferCadWork: true);
         }
+
+        public static void NotifyDocumentActivated() =>
+            _form?.QueueRefreshFromDocument(deferCadWork: true);
 
         public static void NotifyPortCreatedFromPick(Guid portId) =>
             _form?.OnPortCreatedFromPick(portId);

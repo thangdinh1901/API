@@ -112,7 +112,7 @@ def write_lj_ring_table() -> None:
         "",
         "namespace Plant3DCatalogComposer.Services",
         "{",
-        "    /// <summary>CL150 lap-joint backing ring — Plant L,D2 + Iplex OD/tf (mm).</summary>",
+        "    /// <summary>CL150 lap-joint flat plate — ASME B16.5 Table 7 O/W + Table 8 tf (mm).</summary>",
         "    internal static class CatalogLjRingCl150Table",
         "    {",
         "        internal sealed record LjRingDims(double L, double D1, double D2, double Tf);",
@@ -120,7 +120,7 @@ def write_lj_ring_table() -> None:
         "        private static readonly Dictionary<int, (double L, double D1, double D2, double Tf)> ByDn = new()",
         "        {",
     ]
-    for dn in sorted(pipe_sizes.LJ_RING_CL150_PLANT_MM):
+    for dn in sorted(pipe_sizes.LJ_RING_CL150_DNS):
         d = pipe_sizes.lj_ring_cl150_dims_mm(dn)
         lines.append(
             f"            [{dn}] = {fmt_row([d['L'], d['O'], d['D2'], d['tf']])},"
@@ -158,7 +158,7 @@ def main() -> None:
     print(f"Wrote {CS_DIR / 'CatalogStubEndTable.cs'}")
     print(f"Wrote {CS_DIR / 'CatalogLjRingCl150Table.cs'}")
     print(f"  stub DN: {len(pipe_sizes.STUBEND_LJ_A_MM)}")
-    print(f"  ring DN: {len(pipe_sizes.LJ_RING_CL150_PLANT_MM)}")
+    print(f"  ring DN: {len(pipe_sizes.LJ_RING_CL150_DNS)}")
 
 
 if __name__ == "__main__":

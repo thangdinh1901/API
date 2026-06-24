@@ -59,7 +59,15 @@ namespace Plant3DCatalogComposer.Services
 
             string cloneSource = FirstNonEmpty(
                 project.ExcelCloneSourcePartId,
-                CatalogExcelTemplateService.InferCloneSourcePartId(partId, pnp, standardSet, group));
+                CatalogExcelTemplateService.InferCloneSourcePartId(
+                    partId,
+                    category,
+                    pnp,
+                    standardSet,
+                    group,
+                    primaryEndType,
+                    pressureClass,
+                    schedule));
 
             string facing = CatalogFlangeFacing.PrimaryEndUsesFacing(primaryEndType)
                 ? CatalogFlangeFacing.Normalize(project.FlangeFacing)

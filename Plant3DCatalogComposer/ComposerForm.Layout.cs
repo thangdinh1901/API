@@ -33,8 +33,24 @@ namespace Plant3DCatalogComposer
 
         private void LayoutCatalogProjectFields()
         {
-            if (_grpCatalogProject == null || _txtCatalogName == null)
+            if (_grpCatalogProject == null
+                || _lblCatalogName == null
+                || _txtCatalogName == null
+                || _cmbPrimaryEnd == null
+                || _lblScriptPreview == null
+                || _cmbPartCategory == null
+                || _cmbPipingComponent == null
+                || _cmbProjectDn == null
+                || _cmbProjectDn2 == null
+                || _lblCatalogDn2 == null
+                || _cmbClassSch == null
+                || _txtTooltipShort == null
+                || _txtTooltipLong == null
+                || _txtShortDescription == null
+                || _cmbExcelClone == null)
+            {
                 return;
+            }
 
             const int rowH = 23;
             const int rowGap = 30;
@@ -60,16 +76,16 @@ namespace Plant3DCatalogComposer
             int row = 16;
             PlaceRow(_lblCatalogName, _txtCatalogName, row);
             int previewY = row + rowH + previewAfterName;
-            _lblScriptPreview!.Location = new Point(CatalogValueLeft, previewY);
+            _lblScriptPreview.Location = new Point(CatalogValueLeft, previewY);
 
             row = previewY + 16 + afterPreviewGap;
-            PlaceRow(_lblPartCategory, _cmbPartCategory!, row);
+            PlaceRow(_lblPartCategory, _cmbPartCategory, row);
 
             row += rowGap;
-            PlaceRow(_lblPipingComponent, _cmbPipingComponent!, row);
+            PlaceRow(_lblPipingComponent, _cmbPipingComponent, row);
 
             row += rowGap;
-            PlaceRow(_lblPrimaryEnd, _cmbPrimaryEnd!, row);
+            PlaceRow(_lblPrimaryEnd, _cmbPrimaryEnd, row);
 
             if (_lblFlangeFacing != null
                 && _cmbFlangeFacing != null
@@ -78,15 +94,20 @@ namespace Plant3DCatalogComposer
                 row += rowGap;
                 PlaceRow(_lblFlangeFacing, _cmbFlangeFacing, row);
             }
+            else if (_lblFlangeFacing != null && _cmbFlangeFacing != null)
+            {
+                _lblFlangeFacing.SetBounds(0, 0, 0, 0);
+                _cmbFlangeFacing.SetBounds(0, 0, 0, 0);
+            }
 
             row += rowGap;
-            PlaceRow(_lblCatalogDn, _cmbProjectDn!, row);
+            PlaceRow(_lblCatalogDn, _cmbProjectDn, row);
 
             row += rowGap;
-            PlaceRow(_lblCatalogDn2, _cmbProjectDn2!, row);
+            PlaceRow(_lblCatalogDn2, _cmbProjectDn2, row);
 
             row += rowGap;
-            PlaceRow(_lblClassSch, _cmbClassSch!, row);
+            PlaceRow(_lblClassSch, _cmbClassSch, row);
 
             row += rowGap;
             if (_lblCatalogTip != null)
@@ -97,22 +118,29 @@ namespace Plant3DCatalogComposer
             }
 
             int half = Math.Max(60, (valueW - 6) / 2);
-            _txtTooltipShort!.SetBounds(CatalogValueLeft, row, half, rowH);
-            _txtTooltipLong!.SetBounds(CatalogValueLeft + half + 6, row, valueW - half - 6, rowH);
+            _txtTooltipShort.SetBounds(CatalogValueLeft, row, half, rowH);
+            _txtTooltipLong.SetBounds(CatalogValueLeft + half + 6, row, valueW - half - 6, rowH);
 
             row += rowGap;
-            PlaceRow(_lblShortDescription, _txtShortDescription!, row);
+            PlaceRow(_lblShortDescription, _txtShortDescription, row);
 
             row += rowGap;
-            PlaceRow(_lblExcelClone, _cmbExcelClone!, row);
+            PlaceRow(_lblExcelClone, _cmbExcelClone, row);
 
             const int groupChrome = 26;
             int targetHeight = row + rowH + groupChrome;
             if (!_catalogLayoutSizing && Math.Abs(_grpCatalogProject.Height - targetHeight) > 1)
             {
-                _catalogLayoutSizing = true;
-                _grpCatalogProject.Height = targetHeight;
-                _catalogLayoutSizing = false;
+                try
+                {
+                    _catalogLayoutSizing = true;
+                    _grpCatalogProject.Height = targetHeight;
+                    RelayoutSetupTab();
+                }
+                finally
+                {
+                    _catalogLayoutSizing = false;
+                }
             }
         }
 

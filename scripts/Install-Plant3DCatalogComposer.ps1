@@ -2,7 +2,8 @@
 param(
     [string]$AcadYear = "2026",
     [ValidateSet("Debug", "Release")]
-    [string]$Configuration = "Release"
+    [string]$Configuration = "Release",
+    [switch]$SkipBuild
 )
 
 function Set-PackageContentsVersion {
@@ -565,13 +566,27 @@ $root = Split-Path -Parent $PSScriptRoot
 $outDir = Join-Path $root "Plant3DCatalogComposer\bin\$Configuration\net8.0-windows"
 $dll = Join-Path $outDir "Plant3DCatalogComposer.dll"
 
-if (-not (Test-Path $dll)) {
-    Write-Host "Building Plant3DCatalogComposer ($Configuration)..."
+if (-not $SkipBuild) {
+    if (-not (Test-Path $dll)) {
+        Write-Host "Plant3DCatalogComposer.dll not found - building ($Configuration)..."
+    } else {
+        Write-Host "Building Plant3DCatalogComposer ($Configuration)..."
+    }
+    $templateScript = Join-Path $root "scripts\add_static_support_template_sheets.py"
+    if (Test-Path $templateScript) {
+        Write-Host "Refreshing CatalogBuilderTemplate.xlsx (pipe + valve sheets)..."
+        python $templateScript
+    }
     Push-Location (Join-Path $root "Plant3DCatalogComposer")
-    dotnet build -c $Configuration
+    dotnet build -c $Configuration -p:SkipComposerDeploy=true
     Pop-Location
     if (-not (Test-Path $dll)) {
         Write-Error "Build failed - DLL not found at $dll"
+    }
+} else {
+    Write-Host "SkipBuild - deploying existing $Configuration output only."
+    if (-not (Test-Path $dll)) {
+        Write-Error "DLL not found at $dll - run without -SkipBuild or dotnet build -c $Configuration first."
     }
 }
 
@@ -598,7 +613,8 @@ if (Test-Path (Split-Path $customScripts -Parent)) {
         $p = Join-Path $customScripts $stale
         if (Test-Path $p) { Remove-Item $p -Force; Write-Host "Removed stale: $p" }
     }
-    Patch-HotReloadForComposer -HotReloadPath (Join-Path $customScripts "hot_reload.py")
+    Copy-Item (Join-Path $genSrc "hot_reload.py") $customScripts -Force
+    Write-Host "Deployed hot_reload.py (SDK reload + composer + CUST_* catalog)"
     Patch-WrapperForComposer `
         -WrapperPath (Join-Path $customScripts "wrapper.py") `
         -TemplatePath (Join-Path $genSrc "p3d_composer\wrapper_patched.py")

@@ -182,26 +182,15 @@ namespace Plant3DCatalogComposer.Services
         private static string BuildCatalogClassCall(PrimitiveNode node, string className)
         {
             var args = new List<string> { "s" };
-            bool hasDn = false;
 
-            foreach (KeyValuePair<string, ParamValue> kv in node.Parameters.OrderBy(k => k.Key))
-            {
-                if (kv.Key.Equals("DN", StringComparison.OrdinalIgnoreCase))
-                {
-                    args.Add(FmtInt(kv.Value.Value));
-                    hasDn = true;
-                }
-                else if (kv.Key.Equals("CEL", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (Math.Abs(kv.Value.Value) > 1e-9)
-                        args.Add($"cel_mm={Fmt(kv.Value.Value)}");
-                }
-                else
-                    args.Add($"{kv.Key}={Fmt(kv.Value.Value)}");
-            }
+            double dn = 100;
+            if (node.Parameters.TryGetValue("DN", out ParamValue? dnPv))
+                dn = dnPv.Value;
 
-            if (!hasDn)
-                args.Add("100");
+            args.Add(FmtInt(dn));
+
+            if (node.Parameters.TryGetValue("CEL", out ParamValue? celPv) && Math.Abs(celPv.Value) > 1e-9)
+                args.Add($"cel_mm={Fmt(celPv.Value)}");
 
             args.Add("add_ports=False");
             return $"{className}({string.Join(", ", args)})";

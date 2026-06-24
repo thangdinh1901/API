@@ -12,8 +12,8 @@ namespace Plant3DCatalogComposer.Services
     /// </summary>
     internal static class CatalogDimensionSuggestService
     {
-        private const int HeaderRow = 2;
-        private const int DataStartRow = 3;
+        private const int HeaderRow = 1;
+        private const int DataStartRow = 2;
 
         private static readonly HashSet<string> CatalogTabParams = new(StringComparer.OrdinalIgnoreCase)
         {
@@ -103,9 +103,13 @@ namespace Plant3DCatalogComposer.Services
 
             return CatalogExcelTemplateService.InferCloneSourcePartId(
                 partId,
+                project.CatalogCategory,
                 project.PnpClassName ?? "",
                 project.StandardSet ?? "",
-                project.CatalogGroup ?? "") ?? "";
+                project.CatalogGroup ?? "",
+                CatalogStandardSetInference.ResolvePrimaryEndType(project),
+                project.Parameters.PressureClass,
+                project.Parameters.PipeSchedule);
         }
 
         private static void MergeExcelGeometryRow(
@@ -228,6 +232,7 @@ namespace Plant3DCatalogComposer.Services
                 {
                     suggestions["FaceToFace"] = ring.L;
                     suggestions["L"] = ring.L;
+                    suggestions["B"] = ring.Tf;
                     suggestions["D1"] = ring.D1;
                     suggestions["D2"] = ring.D2;
                     suggestions["Tf"] = ring.Tf;

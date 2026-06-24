@@ -102,6 +102,20 @@ namespace Plant3DCatalogComposer.Services
                     : Fitting("ASME B16.9", "B16.9", "REDUCER-CONCENTRIC", "RCBW");
             }
 
+            if (id.StartsWith("VALVE_", StringComparison.Ordinal)
+                || part.Group.Equals("Valve", StringComparison.OrdinalIgnoreCase)
+                || part.PnpClassName.Equals("Valve", StringComparison.OrdinalIgnoreCase))
+            {
+                return new CatalogExcelIsoMetadata
+                {
+                    CompatibleStandard = "ASME B16.10",
+                    DesignStd = "Custom",
+                    IsoType = "VALVE",
+                    IsoSkey = "VFLG",
+                    ContentIsoSymbolDefinition = "TYPE=VALVE,SKEY=VFLG",
+                };
+            }
+
             return new CatalogExcelIsoMetadata();
         }
 

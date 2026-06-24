@@ -51,10 +51,11 @@ namespace Plant3DCatalogComposer.Services
                   "(setvar \"CMDECHO\" _p3d_cmdecho) "
                 : "";
 
-            // Erase preview bodies before catalog test; vl-catch-all keeps "Function cancelled"
-            // from aborting the progn before testacpscript runs.
+            // Erase preview bodies before catalog test (twice — old drawings may keep Plant preview solids).
             string eraseBlock = erasePreviewGeometry
                 ? "(setq _p3d_cmdecho (getvar \"CMDECHO\")) (setvar \"CMDECHO\" 0) " +
+                  "(vl-catch-all-apply 'command-s (list \"_.ERASE\" \"ALL\" \"\")) " +
+                  "(while (> (getvar \"CMDACTIVE\") 0) (progn)) " +
                   "(vl-catch-all-apply 'command-s (list \"_.ERASE\" \"ALL\" \"\")) " +
                   "(while (> (getvar \"CMDACTIVE\") 0) (progn)) " +
                   "(setvar \"CMDECHO\" _p3d_cmdecho) "

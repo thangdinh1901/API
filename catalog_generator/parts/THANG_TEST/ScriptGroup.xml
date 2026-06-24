@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScriptInfo>
 	<ScriptGroup>
-		<ScriptName>CUST_TEST_BEND_3D</ScriptName>
+		<ScriptName>CUST_THANG_TEST</ScriptName>
 		<Group>Fitting</Group>
-		<FirstPortEndtypes>SW,FL</FirstPortEndtypes>
+		<FirstPortEndtypes>BV,BV</FirstPortEndtypes>
 	</ScriptGroup>
 </ScriptInfo>

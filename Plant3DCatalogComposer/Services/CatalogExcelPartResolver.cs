@@ -145,11 +145,11 @@ namespace Plant3DCatalogComposer.Services
             if (!IsExportablePart(part))
                 return null;
 
-            ParseCatalogEntryMetadata(part.Id, out _, out int portCount);
+            ParseCatalogEntryMetadata(part.Id, out string firstPortEndtypes, out int portCount);
 
             TryResolveFlangePortEndTypes(part.Id, out string? flangePort1, out string? flangePort2);
             (CatalogExcelPortLayout layout, portCount, bool hasSecondPort) =
-                ResolvePortLayout(part, portCount, flangePort2 != null);
+                ResolvePortLayout(part, portCount, firstPortEndtypes, flangePort2 != null);
 
             return new CatalogExcelPartRow
             {
@@ -165,16 +165,28 @@ namespace Plant3DCatalogComposer.Services
                 PortCount = portCount,
                 PortLayout = layout,
                 HasSecondPort = hasSecondPort,
-                Port1 = ResolvePort1(part, layout, flangePort1),
-                Port2 = ResolvePort2(part, layout, flangePort2),
+                Port1 = ResolvePort1(part, layout, flangePort1, firstPortEndtypes),
+                Port2 = ResolvePort2(part, layout, flangePort2, firstPortEndtypes),
             };
         }
 
         private static (CatalogExcelPortLayout Layout, int PortCount, bool HasSecondPort) ResolvePortLayout(
             CustomPartDefinition part,
             int catalogEntryPortCount,
+            string firstPortEndtypes,
             bool hasFlangeSecondPort)
         {
+            if (part.Group.Equals("Valve", StringComparison.OrdinalIgnoreCase))
+            {
+                bool dualFromEntry = catalogEntryPortCount >= 2
+                    || firstPortEndtypes.Contains(',', StringComparison.Ordinal);
+                bool dualFromClone = CatalogValveExcelTemplates.IsValveTemplate(part.ExcelCloneSourcePartId);
+                if (dualFromEntry || dualFromClone)
+                    return (CatalogExcelPortLayout.DualFlange, 2, true);
+
+                return (CatalogExcelPortLayout.SingleAll, Math.Max(catalogEntryPortCount, 1), false);
+            }
+
             if (hasFlangeSecondPort || part.Id.StartsWith("BLD_", StringComparison.OrdinalIgnoreCase))
             {
                 bool dual = hasFlangeSecondPort;
@@ -249,6 +261,9 @@ namespace Plant3DCatalogComposer.Services
             if (part.Group.Equals("Fitting", StringComparison.OrdinalIgnoreCase))
                 return true;
 
+            if (part.Group.Equals("Valve", StringComparison.OrdinalIgnoreCase))
+                return true;
+
             return false;
         }
 
@@ -315,6 +330,9 @@ namespace Plant3DCatalogComposer.Services
                     "STUB-END FOR LAP FLANGE, SCH 40, Long Pattern (Standard), ASME B16.9",
                 _ when id.StartsWith("LJ_RING_", StringComparison.Ordinal) =>
                     "FLANGE LJ, 150 LB, FF, ASME B16.5",
+                _ when id.StartsWith("VALVE_", StringComparison.Ordinal)
+                    || part.Group.Equals("Valve", StringComparison.OrdinalIgnoreCase) =>
+                    "Valve. Flanged CL150 RF CS Custom (Plant 3D Composer template)",
                 _ => part.DisplayName,
             };
         }
@@ -386,10 +404,19 @@ namespace Plant3DCatalogComposer.Services
         private static (string EndType, string PortName) ResolvePort1(
             CustomPartDefinition part,
             CatalogExcelPortLayout layout,
-            string? flangePort1)
+            string? flangePort1,
+            string firstPortEndtypes = "FL")
         {
             if (TryResolveElbowPortEndTypes(part, out string? elbowP1, out _))
                 return (elbowP1!, "S1");
+
+            if (part.Group.Equals("Valve", StringComparison.OrdinalIgnoreCase))
+            {
+                if (layout == CatalogExcelPortLayout.DualFlange)
+                    return (ResolveValvePortEndType(part, firstPortEndtypes, 0), "S1");
+
+                return (ResolveValvePortEndType(part, firstPortEndtypes, 0), "ALL");
+            }
 
             if (layout == CatalogExcelPortLayout.DualFlange)
                 return (flangePort1 ?? "FL", "S1");
@@ -409,19 +436,23 @@ namespace Plant3DCatalogComposer.Services
                 return (endType is "SW" or "BV" ? endType : "FL", "ALL");
             }
 
-            if (part.Group.Equals("Valve", StringComparison.OrdinalIgnoreCase))
-                return ("FL", "ALL");
-
             return ("FL", "ALL");
         }
 
         private static (string EndType, string PortName) ResolvePort2(
             CustomPartDefinition part,
             CatalogExcelPortLayout layout,
-            string? flangePort2)
+            string? flangePort2,
+            string firstPortEndtypes = "FL")
         {
             if (TryResolveElbowPortEndTypes(part, out _, out string? elbowP2))
                 return (elbowP2!, "S2");
+
+            if (part.Group.Equals("Valve", StringComparison.OrdinalIgnoreCase)
+                && layout == CatalogExcelPortLayout.DualFlange)
+            {
+                return (ResolveValvePortEndType(part, firstPortEndtypes, 1), "S2");
+            }
 
             if (layout == CatalogExcelPortLayout.DualFlange)
             {
@@ -434,6 +465,29 @@ namespace Plant3DCatalogComposer.Services
                 return (ResolveFittingEndType(part), "S2");
 
             return ("FL", "S2");
+        }
+
+        private static string ResolveValvePortEndType(
+            CustomPartDefinition part,
+            string firstPortEndtypes,
+            int portIndex)
+        {
+            string[] endtypes = firstPortEndtypes.Split(
+                ',',
+                StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            if (endtypes.Length > portIndex && !string.IsNullOrWhiteSpace(endtypes[portIndex]))
+                return endtypes[portIndex];
+
+            if (endtypes.Length > 0 && portIndex > 0)
+                return endtypes[^1];
+
+            if (!string.IsNullOrWhiteSpace(part.PrimaryEndType)
+                && !part.PrimaryEndType.Equals("Undefined_ET", StringComparison.OrdinalIgnoreCase))
+            {
+                return CatalogPortTemplates.MapPrimaryEndToPortEndTypePublic(part.PrimaryEndType);
+            }
+
+            return "FL";
         }
 
         private static bool TryResolveFlangePortEndTypes(

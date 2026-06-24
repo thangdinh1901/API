@@ -33,7 +33,9 @@ namespace Plant3DCatalogComposer.Services
         {
             // Caller must DocumentStore.Save immediately before Deploy (scene + Catalog tab).
             CatalogExportPrepareService.PrepareSceneForExport(project);
+            IdleRebuildService.CancelPending();
             DocumentStore.Save(dwgPath, project);
+            DrawingSceneRuntimeSync.MirrorActiveDrawing(dwgPath);
 
             ValidationResult preflight = CatalogPreflightService.ValidateForDeploy(project);
             if (!preflight.IsValid)
@@ -59,6 +61,8 @@ namespace Plant3DCatalogComposer.Services
             try
             {
                 DocumentStore.Save(dwgPath, project);
+                IdleRebuildService.CancelPending();
+                DrawingSceneRuntimeSync.MirrorActiveDrawing(dwgPath);
 
                 int exportedFileCount = 0;
                 string partFolder = string.Empty;

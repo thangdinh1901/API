@@ -54,7 +54,7 @@ def main() -> int:
         elif cs_stub[dn] != py:
             blockers.append(f"DN{dn}: C# stub table != pipe_sizes.py")
 
-    for dn in pipe_sizes.LJ_RING_CL150_PLANT_MM:
+    for dn in pipe_sizes.LJ_RING_CL150_DNS:
         d = pipe_sizes.lj_ring_cl150_dims_mm(dn)
         py = (d["L"], d["O"], d["D2"], d["tf"])
         if dn not in cs_ring:
@@ -65,7 +65,7 @@ def main() -> int:
     for dn in sorted(PIPE_DNS):
         if dn not in pipe_sizes.STUBEND_LJ_A_MM:
             blockers.append(f"DN{dn}: no stub row")
-        if dn not in pipe_sizes.LJ_RING_CL150_PLANT_MM:
+        if dn not in pipe_sizes.LJ_RING_CL150_DNS:
             blockers.append(f"DN{dn}: no backing ring row")
 
     for dn in sorted(cs_stub.keys() - cs_ring.keys()):
@@ -104,7 +104,7 @@ def main() -> int:
     print("Export rules (all DN):")
     print("  ContentGeometryParamDefinition: DN / DN,T / DN,DN2 / DN,CEL (names only); values in DN/T/... columns")
     print("  Stub:  LAP port @ shoulder x=B; FlangeOffset=B; OF=-1 (native CPMUW)")
-    print("  Ring:  LAP port @ stub lap B; catalog L = overall ring depth only")
+    print("  Ring:  FF flat plate (ASME Table 7 O/W, Table 8 tf); LAP @ plate back face x=tf")
     print("  Run:   python scripts/sync_lap_joint_cs_tables.py  after editing pipe_sizes.py")
 
     return 1 if blockers else 0

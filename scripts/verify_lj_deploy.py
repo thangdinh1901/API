@@ -26,7 +26,7 @@ MERGED_CUST_MARKERS: dict[str, tuple[str, ...]] = {
         "LJ_STUD_PLACEMENT_REV",
         EXPECTED_PLACEMENT_REV,
     ),
-    "CUST_LJ_RING_CL150_RF.py": ("lap_port_x",),
+    "CUST_LJ_RING_CL150_RF.py": ("Point3d(self.tf",),
     "CUST_STUBEND_LJ_A_BW_SCH40.py": ("STUBENDLJABWSCH40",),
     "CUST_STUBEND_LJ_A_SH_BW_SCH40.py": ("STUBENDLJASHBWSCH40",),
 }

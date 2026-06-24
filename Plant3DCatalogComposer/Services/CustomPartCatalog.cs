@@ -77,6 +77,9 @@ namespace Plant3DCatalogComposer.Services
                     string primaryEndType = root.TryGetProperty("primaryEndType", out JsonElement petEl)
                         ? petEl.GetString() ?? ""
                         : "";
+                    string excelCloneSourcePartId = root.TryGetProperty("excelCloneSourcePartId", out JsonElement cloneEl)
+                        ? cloneEl.GetString() ?? ""
+                        : "";
                     string flangeFacing = root.TryGetProperty("flangeFacing", out JsonElement ffEl)
                         ? ffEl.GetString() ?? ""
                         : "";
@@ -141,6 +144,7 @@ namespace Plant3DCatalogComposer.Services
                         ShortDescription = shortDescription,
                         PnpClassName = pnpClassName,
                         PrimaryEndType = primaryEndType,
+                        ExcelCloneSourcePartId = excelCloneSourcePartId.Trim(),
                         FlangeFacing = CatalogFlangeFacing.Normalize(
                             string.IsNullOrWhiteSpace(flangeFacing) ? "RF" : flangeFacing),
                         ParametricDN = parametricDn,

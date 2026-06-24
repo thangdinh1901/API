@@ -35,7 +35,11 @@ namespace Plant3DCatalogComposer.Services
                 {
                     CanRun = false,
                     ScriptName = scriptName,
-                    Message = $"Script not deployed: {pyPath}\nRun Deploy Catalog first.",
+                    Message =
+                        $"Script not deployed: {pyPath}\n\n"
+                        + "Run Generate Code, then Deploy Catalog (scene must match Catalog Project name).\n"
+                        + "To preview the Scene tree while editing, use Rebuild Scene — Test Catalog runs "
+                        + "wrapper → hot_reload → CUST_*.py (reloads from disk, no CAD restart).",
                 };
             }
 
@@ -59,12 +63,22 @@ namespace Plant3DCatalogComposer.Services
 
             if (!CatalogSceneManifest.MatchesProject(project, pyPath, out string manifestMessage))
             {
-                return new CatalogTestResult
+                if (project.Parts.Count == 0)
                 {
-                    CanRun = false,
-                    ScriptName = scriptName,
-                    Message = manifestMessage,
-                };
+                    string blankDrawingCommand = BuildInvoke(scriptName, args, out _);
+                    return new CatalogTestResult
+                    {
+                        CanRun = true,
+                        ScriptName = scriptName,
+                        CommandLine = blankDrawingCommand,
+                        Message =
+                            $"Testing deployed {scriptName} (blank drawing — catalog script only, scene parity skipped).{Environment.NewLine}"
+                            + $"Deployed: {manifestMessage}{Environment.NewLine}"
+                            + "Preview geometry will be erased before test.",
+                    };
+                }
+
+                return BuildMismatchDeployedTest(scriptName, args, project, manifestMessage);
             }
 
             string command = BuildInvoke(scriptName, args, out _);
@@ -74,8 +88,28 @@ namespace Plant3DCatalogComposer.Services
                 ScriptName = scriptName,
                 CommandLine = command,
                 Message =
-                    $"Testing {scriptName} — {manifestMessage}{Environment.NewLine}"
+                    $"Testing deployed {scriptName} — {manifestMessage}{Environment.NewLine}"
                     + "Preview geometry will be erased before test so only catalog script geometry remains.",
+            };
+        }
+
+        private static CatalogTestResult BuildMismatchDeployedTest(
+            string scriptName,
+            IReadOnlyList<(string Name, string Value)> args,
+            ValveProject project,
+            string manifestMessage)
+        {
+            string command = BuildInvoke(scriptName, args, out _);
+            return new CatalogTestResult
+            {
+                CanRun = true,
+                ScriptName = scriptName,
+                CommandLine = command,
+                Message =
+                    $"Testing deployed {scriptName} (this drawing's scene differs from deploy — geometry from CustomScripts).{Environment.NewLine}"
+                    + $"Scene JSON:  {CatalogSceneManifest.Build(project)}{Environment.NewLine}"
+                    + $"{manifestMessage}{Environment.NewLine}"
+                    + "Run Generate + Deploy on this drawing to sync scene JSON with deploy.",
             };
         }
 
@@ -84,7 +118,8 @@ namespace Plant3DCatalogComposer.Services
             IReadOnlyList<(string Name, string Value)> args,
             out int seq)
         {
-            var parts = new List<string> { $"(testacpscript \"{scriptName}\"" };
+            // Route via wrapper → hot_reload → reload(CUST_*) — same SDK pattern as SPDS sample.
+            var parts = new List<string> { "(testacpscript \"wrapper\" \"S\" \"" + scriptName + "\"" };
             foreach ((string name, string value) in args)
             {
                 parts.Add($"\"{name}\"");
@@ -94,7 +129,7 @@ namespace Plant3DCatalogComposer.Services
             parts.Add(")");
             string invoke = string.Join(" ", parts);
             seq = Interlocked.Increment(ref _testSequence);
-            return WrapperScript.WrapTestCatalogInvoke(seq, invoke, registerScripts: true);
+            return WrapperScript.WrapTestCatalogInvoke(seq, invoke, registerScripts: false);
         }
 
         public static bool TryQueueTest(Document? doc, string dwgPath)
@@ -103,9 +138,114 @@ namespace Plant3DCatalogComposer.Services
             if (!test.CanRun || doc == null)
                 return false;
 
+            IdleRebuildService.CancelPending();
+            CatalogDeployService.InvalidateBeforeCatalogTest(test.ScriptName);
             doc.Editor.WriteMessage($"\nP3D Composer: {test.Message}");
             doc.SendStringToExecute(test.CommandLine + "\n", true, false, false);
             return true;
+        }
+
+        /// <summary>Preview a standard library part only — does not rebuild the custom Part Family scene.</summary>
+        public static CatalogTestResult BuildLibraryPartPreview(
+            CustomPartDefinition part,
+            double dn,
+            ValveProject? project = null)
+        {
+            string scriptName = $"CUST_{part.Id}";
+            string pyPath = Path.Combine(ProjectPaths.CustomScriptsDir, scriptName + ".py");
+            if (!File.Exists(pyPath))
+            {
+                return new CatalogTestResult
+                {
+                    CanRun = false,
+                    ScriptName = scriptName,
+                    Message = $"Script not deployed: {pyPath}\nRun Deploy Catalog first.",
+                };
+            }
+
+            IReadOnlyList<(string Name, string Value)> args =
+                ResolveLibraryPreviewArguments(part, dn, project);
+            string command = BuildInvoke(scriptName, args, out _);
+            return new CatalogTestResult
+            {
+                CanRun = true,
+                ScriptName = scriptName,
+                CommandLine = command,
+                Message =
+                    $"Preview {part.DisplayName} ({scriptName}) — previous preview geometry will be erased.",
+            };
+        }
+
+        public static bool TryQueueLibraryPartPreview(
+            Document? doc,
+            CustomPartDefinition part,
+            double dn,
+            ValveProject? project = null)
+        {
+            CatalogTestResult preview = BuildLibraryPartPreview(part, dn, project);
+            if (!preview.CanRun || doc == null)
+                return false;
+
+            doc.Editor.WriteMessage($"\nP3D Composer: {preview.Message}");
+            doc.SendStringToExecute(preview.CommandLine + "\n", true, false, false);
+            return true;
+        }
+
+        private static IReadOnlyList<(string Name, string Value)> ResolveLibraryPreviewArguments(
+            CustomPartDefinition part,
+            double dn,
+            ValveProject? project)
+        {
+            var list = new List<(string, string)>();
+            int dnMm = dn > 0 ? (int)Math.Round(dn) : (int)Math.Round(part.DefaultDN > 0 ? part.DefaultDN : 100);
+            list.Add(("DN", dnMm.ToString(CultureInfo.InvariantCulture)));
+
+            Dictionary<string, string>? xmlDefaults = TryLoadParamDefaults(part.Id);
+            if (xmlDefaults != null)
+            {
+                foreach (KeyValuePair<string, string> kv in xmlDefaults)
+                {
+                    if (kv.Key.Equals("DN", StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    if (list.Any(a => a.Item1.Equals(kv.Key, StringComparison.OrdinalIgnoreCase)))
+                        continue;
+
+                    string value = ResolveLibraryPreviewParamValue(part, project, dnMm, kv.Key, kv.Value);
+                    list.Add((kv.Key, value));
+                }
+            }
+
+            return list;
+        }
+
+        private static string ResolveLibraryPreviewParamValue(
+            CustomPartDefinition part,
+            ValveProject? project,
+            int dnMm,
+            string name,
+            string defaultValue)
+        {
+            if (name.Equals("DN2", StringComparison.OrdinalIgnoreCase))
+            {
+                if (project?.Parameters.DN2 > 0)
+                {
+                    return ((int)Math.Round(project.Parameters.DN2)).ToString(CultureInfo.InvariantCulture);
+                }
+
+                foreach (CatalogPartParam spec in part.CatalogParams)
+                {
+                    if (spec.UseSkeletonDN2 || spec.Name.Equals("DN2", StringComparison.OrdinalIgnoreCase))
+                    {
+                        int small = BwFittingSizeCatalog.DefaultReducerSmallDn(dnMm);
+                        return small.ToString(CultureInfo.InvariantCulture);
+                    }
+                }
+            }
+
+            if (name.Equals("CEL", StringComparison.OrdinalIgnoreCase))
+                return "0";
+
+            return defaultValue;
         }
 
         private static IReadOnlyList<(string Name, string Value)> ResolveTestArguments(

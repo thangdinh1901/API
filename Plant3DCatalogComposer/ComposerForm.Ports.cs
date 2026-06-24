@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Windows.Forms;
@@ -15,8 +16,7 @@ namespace Plant3DCatalogComposer
         private void InitializePortManagerTab()
         {
             cmbPortType.Items.Clear();
-            foreach ((PortConnectionType type, string _) in PortConnectionTypeHelper.CatalogEndTypes)
-                cmbPortType.Items.Add(new PortTypeOption(type));
+            RefreshPortTypeComboFromPartFamily();
 
             lvPorts.Columns.Add("#", 28);
             lvPorts.Columns.Add("End type", 148);
@@ -112,6 +112,7 @@ namespace Plant3DCatalogComposer
                 ValveProject project = DocumentStore.LoadOrCreate(
                     dwg, System.IO.Path.GetFileNameWithoutExtension(dwg));
                 chkShowPortMarkers.Checked = project.ShowPortMarkers;
+                RefreshPortTypeComboFromPartFamily();
                 RefreshPortList(project);
                 RefreshPortParentCombo(project);
                 if (_selectedPortId.HasValue)
@@ -219,6 +220,7 @@ namespace Plant3DCatalogComposer
         private void LoadPortEditor(ValveProject project, ConnectionPort port)
         {
             txtPortNumber.Text = port.Number.ToString(CultureInfo.InvariantCulture);
+            RefreshPortTypeComboFromPartFamily(port.Type);
             SelectPortType(port.Type);
 
             foreach (PortParentOption item in cmbPortParent.Items)
@@ -252,6 +254,50 @@ namespace Plant3DCatalogComposer
             }
 
             if (cmbPortType.Items.Count > 0)
+                cmbPortType.SelectedIndex = 0;
+        }
+
+        private void RefreshPortTypeComboFromPartFamily(PortConnectionType? selectType = null)
+        {
+            if (cmbPortType == null)
+                return;
+
+            IReadOnlyList<string> codes = CatalogPartFamilySuggestService.ListPrimaryEndTypes(
+                GetPartFamilyCategoryId(),
+                GetPartFamilyComponent(),
+                GetPartFamilyScriptName());
+
+            PortConnectionType? keep = selectType;
+            if (keep == null && cmbPortType.SelectedItem is PortTypeOption current)
+                keep = current.Type;
+
+            cmbPortType.Items.Clear();
+            foreach ((PortConnectionType type, string _) in PortConnectionTypeHelper.CatalogEndTypes)
+            {
+                string code = PortConnectionTypeHelper.ToEndTypeCode(type);
+                if (codes.Any(c => c.Equals(code, StringComparison.OrdinalIgnoreCase)))
+                    cmbPortType.Items.Add(new PortTypeOption(type));
+            }
+
+            if (keep.HasValue)
+            {
+                string keepCode = PortConnectionTypeHelper.ToEndTypeCode(keep.Value);
+                if (!codes.Any(c => c.Equals(keepCode, StringComparison.OrdinalIgnoreCase))
+                    && PortConnectionTypeHelper.TryToPortType(keepCode, out PortConnectionType extra))
+                {
+                    cmbPortType.Items.Add(new PortTypeOption(extra));
+                }
+            }
+
+            if (cmbPortType.Items.Count == 0)
+            {
+                foreach ((PortConnectionType type, string _) in PortConnectionTypeHelper.CatalogEndTypes)
+                    cmbPortType.Items.Add(new PortTypeOption(type));
+            }
+
+            if (keep.HasValue)
+                SelectPortType(keep.Value);
+            else if (cmbPortType.Items.Count > 0)
                 cmbPortType.SelectedIndex = 0;
         }
 

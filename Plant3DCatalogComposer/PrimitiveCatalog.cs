@@ -9,11 +9,18 @@ namespace Plant3DCatalogComposer
 
     internal static class PrimitiveCatalog
     {
+        // BodyOD is guaranteed > 0 at insert (PrimitiveService.Insert). BodyLength / BonnetHeight are
+        // only set when the user fills the Dimensions tab, so they are usually 0 — which collapsed
+        // length/height-driven primitives into a degenerate bounding box. Fall back to BodyOD-derived
+        // dimensions so an inserted primitive always shows real geometry.
         private static readonly Func<SkeletonParameters, double> Od = v => v.BodyOD;
-        private static readonly Func<SkeletonParameters, double> Len = v => v.BodyLength;
-        private static readonly Func<SkeletonParameters, double> Hgt = v => v.BonnetHeight;
+        private static readonly Func<SkeletonParameters, double> Len = v =>
+            v.BodyLength > 0 ? v.BodyLength : v.BodyOD * 2.0;
+        private static readonly Func<SkeletonParameters, double> Hgt = v =>
+            v.BonnetHeight > 0 ? v.BonnetHeight : v.BodyOD * 0.5;
         private static readonly Func<SkeletonParameters, double> Rad = v => v.BodyOD / 2.0;
-        private static readonly Func<SkeletonParameters, double> Hw = v => v.HandwheelOD;
+        private static readonly Func<SkeletonParameters, double> Hw = v =>
+            v.HandwheelOD > 0 ? v.HandwheelOD : v.BodyOD;
         private static readonly Func<SkeletonParameters, double> BendR = v =>
             v.BodyOD > 0 ? v.BodyOD * 1.5 : 0;
 
@@ -69,13 +76,9 @@ namespace Plant3DCatalogComposer
             Make(PrimitiveType.ELLIPSOID_HEAD2, "Ellipsoid Head 2", "EHEAD2_",
                 Param("D", "BodyOD", Od, CatalogParamUnit.Millimeter)),
 
-            Make(PrimitiveType.ELLIPSOID_SEGMENT, "Ellipsoid Segment", "ESEG_",
-                Param("RX", "BodyOD / 2", Rad, CatalogParamUnit.Millimeter),
-                Param("RY", "BodyOD / 2", Rad, CatalogParamUnit.Millimeter),
-                Param("A1", "90 deg", _ => 90, CatalogParamUnit.Degree),
-                Param("A2", "0 deg", _ => 0, CatalogParamUnit.Degree),
-                Param("A3", "0 deg", _ => 0, CatalogParamUnit.Degree),
-                Param("A4", "360 deg", _ => 360, CatalogParamUnit.Degree)),
+            // ELLIPSOID_SEGMENT is an SDK shell (surface) primitive — it never forms a usable solid
+            // in the scene (always previews as a bounding box), so it is hidden from the insert list.
+            // The enum + Python/scene_builder mapping are kept so older scenes still load.
 
             Make(PrimitiveType.PYRAMID, "Pyramid", "PYR_",
                 Param("L", "BodyLength", Len, CatalogParamUnit.Millimeter),
@@ -133,11 +136,15 @@ namespace Plant3DCatalogComposer
 
         /// <summary>Fillet/chamfer shapes used as boolean subtract tools.</summary>
         public static IReadOnlyList<PrimitiveDefinition> Cutters { get; } = All
-            .Where(p => p.Type is PrimitiveType.FILLET
+            .Where(p => IsCutterType(p.Type))
+            .ToArray();
+
+        /// <summary>Cutter primitives are boolean tools — they must not be auto-unioned into the body.</summary>
+        public static bool IsCutterType(PrimitiveType type) =>
+            type is PrimitiveType.FILLET
                 or PrimitiveType.CYLINDER_CHAMFERED
                 or PrimitiveType.BOX_WITH_FILLET
-                or PrimitiveType.CYLINDER_WITH_FILLET)
-            .ToArray();
+                or PrimitiveType.CYLINDER_WITH_FILLET;
 
         private static CatalogParam Param(
             string logical,

@@ -32,7 +32,13 @@ namespace Plant3DCatalogComposer
 
         public ComposerForm()
         {
+            SuspendLayout();
+            try
+            {
             InitializeComponent();
+            tabMain.SuspendLayout();
+            try
+            {
             ConfigureForPaletteHost();
 
             foreach (PipeSizeOption size in PipeSizeCatalog.NominalSizes)
@@ -90,8 +96,8 @@ namespace Plant3DCatalogComposer
                 "Export Catalog Builder Excel (current part or all parts), then open Catalog Builder");
             _toolTip.SetToolTip(
                 btnTestCatalog,
-                "Run testacpscript for the current catalog part (DN from Catalog Project)");
-            _toolTip.SetToolTip(btnRebuildScene, "Force rebuild geometry in Plant 3D");
+                "Run deployed CUST_* on the current drawing (auto-runs after Deploy Catalog)");
+            _toolTip.SetToolTip(btnRebuildScene, "Scene preview (scene_builder) on the current drawing");
             _toolTip.SetToolTip(
                 btnDeleteNode,
                 "Delete selected primitive. Selection moves to the next item (or previous if last) "
@@ -124,6 +130,16 @@ namespace Plant3DCatalogComposer
                 cmbBoolCutter.Items.Add(cutter);
             if (cmbBoolCutter.Items.Count > 0)
                 cmbBoolCutter.SelectedIndex = 0;
+            }
+            finally
+            {
+                tabMain.ResumeLayout(performLayout: false);
+            }
+            }
+            finally
+            {
+                ResumeLayout(performLayout: true);
+            }
         }
 
         /// <summary>WinForms GroupBox ignores FontStyle.Bold on the caption — draw it ourselves.</summary>
@@ -275,7 +291,33 @@ namespace Plant3DCatalogComposer
             button.FlatAppearance.BorderColor = ControlPaint.Dark(backColor);
         }
 
-        public void RefreshFromDocument()
+        public void QueueRefreshFromDocument(bool deferCadWork = false)
+        {
+            if (IsDisposed)
+                return;
+
+            void Run()
+            {
+                if (!IsDisposed)
+                    RefreshFromDocument(deferCadWork);
+            }
+
+            if (IsHandleCreated)
+            {
+                BeginInvoke(Run);
+                return;
+            }
+
+            EventHandler? handler = null;
+            handler = (_, _) =>
+            {
+                HandleCreated -= handler!;
+                Run();
+            };
+            HandleCreated += handler;
+        }
+
+        public void RefreshFromDocument(bool deferCadWork = false)
         {
             try
             {
@@ -290,10 +332,19 @@ namespace Plant3DCatalogComposer
                     dwg, Path.GetFileNameWithoutExtension(dwg));
                 LoadCatalogProjectFields(project);
                 LoadDimensionFields(project);
-                RefreshSceneTree();
+                RefreshSceneTree(expandAll: !deferCadWork);
                 RefreshBooleanUi();
                 RefreshPortUi();
-                RefreshPortVisuals(project);
+                try
+                {
+                    RefreshPortVisuals(project);
+                }
+                catch
+                {
+                    // drawing may be busy while palette opens
+                }
+
+                DrawingSceneRuntimeSync.MirrorActiveDrawing(dwg);
                 lblStatus.Text = $"Loaded: {Path.GetFileName(dwg)} · {PluginVersion.StatusSuffix}";
             }
             catch (Exception ex)
@@ -302,32 +353,28 @@ namespace Plant3DCatalogComposer
             }
         }
 
+        // Insert box is self-contained: filter standard library parts by its own Category +
+        // Pressure class. (It must NOT read the Part Family Class/Sch combo — that excluded
+        // Flange/Fastener parts whenever Part Family was on a different class, e.g. valve CL3000.)
         private void RefreshCatalogPartList()
         {
-            ClassScheduleOption? classSch = GetSelectedClassSchedule();
             string category = (cmbCatalogCategory.SelectedItem as CatalogCategoryOption)?.Id
                 ?? CatalogCategories.Fittings;
+            string pc = cmbCatalogPressureClass.SelectedItem as string ?? "150";
             int prevIndex = cmbCatalogPart.SelectedIndex;
 
+            cmbCatalogPart.BeginUpdate();
             cmbCatalogPart.Items.Clear();
             foreach (CustomPartDefinition part in CustomPartCatalog.InsertableParts)
             {
                 if (!CatalogCategories.CategoriesMatch(part.Category, category))
                     continue;
-                if (classSch != null)
-                {
-                    if (!CatalogClassScheduleOptions.PartMatches(classSch, part))
-                        continue;
-                }
-                else
-                {
-                    string pc = cmbCatalogPressureClass.SelectedItem as string ?? "150";
-                    if (!part.PressureClass.Equals(pc, StringComparison.OrdinalIgnoreCase))
-                        continue;
-                }
+                if (!part.PressureClass.Equals(pc, StringComparison.OrdinalIgnoreCase))
+                    continue;
 
                 cmbCatalogPart.Items.Add(part);
             }
+            cmbCatalogPart.EndUpdate();
 
             if (cmbCatalogPart.Items.Count == 0)
             {
@@ -436,13 +483,23 @@ namespace Plant3DCatalogComposer
                 var doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
                 if (doc != null)
                 {
-                    RefreshGeneratedPython(project);
-                    SceneRebuildService.RebuildInModalCommand(doc, dwg, project);
-                    lblSceneStatus.Text = $"Inserted {part.DisplayName} — rebuild sent to Plant 3D.";
+                    double previewDn = part.ParametricDN ? projectDn : part.DefaultDN;
+                    if (CatalogTestService.TryQueueLibraryPartPreview(doc, part, previewDn, project))
+                    {
+                        lblSceneStatus.Text =
+                            $"Preview {part.DisplayName} — library part only (custom scene not rebuilt).";
+                    }
+                    else
+                    {
+                        CatalogTestResult preview = CatalogTestService.BuildLibraryPartPreview(
+                            part, previewDn, project);
+                        ShowWarning(preview.Message);
+                        lblSceneStatus.Text = $"Inserted {part.DisplayName} in scene tree — preview not sent.";
+                    }
                 }
                 else
                 {
-                    lblSceneStatus.Text = $"Inserted {part.DisplayName} (no active document for rebuild).";
+                    lblSceneStatus.Text = $"Inserted {part.DisplayName} (no active document for preview).";
                 }
 
                 lblStatus.Text = $"Scene: {project.Parts.Count} part(s).";
@@ -552,6 +609,7 @@ namespace Plant3DCatalogComposer
             }
             finally
             {
+                RefreshPartLibraryFromDisk();
                 btnDeployCatalog.Enabled = true;
                 Cursor = Cursors.Default;
             }
@@ -650,11 +708,21 @@ namespace Plant3DCatalogComposer
                 ValveProject project = DocumentStore.LoadOrCreate(
                     dwg, Path.GetFileNameWithoutExtension(dwg));
 
+                if (!TryApplyCatalogFamilyFromUi(project, refreshDesignDimensions: false, out string? familyError))
+                {
+                    ShowWarning(familyError ?? "Complete Part Family fields first.");
+                    return;
+                }
+
                 if (!TryFlushSceneEditorToProject(dwg, project, out string? sceneError))
                 {
                     ShowWarning(sceneError ?? "Invalid scene parameter values.");
                     return;
                 }
+
+                CatalogExportPrepareService.PrepareSceneForExport(project);
+                IdleRebuildService.CancelPending();
+                DocumentStore.Save(dwg, project);
 
                 CatalogTestResult test = CatalogTestService.BuildTestCommand(dwg);
 
@@ -720,6 +788,8 @@ namespace Plant3DCatalogComposer
         {
             try
             {
+                RefreshPartLibraryFromDisk();
+
                 string dwg = DrawingContext.RequireActiveDrawingPath();
                 ValveProject project = DocumentStore.LoadOrCreate(
                     dwg, Path.GetFileNameWithoutExtension(dwg));
@@ -749,18 +819,6 @@ namespace Plant3DCatalogComposer
                         LoadNodeEditor(selected);
                 }
                 CatalogPackage package = ComposerLiveScriptService.BuildCatalogPackage(project);
-                if (CatalogGroupResolver.WouldRemapValveToFitting(project.CatalogGroup, project.Ports))
-                {
-                    MessageBox.Show(
-                        "Plant group is Valve but ports are butt-weld (BV) or socket-weld (SW).\n\n"
-                        + "Plant 3D Spec Editor treats Group=\"Valve\" as flanged (FL) and ignores BV — "
-                        + "this causes FL in Spec Editor and \"Can't find symbol\" when placing.\n\n"
-                        + "Export will use Group=\"Fitting\" (same as Tee Equal BW). Geometry is unchanged.",
-                        "Plant 3D Catalog Composer",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Information);
-                }
-
                 if (package.PortManagerPortCount == 0 &&
                     !StandardCatalogGuard.IsStandardReferenceScene(project) &&
                     MessageBox.Show(
@@ -788,22 +846,21 @@ namespace Plant3DCatalogComposer
 
                 if (ProjectPaths.TryResolveDevPartsDir() != null)
                 {
-                    CatalogDeployResult deploy = CatalogDeployService.DeployToCustomScripts();
-                    if (deploy.Success)
-                    {
-                        Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
-                            .MdiActiveDocument?.Editor.WriteMessage(
-                                $"\nP3D Composer: deployed {deploy.ScriptCount} script(s) to CustomScripts.");
-                    }
-                    else
-                    {
-                        ShowWarning("Export OK, deploy to CustomScripts failed: " + deploy.Message);
-                    }
+                    var previewDoc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                        .MdiActiveDocument;
+                    CatalogDrawingPreviewService.RebuildScenePreview(previewDoc, dwg, project);
+                    previewDoc?.Editor.WriteMessage(
+                        "\nP3D Composer: use Deploy Catalog to copy scripts to CustomScripts, then Test Catalog.");
+                }
+                else
+                {
+                    var previewDoc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager
+                        .MdiActiveDocument;
+                    CatalogDrawingPreviewService.RebuildScenePreview(previewDoc, dwg, project);
                 }
 
                 LoadCatalogProjectFields(project);
                 LoadDimensionFields(project);
-                RefreshCatalogPartList();
 
                 txtGeneratedCode.Text = catalogCode;
 
@@ -834,6 +891,10 @@ namespace Plant3DCatalogComposer
             catch (Exception ex)
             {
                 ShowError(ex);
+            }
+            finally
+            {
+                RefreshPartLibraryFromDisk();
             }
         }
 
@@ -1013,44 +1074,52 @@ namespace Plant3DCatalogComposer
                 string dwg = DrawingContext.RequireActiveDrawingPath();
                 ValveProject project = DocumentStore.LoadOrCreate(
                     dwg, Path.GetFileNameWithoutExtension(dwg));
+                string? targetName = addSubtract
+                    ? project.FindNode(_selectedNodeId!.Value)?.Name
+                    : null;
                 Guid cutterId = PrimitiveService.Insert(dwg, project, primitive);
 
                 if (addSubtract)
                 {
+                    // Start the cutter at the target's position so it lands on the part to be cut,
+                    // then the user nudges it with Move / Rotate.
+                    PrimitiveNode? targetNode = project.FindNode(_selectedNodeId!.Value);
+                    PrimitiveNode? cutterNode = project.FindNode(cutterId);
+                    if (targetNode != null && cutterNode != null && targetNode.Origin.Length >= 3)
+                        cutterNode.Origin = new[] { targetNode.Origin[0], targetNode.Origin[1], targetNode.Origin[2] };
+
                     BooleanGraph.AddOperation(
                         project,
                         BooleanOpType.SUBTRACT,
                         _selectedNodeId!.Value,
                         new List<Guid> { cutterId });
                     DocumentStore.Save(dwg, project);
-                    lblBoolStatus.Text =
-                        $"Inserted {primitive.DisplayName} and subtracted from target.";
-                }
-                else
-                {
-                    lblBoolStatus.Text =
-                        $"Inserted {primitive.DisplayName} — check it as a tool, then Add.";
                 }
 
                 RefreshBooleanUi();
-                CheckBoolTool(cutterId);
+
+                // Make the new cutter the active node and jump to the Scene tab so the user can
+                // immediately Move / Rotate it into place (Position / Rotation tools live there).
+                _selectedNodeId = cutterId;
+                RefreshSceneTree();
+                SelectTreeNode(cutterId);
+                PrimitiveNode? insertedCutter = project.FindNode(cutterId);
+                if (insertedCutter != null)
+                    LoadNodeEditor(insertedCutter);
+                tabMain.SelectedTab = tabScene;
+
+                lblSceneStatus.Text = addSubtract
+                    ? $"Inserted {primitive.DisplayName} & subtracted from {targetName}. "
+                      + "Move / Rotate it here — rebuild re-cuts automatically."
+                    : $"Inserted {primitive.DisplayName}. Move / Rotate it here, then on Booleans: "
+                      + "select target, check this tool, Add.";
+                lblBoolStatus.Text = lblSceneStatus.Text;
+
                 TriggerRebuild(project, quiet: true);
             }
             catch (Exception ex)
             {
                 ShowBoolError(ex);
-            }
-        }
-
-        private void CheckBoolTool(Guid nodeId)
-        {
-            for (int i = 0; i < clbBoolTools.Items.Count; i++)
-            {
-                if (clbBoolTools.Items[i] is NodeListItem item && item.Id == nodeId)
-                {
-                    clbBoolTools.SetItemChecked(i, true);
-                    break;
-                }
             }
         }
 
@@ -1638,7 +1707,7 @@ namespace Plant3DCatalogComposer
             UpdateBooleanTargetLabel();
         }
 
-        private void RefreshSceneTree()
+        private void RefreshSceneTree(bool expandAll = true)
         {
             Guid? keep = _selectedNodeId;
             treeScene.BeginUpdate();
@@ -1653,7 +1722,11 @@ namespace Plant3DCatalogComposer
                 foreach (PrimitiveNode root in SceneGraphHelpers.ChildrenOf(project, null))
                     treeScene.Nodes.Add(CreateTreeNode(root, project));
 
-                treeScene.ExpandAll();
+                if (expandAll)
+                    treeScene.ExpandAll();
+                else if (treeScene.Nodes.Count > 0)
+                    treeScene.Nodes[0].Expand();
+
                 if (keep.HasValue)
                     SelectTreeNode(keep.Value);
             }

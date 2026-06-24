@@ -736,30 +736,89 @@ def pipe_id_sch40_mm(dn: int) -> float:
     return pipe_od_sch40_mm(dn) - 2.0 * SCH40_WALL_MM[dn]
 
 
-# Plant FLANGE LJ catalog geometry (mm) — L,D1,D2 for CollarLapped; tf from Iplex backing ring.
-LJ_RING_CL150_PLANT_MM = {
-    15: {"L": 15.75, "D1": 88.9, "D2": 22.86, "tf": 11.18},
-    20: {"L": 15.75, "D1": 98.55, "D2": 28.19, "tf": 12.7},
-    25: {"L": 17.53, "D1": 107.95, "D2": 35.05, "tf": 14.22},
-    32: {"L": 20.57, "D1": 117.35, "D2": 43.69, "tf": 15.75},
-    40: {"L": 22.35, "D1": 127.0, "D2": 50.04, "tf": 17.53},
-    50: {"L": 25.4, "D1": 152.4, "D2": 62.48, "tf": 19.05},
-    65: {"L": 28.45, "D1": 177.8, "D2": 74.68, "tf": 22.35},
-    80: {"L": 30.23, "D1": 190.5, "D2": 91.44, "tf": 23.88},
-    90: {"L": 31.75, "D1": 215.9, "D2": 104.14, "tf": 23.88},
-    100: {"L": 33.27, "D1": 228.6, "D2": 116.84, "tf": 23.88},
-    125: {"L": 36.58, "D1": 254.0, "D2": 144.53, "tf": 23.88},
-    150: {"L": 39.62, "D1": 279.4, "D2": 171.45, "tf": 25.4},
-    200: {"L": 44.45, "D1": 342.9, "D2": 222.25, "tf": 28.45},
-    250: {"L": 49.28, "D1": 406.4, "D2": 277.37, "tf": 30.23},
-    300: {"L": 55.63, "D1": 482.6, "D2": 328.17, "tf": 31.75},
-    350: {"L": 79.25, "D1": 533.4, "D2": 360.17, "tf": 35.05},
-    400: {"L": 87.38, "D1": 596.9, "D2": 411.23, "tf": 36.58},
-    450: {"L": 96.77, "D1": 635.0, "D2": 462.28, "tf": 39.62},
+# ASME B16.5-2009 Table 7 (O, W) + Table 8 col 4 (tf) + Table 7 drilling — CL150 lap-joint flange (mm).
+# O = outside diameter; W = bolt circle (PCD); hd = bolt hole diameter.
+ASME_B165_CL150_LJ_BY_NPS = {
+    "1/2": {"O": 90, "W": 60.3, "tf": 11.2, "n": 4, "hd": 15.875},
+    "3/4": {"O": 100, "W": 69.9, "tf": 12.7, "n": 4, "hd": 15.875},
+    "1": {"O": 110, "W": 79.4, "tf": 14.3, "n": 4, "hd": 15.875},
+    "1-1/4": {"O": 115, "W": 88.9, "tf": 15.9, "n": 4, "hd": 15.875},
+    "1-1/2": {"O": 125, "W": 98.4, "tf": 17.5, "n": 4, "hd": 15.875},
+    "2": {"O": 150, "W": 120.7, "tf": 19.1, "n": 4, "hd": 19.05},
+    "2-1/2": {"O": 180, "W": 139.7, "tf": 22.3, "n": 4, "hd": 19.05},
+    "3": {"O": 190, "W": 152.4, "tf": 23.9, "n": 4, "hd": 19.05},
+    "3-1/2": {"O": 215, "W": 177.8, "tf": 23.9, "n": 8, "hd": 19.05},
+    "4": {"O": 230, "W": 190.5, "tf": 23.9, "n": 8, "hd": 19.05},
+    "5": {"O": 255, "W": 215.9, "tf": 23.9, "n": 8, "hd": 22.225},
+    "6": {"O": 280, "W": 241.3, "tf": 25.4, "n": 8, "hd": 22.225},
+    "8": {"O": 345, "W": 298.5, "tf": 28.6, "n": 8, "hd": 22.225},
+    "10": {"O": 405, "W": 362.0, "tf": 30.2, "n": 12, "hd": 25.4},
+    "12": {"O": 485, "W": 431.8, "tf": 31.8, "n": 12, "hd": 25.4},
+    "14": {"O": 535, "W": 476.3, "tf": 35.0, "n": 12, "hd": 28.575},
+    "16": {"O": 595, "W": 539.8, "tf": 36.6, "n": 16, "hd": 28.575},
+    "18": {"O": 635, "W": 577.9, "tf": 39.7, "n": 16, "hd": 31.75},
+    "20": {"O": 700, "W": 635.0, "tf": 42.9, "n": 20, "hd": 31.75},
+    "24": {"O": 815, "W": 749.3, "tf": 47.7, "n": 20, "hd": 34.925},
 }
 
-# Iplex Pipelines — galvanised steel backing ring ANSI 150 (mm). L1=O, L2=ID, L3=tf.
-# Bolt hole diameter (hd) in mm per table "No. x Dia".
+# Backward-compatible alias (tf-only lookups).
+ASME_B165_CL150_LJ_TF_MM = {nps: row["tf"] for nps, row in ASME_B165_CL150_LJ_BY_NPS.items()}
+
+
+def asme_b165_cl150_lj_tf_mm(dn: int) -> float:
+    """Lap-joint flange minimum thickness tf (mm) — ASME B16.5-2009 Table 8 col 4."""
+    return float(asme_b165_cl150_lj_row(dn)["tf"])
+
+
+def asme_b165_cl150_lj_row(dn: int) -> dict[str, float | int]:
+    """ASME B16.5-2009 Table 7+8 lap-joint flange row for catalog DN."""
+    dn = resolve_dn(dn)
+    nps = dn_to_nps(dn)
+    try:
+        row = ASME_B165_CL150_LJ_BY_NPS[nps]
+    except KeyError:
+        raise ValueError(f"No ASME B16.5 CL150 lap-joint row for DN {dn} (NPS {nps}).") from None
+    return {k: (float(v) if k != "n" else int(v)) for k, v in row.items()}
+
+
+# DN sizes exported for CL150 lap-joint backing ring (requires matching stub-end row).
+LJ_RING_CL150_DNS = tuple(
+    dn for dn in VALID_DN
+    if dn in STUBEND_LJ_A_MM and dn_to_nps(dn) in ASME_B165_CL150_LJ_BY_NPS
+)
+
+
+def lj_ring_cl150_dims_mm(dn: int) -> dict[str, float]:
+    """ASME B16.5 CL150 LJ flat plate — O, PCD, tf, bore over stub (mm)."""
+    dn = resolve_dn(dn)
+    try:
+        asme = asme_b165_cl150_lj_row(dn)
+        stub_g = float(STUBEND_LJ_A_MM[dn]["G"])
+    except KeyError:
+        raise ValueError(f"No CL150 LJ backing ring for DN {dn}.") from None
+
+    tf = float(asme["tf"])
+    pipe_od = pipe_od_sch40_mm(dn)
+    model_bore = min(max(pipe_od + 1.5, pipe_od), stub_g - 1.0)
+    stub_lap_t = float(stubend_lj_a_dims_mm(dn, "long")["T"])
+
+    o = float(asme["O"])
+    return {
+        "O": o,
+        "tf": tf,
+        "L": tf,
+        "bcd": float(asme["W"]),
+        "n": int(asme["n"]),
+        "hd": float(asme["hd"]),
+        "D1": o,
+        "D2": pipe_od,
+        "model_bore": model_bore,
+        "port_len": tf,
+        "stub_lap_t": stub_lap_t,
+    }
+
+
+# Legacy Iplex supplier table (reference only — not used for catalog geometry).
 IPLEX_BACKING_RING_CL150_BY_NPS = {
     "1/2": {"O": 89, "pcd": 60.5, "id_l2": 22, "tf": 11.2, "n": 4, "hd": 16},
     "3/4": {"O": 99, "pcd": 69.8, "id_l2": 28, "tf": 12.7, "n": 4, "hd": 16},
@@ -791,38 +850,3 @@ def iplex_backing_ring_cl150_mm(dn: int) -> dict[str, float]:
     except KeyError:
         raise ValueError(f"No Iplex CL150 backing ring for DN {dn} (NPS {nps}).") from None
     return {k: float(v) for k, v in row.items()}
-
-
-def lj_ring_cl150_dims_mm(dn: int) -> dict[str, float]:
-    """Iplex ANSI 150 backing ring + Plant catalog L,D2 + bore over stub lap G."""
-    dn = resolve_dn(dn)
-    try:
-        catalog = dict(LJ_RING_CL150_PLANT_MM[dn])
-        iplex = iplex_backing_ring_cl150_mm(dn)
-        stub_g = float(STUBEND_LJ_A_MM[dn]["G"])
-    except KeyError:
-        raise ValueError(f"No CL150 LJ backing ring for DN {dn}.") from None
-
-    tf = iplex["tf"]
-    stub_lap_t = float(stubend_lj_a_dims_mm(dn, "long")["T"])
-    pipe_od = pipe_od_sch40_mm(dn)
-    # Collar slides on stub barrel (pipe OD), stops at lap shoulder (G > bore).
-    model_bore = min(
-        max(pipe_od + 1.5, iplex["id_l2"]),
-        stub_g - 1.0,
-    )
-
-    return {
-        **catalog,
-        "O": iplex["O"],
-        "tf": tf,
-        "bcd": iplex["pcd"],
-        "n": int(iplex["n"]),
-        "hd": iplex["hd"],
-        "D1": iplex["O"],
-        "D2": catalog["D2"],
-        "model_bore": model_bore,
-        "port_len": tf,
-        "stub_lap_t": stub_lap_t,
-    }
-

@@ -43,6 +43,23 @@ namespace Plant3DCatalogComposer.Services
             {
                 result.AddError($"CustomScripts not found: {ProjectPaths.CustomScriptsDir}");
             }
+            else
+            {
+                string partId = CatalogProjectService.SanitizeCatalogName(project.ValveName ?? "");
+                if (!string.IsNullOrWhiteSpace(partId)
+                    && !partId.Equals("COMPOSER_PART", StringComparison.OrdinalIgnoreCase))
+                {
+                    string script = System.IO.Path.Combine(
+                        ProjectPaths.CustomScriptsDir,
+                        $"CUST_{partId}.py");
+                    if (!System.IO.File.Exists(script))
+                    {
+                        result.AddWarning(
+                            $"CUST_{partId}.py is not in CustomScripts — run Deploy Catalog before Build Catalog "
+                            + "or Catalog Builder will report Invalid Custom Script path.");
+                    }
+                }
+            }
 
             return result;
         }
@@ -63,10 +80,19 @@ namespace Plant3DCatalogComposer.Services
                     "No ports in Port Manager — published catalog uses library defaults or TODO placeholders.");
             }
 
-            if (CatalogGroupResolver.WouldRemapValveToFitting(project.CatalogGroup, project.Ports))
+            if (project.CatalogGroup.Equals("Valve", StringComparison.OrdinalIgnoreCase)
+                || CatalogCategories.NormalizeCategoryId(project.CatalogCategory)
+                    .Equals(CatalogCategories.Valves, StringComparison.OrdinalIgnoreCase))
             {
-                result.AddWarning(
-                    "Group Valve with BV/SW ports will export as Fitting (Plant 3D Spec Editor FL quirk).");
+                string cgp = CatalogExcelGeometryParams.ResolveParamDefinition(project);
+                if (CatalogExcelGeometryParams.ParseParamNames(cgp)
+                        .Any(n => n.Equals("L", StringComparison.OrdinalIgnoreCase))
+                    && project.Parameters.FaceToFace <= 0)
+                {
+                    result.AddWarning(
+                        "Face-to-face (L) not set — export will use placeholder L per DN. "
+                        + "Set Dimensions → FaceToFace before Publish for accurate catalog.");
+                }
             }
 
             foreach (PrimitiveNode node in project.Parts.Where(p =>

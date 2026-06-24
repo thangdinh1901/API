@@ -60,6 +60,10 @@ namespace Plant3DCatalogComposer.Services
                 int pycacheCleared = ClearPythonCache(ProjectPaths.CustomScriptsDir);
 
                 RemoveLegacySupportFolders(ProjectPaths.CustomScriptsDir);
+                // Deploy is the cleanup point: drop the scratch _composer_exports staging that
+                // standard-part Generate leaves behind (reference only — never deployed).
+                RemoveScratchExports(partsSrc);
+                RemoveScratchExports(ProjectPaths.CustomScriptsDir);
                 int removed = RemoveOrphanedCatalogParts(partsSrc, ProjectPaths.CustomScriptsDir);
 
                 int partCount = DeployCustomParts(partsSrc, ProjectPaths.CustomScriptsDir);
@@ -67,6 +71,7 @@ namespace Plant3DCatalogComposer.Services
                 scriptCount += DeploySupportModules(partsSrc, ProjectPaths.CustomScriptsDir);
                 scriptCount += DeploySharedFiles(genSrc, ProjectPaths.CustomScriptsDir);
                 scriptCount += DeployComposerLib(genSrc, ProjectPaths.CustomScriptsDir);
+                scriptCount += DeployComposerRuntime(genSrc, ProjectPaths.CustomScriptsDir);
                 DeployMetadata(genSrc, ProjectPaths.CustomScriptsDir);
 
                 pycacheCleared += ClearPythonCache(ProjectPaths.CustomScriptsDir);
@@ -123,6 +128,14 @@ namespace Plant3DCatalogComposer.Services
             return true;
         }
 
+        /// <summary>Delete the regenerated scratch sandbox (_composer_exports) directly under a root.</summary>
+        private static void RemoveScratchExports(string root)
+        {
+            string scratch = Path.Combine(root, StandardCatalogGuard.SandboxRoot);
+            if (Directory.Exists(scratch))
+                Directory.Delete(scratch, recursive: true);
+        }
+
         private static void RemoveLegacySupportFolders(string customScripts)
         {
             foreach (string name in LegacySupportModules)
@@ -139,7 +152,7 @@ namespace Plant3DCatalogComposer.Services
         /// </summary>
         private static int RemoveOrphanedCatalogParts(string partsSrc, string customScripts)
         {
-            var activePartIds = CollectActivePartIds(partsSrc);
+            var activePartIds = CatalogPartsIndex.CollectDeployablePartIds(partsSrc);
             int removed = 0;
 
             foreach (string pyPath in Directory.EnumerateFiles(customScripts, "CUST_*.py"))
@@ -173,25 +186,6 @@ namespace Plant3DCatalogComposer.Services
             }
 
             return removed;
-        }
-
-        private static HashSet<string> CollectActivePartIds(string partsSrc)
-        {
-            var active = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            if (!Directory.Exists(partsSrc))
-                return active;
-
-            foreach (string partDir in Directory.EnumerateDirectories(partsSrc))
-            {
-                string partId = Path.GetFileName(partDir);
-                if (StandardCatalogGuard.IsSandboxDirectory(partId))
-                    continue;
-
-                if (File.Exists(Path.Combine(partDir, "catalog_entry.py")))
-                    active.Add(partId);
-            }
-
-            return active;
         }
 
         private static bool LooksLikeCatalogPartFolder(string dir, string partId)
@@ -247,6 +241,51 @@ namespace Plant3DCatalogComposer.Services
             return removed;
         }
 
+        internal static void InvalidateDeployedScriptBytecode(string scriptName)
+        {
+            if (string.IsNullOrWhiteSpace(scriptName))
+                return;
+
+            string name = scriptName.StartsWith("CUST_", StringComparison.Ordinal)
+                ? scriptName
+                : $"CUST_{scriptName}";
+
+            RemovePycacheForScript(ProjectPaths.CustomScriptsDir, name);
+        }
+
+        /// <summary>Clear all CustomScripts bytecode before catalog test so Plant 3D recompiles deployed .py.</summary>
+        internal static int InvalidateBeforeCatalogTest(string scriptName)
+        {
+            int cleared = ClearPythonCache(ProjectPaths.CustomScriptsDir);
+            InvalidateDeployedScriptBytecode(scriptName);
+            return cleared;
+        }
+
+        private static string AppendDeployStamp(string content)
+        {
+            const string prefix = "# P3D_DEPLOY_STAMP:";
+            string stamp = $"{prefix} {DateTime.UtcNow:yyyy-MM-ddTHH:mm:ss}Z";
+            var lines = content
+                .Replace("\r\n", "\n")
+                .Split('\n')
+                .ToList();
+
+            lines.RemoveAll(l => l.TrimStart().StartsWith(prefix, StringComparison.Ordinal));
+
+            int insert = 0;
+            for (int i = 0; i < lines.Count; i++)
+            {
+                if (lines[i].Contains("varmain.custom", StringComparison.Ordinal))
+                {
+                    insert = i + 1;
+                    break;
+                }
+            }
+
+            lines.Insert(insert, stamp);
+            return string.Join(Environment.NewLine, lines);
+        }
+
         /// <summary>Remove all __pycache__ folders under CustomScripts before PLANTREGISTERCUSTOMSCRIPTS.</summary>
         internal static int ClearPythonCache(string customScripts)
         {
@@ -282,7 +321,9 @@ namespace Plant3DCatalogComposer.Services
                 string content = File.Exists(geometry)
                     ? EnsureSupportImports(MergeCatalogPartPy(entry, geometry))
                     : EnsureSupportImports(File.ReadAllText(entry, Encoding.UTF8));
+                content = AppendDeployStamp(content);
                 File.WriteAllText(destPy, content, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+                RemovePycacheForScript(customScripts, $"CUST_{partId}");
 
                 string entryXml = Path.Combine(partDir, "catalog_entry.xml");
                 if (File.Exists(entryXml))
@@ -462,6 +503,28 @@ namespace Plant3DCatalogComposer.Services
                 string src = Path.Combine(genSrc, name);
                 if (File.Exists(src))
                     File.Copy(src, Path.Combine(customScripts, name), overwrite: true);
+            }
+
+            return count;
+        }
+
+        /// <summary>SDK hot_reload + wrapper (SPDS R2 pattern) for live catalog reload without CAD restart.</summary>
+        private static int DeployComposerRuntime(string genSrc, string customScripts)
+        {
+            int count = 0;
+
+            string hotReload = Path.Combine(genSrc, "hot_reload.py");
+            if (File.Exists(hotReload))
+            {
+                File.Copy(hotReload, Path.Combine(customScripts, "hot_reload.py"), overwrite: true);
+                count++;
+            }
+
+            string wrapperSrc = Path.Combine(genSrc, "p3d_composer", "wrapper_patched.py");
+            if (File.Exists(wrapperSrc))
+            {
+                File.Copy(wrapperSrc, Path.Combine(customScripts, "wrapper.py"), overwrite: true);
+                count++;
             }
 
             return count;

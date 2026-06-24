@@ -58,13 +58,21 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Resources\CatalogBuilderTemplate.xlsx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
+  <!-- Keep valve/pipe template sheets in Resources before every build. -->
+  <Target Name="RefreshCatalogBuilderTemplate" BeforeTargets="BeforeBuild">
+    <Exec WorkingDirectory="$(MSBuildProjectDirectory)\.."
+          Command="python scripts/add_static_support_template_sheets.py"
+          IgnoreExitCode="false"
+          Condition="Exists('$(MSBuildProjectDirectory)\..\scripts\add_static_support_template_sheets.py')" />
+  </Target>
+
   <!-- After Release/Debug build, copy DLL to ApplicationPlugins + CustomScripts (NETLOAD path). -->
   <Target Name="DeployPlant3DCatalogComposer" AfterTargets="Build" Condition="'$(SkipComposerDeploy)' != 'true'">
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\scripts\Install-Plant3DCatalogComposer.ps1&quot; -Configuration $(Configuration)"
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\..\scripts\Install-Plant3DCatalogComposer.ps1&quot; -Configuration $(Configuration) -SkipBuild"
           IgnoreExitCode="false" />
   </Target>
 
