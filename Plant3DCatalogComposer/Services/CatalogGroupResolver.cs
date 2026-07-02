@@ -16,8 +16,5 @@ namespace Plant3DCatalogComposer.Services
             _ = firstPortEndtypes;
             return string.IsNullOrWhiteSpace(userGroup) ? "Custom" : userGroup.Trim();
         }
-
-        public static bool WouldRemapValveToFitting(string? userGroup, IReadOnlyList<ConnectionPort> ports) =>
-            false;
     }
 }

@@ -25,9 +25,6 @@ namespace Plant3DCatalogComposer
             public const int DirectionTop = 266;
         }
 
-        private int TabContentWidth(Control tab) =>
-            Math.Max(200, tab.ClientSize.Width - FieldRightPad * 2);
-
         private int ValueColumnWidth(Control host) =>
             Math.Max(120, host.ClientSize.Width - FieldValueLeft - FieldRightPad);
 

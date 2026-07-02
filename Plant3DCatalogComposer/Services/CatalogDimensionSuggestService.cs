@@ -20,48 +20,6 @@ namespace Plant3DCatalogComposer.Services
             "DN", "DN2",
         };
 
-        public static void ApplySuggestions(ValveProject project)
-        {
-            IReadOnlyList<(string Name, double ValueMm)> suggestions = Suggest(project);
-            if (suggestions.Count == 0)
-                return;
-
-            if (CatalogProjectService.HasUserDesignDimensions(project))
-            {
-                MergeSuggestions(project, suggestions);
-                return;
-            }
-
-            ProjectDimensionService.ReplaceAll(project, suggestions);
-        }
-
-        private static void MergeSuggestions(
-            ValveProject project,
-            IReadOnlyList<(string Name, double ValueMm)> suggestions)
-        {
-            foreach ((string name, double valueMm) in suggestions)
-            {
-                if (CatalogProjectService.HasDimensionBinding(project, name))
-                    continue;
-
-                if (ProjectDimensionService.GetValue(project, name) > 0)
-                    continue;
-
-                ProjectDimensionService.SetValue(project, name, valueMm);
-            }
-        }
-
-        public static IReadOnlyList<(string Name, double ValueMm)> Suggest(ValveProject project)
-        {
-            string cloneId = ResolveCloneSourcePartId(project);
-            if (string.IsNullOrEmpty(cloneId))
-                return Array.Empty<(string, double)>();
-
-            int dn = (int)Math.Round(project.Parameters.DN);
-            int? dn2 = project.Parameters.DN2 > 0 ? (int)Math.Round(project.Parameters.DN2) : null;
-            return SuggestCore(cloneId, project, dn, dn2, useProjectPorts: true);
-        }
-
         /// <summary>Suggest geometry dims for a single inserted native (Catalog-kind) node, using
         /// that node's own CatalogPartId and DN — independent of the composed project's DN/clone.
         /// Returns ONLY original Excel column symbols (D, R, A, L1, …) — no internal aliases
@@ -131,26 +89,6 @@ namespace Plant3DCatalogComposer.Services
                 .OrderBy(pair => pair.Key, StringComparer.OrdinalIgnoreCase)
                 .Select(pair => (pair.Key, pair.Value))
                 .ToList();
-        }
-
-        private static string ResolveCloneSourcePartId(ValveProject project)
-        {
-            if (!string.IsNullOrWhiteSpace(project.ExcelCloneSourcePartId))
-                return project.ExcelCloneSourcePartId.Trim();
-
-            string partId = string.IsNullOrWhiteSpace(project.ValveName)
-                ? "COMPOSER_PART"
-                : CatalogProjectService.SanitizeCatalogName(project.ValveName);
-
-            return CatalogExcelTemplateService.InferCloneSourcePartId(
-                partId,
-                project.CatalogCategory,
-                project.PnpClassName ?? "",
-                project.StandardSet ?? "",
-                project.CatalogGroup ?? "",
-                CatalogStandardSetInference.ResolvePrimaryEndType(project),
-                project.Parameters.PressureClass,
-                project.Parameters.PipeSchedule);
         }
 
         private static void MergeExcelGeometryRow(

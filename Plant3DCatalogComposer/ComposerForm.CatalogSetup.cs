@@ -621,9 +621,6 @@ namespace Plant3DCatalogComposer
                 _cmbClassSch.SelectedIndex = 0;
         }
 
-        private void SelectClassSchCombo(string? pressureClass, string? pipeSchedule) =>
-            RefreshClassSchCombo(pressureClass, pipeSchedule);
-
         private void RefreshPipingComponentCombo(string? selectValue = null)
         {
             if (_cmbPartCategory == null || _cmbPipingComponent == null)
@@ -952,12 +949,6 @@ namespace Plant3DCatalogComposer
                 : $"→ CUST_{preview}";
         }
 
-        private string GetProjectPressureClass(ValveProject project) =>
-            GetSelectedClassSchedule()?.PressureClass
-            ?? (!string.IsNullOrWhiteSpace(project.Parameters.PressureClass)
-                ? project.Parameters.PressureClass
-                : "150");
-
         private string GetProjectSchedule(ValveProject? project = null)
         {
             ClassScheduleOption? selected = GetSelectedClassSchedule();
@@ -968,30 +959,6 @@ namespace Plant3DCatalogComposer
                 return PipeScheduleCatalog.Normalize(project.Parameters.PipeSchedule);
 
             return PipeScheduleCatalog.Default;
-        }
-
-        private double GetProjectDn(ValveProject project)
-        {
-            // UI combo is what the user sees — do not use stale project.Parameters.DN after they change DN large.
-            if (_cmbProjectDn != null && TryGetSelectedDn(_cmbProjectDn, out double uiDn))
-                return uiDn;
-            if (project.Parameters.DN > 0)
-                return project.Parameters.DN;
-            return 100;
-        }
-
-        private static void SelectScheduleCombo(ComboBox combo, string scheduleId)
-        {
-            string id = PipeScheduleCatalog.Normalize(scheduleId);
-            for (int i = 0; i < combo.Items.Count; i++)
-            {
-                if (combo.Items[i] is PipeScheduleOption opt &&
-                    opt.Id.Equals(id, StringComparison.OrdinalIgnoreCase))
-                {
-                    combo.SelectedIndex = i;
-                    return;
-                }
-            }
         }
 
         private void UpdateDnSmallFieldState(double preferredDn2 = 0)

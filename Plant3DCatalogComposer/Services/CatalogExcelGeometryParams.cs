@@ -162,10 +162,6 @@ namespace Plant3DCatalogComposer.Services
                 _ => null,
             };
 
-        public static bool UsesExcelKwAlias(string excelName) =>
-            excelName.Equals("L", StringComparison.OrdinalIgnoreCase)
-            || excelName.Equals("D1", StringComparison.OrdinalIgnoreCase);
-
         private static string ResolveCloneSourcePartId(ValveProject project)
         {
             if (!string.IsNullOrWhiteSpace(project.ExcelCloneSourcePartId))

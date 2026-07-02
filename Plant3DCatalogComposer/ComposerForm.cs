@@ -500,19 +500,6 @@ namespace Plant3DCatalogComposer
             }
         }
 
-        private static void SelectPressureClassCombo(ComboBox combo, string pressureClass)
-        {
-            for (int i = 0; i < combo.Items.Count; i++)
-            {
-                if (combo.Items[i] is string pc &&
-                    pc.Equals(pressureClass, StringComparison.OrdinalIgnoreCase))
-                {
-                    combo.SelectedIndex = i;
-                    return;
-                }
-            }
-        }
-
         private void btnInsertPrimitive_Click(object sender, EventArgs e)
         {
             if (cmbPrimitive.SelectedItem is not PrimitiveDefinition primitive)
@@ -844,38 +831,6 @@ namespace Plant3DCatalogComposer
                 ShowError(ex);
             }
         }
-
-        private static bool ConfirmPreflight(ValidationResult preflight, string title, out bool allowWarnings)
-        {
-            allowWarnings = true;
-            if (!preflight.IsValid)
-            {
-                MessageBox.Show(
-                    "Cannot continue:\n\n" + string.Join("\n", preflight.Errors),
-                    title,
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-                allowWarnings = false;
-                return false;
-            }
-
-            var warnings = preflight.Warnings.ToList();
-            if (warnings.Count == 0)
-                return true;
-
-            string text = "Pre-flight warnings:\n\n• " + string.Join("\n• ", warnings) +
-                          "\n\nContinue?";
-            DialogResult dr = MessageBox.Show(
-                text,
-                title,
-                MessageBoxButtons.YesNo,
-                MessageBoxIcon.Warning);
-            allowWarnings = dr == DialogResult.Yes;
-            return allowWarnings;
-        }
-
-        private static bool ConfirmPublishPreflight(ValidationResult preflight, out bool allowWarnings) =>
-            ConfirmPreflight(preflight, "Publish Catalog", out allowWarnings);
 
         private void btnGenerateCode_Click(object sender, EventArgs e)
         {

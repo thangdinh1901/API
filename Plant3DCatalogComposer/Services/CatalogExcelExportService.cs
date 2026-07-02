@@ -1297,18 +1297,6 @@ namespace Plant3DCatalogComposer.Services
             return PipeSizeCatalog.OdSch40Mm(dn);
         }
 
-        private static void ClearNativeParametricColumns(
-            IXLWorksheet sheet,
-            Dictionary<string, int> header,
-            int rowIndex,
-            string partId)
-        {
-            foreach (string column in CatalogLapJointIds.IsLjStubOrCollar(partId)
-                ? new[] { "L", "B", "D1", "D2" }
-                : new[] { "L", "D1", "D2" })
-                Clear(sheet, header, rowIndex, column);
-        }
-
         private static string GetString(
             IXLWorksheet sheet,
             Dictionary<string, int> header,
@@ -1356,12 +1344,6 @@ namespace Plant3DCatalogComposer.Services
         {
             if (sheet.LastRowUsed()?.RowNumber() >= PublishedDataStartRow)
                 sheet.Rows(PublishedDataStartRow, sheet.LastRowUsed()!.RowNumber()).Delete();
-        }
-
-        private static void ClearDataRows(IXLWorksheet sheet)
-        {
-            if (sheet.LastRowUsed()?.RowNumber() >= DataStartRow)
-                sheet.Rows(DataStartRow, sheet.LastRowUsed()!.RowNumber()).Delete();
         }
 
         private static string FormatOd(double od) =>

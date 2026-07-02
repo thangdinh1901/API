@@ -46,8 +46,6 @@ namespace Plant3DCatalogComposer.Services
                 || project.Operations.Count > 0
                 || project.Parts.Any(HasNonIdentityTransform));
 
-        public static string? TryGetSingleStandardPartId(ValveProject project) => null;
-
         public static string ResolveExportFolderName(string folderName, bool isStandardPortReference) =>
             isStandardPortReference
                 ? System.IO.Path.Combine(SandboxRoot, folderName)

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Windows.Forms;
 using Plant3DSkeletonManager.Core;
 
 namespace Plant3DCatalogComposer.Services
@@ -175,78 +174,6 @@ namespace Plant3DCatalogComposer.Services
         public static bool IsBuiltIn(string name) =>
             BuiltInNames.Any(n => n.Equals(name, StringComparison.OrdinalIgnoreCase));
 
-        public static string FormatBinding(DimensionBinding? binding)
-        {
-            if (binding == null)
-                return "—";
-
-            if (binding.FromPort.HasValue && binding.ToPort.HasValue)
-                return $"P{binding.FromPort}↔P{binding.ToPort}";
-
-            if (!string.IsNullOrWhiteSpace(binding.SceneNodeName))
-            {
-                return string.IsNullOrWhiteSpace(binding.ParamKey)
-                    ? binding.SceneNodeName
-                    : $"{binding.SceneNodeName}.{binding.ParamKey}";
-            }
-
-            return binding.MeasureKind switch
-            {
-                "pickDeltaX" => "pick ΔX",
-                "pickDeltaY" => "pick ΔY",
-                "pickDeltaZ" => "pick ΔZ",
-                "pickDistance" => "pick |Δ|",
-                "portDistance" => "ports",
-                "sceneBind" => "scene",
-                "manual" => "manual",
-                _ => binding.MeasureKind,
-            };
-        }
-
-        public static string ScanUsedIn(ValveProject project, string dimensionName)
-        {
-            if (string.IsNullOrWhiteSpace(dimensionName))
-                return "";
-
-            var hits = new List<string>();
-            foreach (PrimitiveNode node in project.Parts)
-            {
-                foreach (KeyValuePair<string, ParamValue> pair in node.Parameters)
-                {
-                    if (ExpressionReferencesName(pair.Value.Expression, dimensionName))
-                        hits.Add($"{node.Name}.{pair.Key}");
-                }
-            }
-
-            return hits.Count == 0 ? "—" : string.Join(", ", hits);
-        }
-
-        public static void RefreshAllUsedIn(ValveProject project, DataGridView grid, int usedInColumnIndex)
-        {
-            foreach (DataGridViewRow row in grid.Rows)
-            {
-                if (row.IsNewRow)
-                    continue;
-
-                string? name = row.Cells[0].Value?.ToString()?.Trim();
-                if (string.IsNullOrEmpty(name))
-                    continue;
-
-                row.Cells[usedInColumnIndex].Value = ScanUsedIn(project, name);
-            }
-        }
-
-        private static bool ExpressionReferencesName(string? expression, string dimensionName)
-        {
-            if (string.IsNullOrWhiteSpace(expression))
-                return false;
-
-            return Regex.IsMatch(
-                expression,
-                $@"\b{Regex.Escape(dimensionName)}\b",
-                RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-        }
-
         private static void ClearBuiltIn(SkeletonParameters p)
         {
             p.FaceToFace = 0;
@@ -297,17 +224,6 @@ namespace Plant3DCatalogComposer.Services
             }
 
             return value > 0;
-        }
-
-        public static void ResolveAllPrimitiveExpressions(ValveProject project)
-        {
-            foreach (PrimitiveNode node in project.Parts)
-            {
-                if (node.Kind != SceneNodeKind.Primitive)
-                    continue;
-
-                SceneGraphEditor.ResolveExpressions(node, project.Parameters);
-            }
         }
     }
 }

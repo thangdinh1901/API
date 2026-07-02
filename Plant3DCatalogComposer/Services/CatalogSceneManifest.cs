@@ -62,8 +62,5 @@ namespace Plant3DCatalogComposer.Services
                 + "Run Deploy Catalog (not only Generate Code) after editing the Scene tree.";
             return false;
         }
-
-        public static IReadOnlyList<string> PartNames(ValveProject project) =>
-            project.Parts.Select(p => p.Name).ToList();
     }
 }

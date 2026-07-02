@@ -27,9 +27,5 @@ namespace Plant3DCatalogComposer.Services
         public static bool IsStandardPart(string? partId) =>
             !string.IsNullOrWhiteSpace(partId)
             && PartIds.Any(id => id.Equals(partId, StringComparison.OrdinalIgnoreCase));
-
-        public static bool MatchesSet(CustomPartDefinition part) =>
-            SetId.Equals(part.StandardSet, StringComparison.OrdinalIgnoreCase)
-            || IsStandardPart(part.Id);
     }
 }

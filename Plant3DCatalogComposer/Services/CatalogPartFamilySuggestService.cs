@@ -271,56 +271,6 @@ namespace Plant3DCatalogComposer.Services
             return pcOk && schOk;
         }
 
-        /// <summary>Match template part id to Class/Sch from Part Family (not script name).</summary>
-        public static bool TemplateMatchesClassSchedule(
-            string templatePartId,
-            string? primaryEndType,
-            string? pressureClass,
-            string? pipeSchedule)
-        {
-            if (string.IsNullOrWhiteSpace(templatePartId))
-                return false;
-
-            string id = templatePartId.ToUpperInvariant();
-            string end = Plant3DEndTypes.NormalizeCode(primaryEndType);
-            string pc = NormalizePressureClassToken(pressureClass);
-            string sch = PipeScheduleCatalog.Normalize(pipeSchedule ?? "");
-
-            // Valve clone sheets use CL150 / CL3000 — not pipe SCH rows.
-            if (CatalogValveExcelTemplates.IsValveTemplate(id))
-            {
-                if (string.IsNullOrEmpty(pc))
-                    pc = "150";
-                if (id.Contains($"CL{pc}", StringComparison.Ordinal))
-                    return true;
-                return !id.Contains("CL150", StringComparison.Ordinal)
-                    && !id.Contains("CL3000", StringComparison.Ordinal);
-            }
-
-            if (IsScheduleEnd(end))
-            {
-                if (string.IsNullOrEmpty(sch))
-                    sch = "40";
-                if (id.Contains($"SCH{sch}", StringComparison.Ordinal))
-                    return true;
-                return !id.Contains("SCH", StringComparison.Ordinal);
-            }
-
-            if (IsSwEnd(end))
-            {
-                if (pc == "3000")
-                    return id.Contains("CL3000", StringComparison.Ordinal) || id.Contains("_SW_", StringComparison.Ordinal);
-                return id.Contains("_SW_", StringComparison.Ordinal) || id.Contains("CL3000", StringComparison.Ordinal);
-            }
-
-            if (!string.IsNullOrEmpty(pc) && id.Contains($"CL{pc}", StringComparison.Ordinal))
-                return true;
-
-            return !id.Contains("CL150", StringComparison.Ordinal)
-                && !id.Contains("CL3000", StringComparison.Ordinal)
-                && !id.Contains("SCH", StringComparison.Ordinal);
-        }
-
         private static string NormalizePressureClassToken(string? pressureClass)
         {
             string pc = (pressureClass ?? "150").Trim();

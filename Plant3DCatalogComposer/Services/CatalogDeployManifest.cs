@@ -58,14 +58,6 @@ namespace Plant3DCatalogComposer.Services
             return path;
         }
 
-        public static int CountPycacheFolders(string customScripts)
-        {
-            if (!Directory.Exists(customScripts))
-                return 0;
-
-            return Directory.EnumerateDirectories(customScripts, "__pycache__", SearchOption.AllDirectories).Count();
-        }
-
         private static Dictionary<string, string> CollectKeyHashes(string customScripts)
         {
             var hashes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

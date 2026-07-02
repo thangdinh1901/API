@@ -20,9 +20,6 @@ namespace Plant3DCatalogComposer.Services
         public bool RegisterCommandQueued { get; init; }
         public string? ManifestPath { get; init; }
         public PluginDeployResult? PluginDeploy { get; init; }
-
-        public static string StatusLine(int scriptCount) =>
-            $"{scriptCount} Python scripts deployed.";
     }
 
     /// <summary>Deploy catalog_generator from dev repo (or bundle) to Plant 3D CustomScripts.</summary>
