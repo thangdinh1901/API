@@ -78,49 +78,9 @@ namespace Plant3DCatalogComposer.Services
             string.Equals(catalogGroup, "Fitting", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(catalogGroup, "Olet", StringComparison.OrdinalIgnoreCase);
 
-        public static void SyncProjectDimensions(ValveProject project)
-        {
-            if (!UsesPipeRunDimensions(project.CatalogGroup))
-                return;
-
-            if (project.Parameters.DN <= 0)
-                return;
-
-            int dn = (int)Math.Round(project.Parameters.DN);
-            ConnectionStyle style = InferConnectionStyle(project);
-            project.Parameters.BodyOD = RunDiameterMm(dn);
-
-            if (!CatalogProjectService.HasDimensionBinding(project, "ElbowCenterToFace"))
-                project.Parameters.ElbowCenterToFace = ElbowCenterToFaceMm(dn, style);
-
-            RefreshElbowBodyOd(project);
-        }
-
         /// <summary>Typical LR bend radius (1.5× pipe OD) for new elbow primitives — not center-to-face.</summary>
         public static double DefaultElbowBendRadiusMm(SkeletonParameters p) =>
             p.BodyOD > 0 ? p.BodyOD * 1.5 : 0;
-
-        private static void RefreshElbowBodyOd(ValveProject project)
-        {
-            SkeletonParameters p = project.Parameters;
-            foreach (PrimitiveNode node in project.Parts)
-            {
-                if (node.Kind != SceneNodeKind.Primitive)
-                    continue;
-
-                if (node.Type is not (PrimitiveType.ELBOW or PrimitiveType.SEGMENTED_ELBOW or PrimitiveType.REDUCED_ELBOW))
-                    continue;
-
-                if (!node.Parameters.TryGetValue("D", out ParamValue? param))
-                    continue;
-
-                if (!IsElbowDiameterBoundToBodyOd(param, p))
-                    continue;
-
-                param.Value = p.BodyOD;
-                param.Expression = "BodyOD";
-            }
-        }
 
         /// <summary>True when elbow D should follow project BodyOD (Catalog DN sync), not manual Scene edits.</summary>
         internal static bool IsElbowDiameterBoundToBodyOd(ParamValue param, SkeletonParameters skeleton)
@@ -249,14 +209,6 @@ namespace Plant3DCatalogComposer.Services
             {
                 param.Expression = designName;
             }
-        }
-
-        public static void EnsureRunDimensions(ValveProject project)
-        {
-            if (!UsesPipeRunDimensions(project.CatalogGroup))
-                return;
-
-            SyncProjectDimensions(project);
         }
 
         /// <summary>Pipe OD (mm) for the nominal size — same for BW and SW run modeling.</summary>

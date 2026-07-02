@@ -88,18 +88,13 @@ namespace Plant3DCatalogComposer.Services
                 return false;
 
             SkeletonParameters p = project.Parameters;
-            bool changed = false;
 
             void Clear(string name, Action clear)
             {
                 if (ProjectDimensionService.GetValue(project, name) > 0)
-                {
                     clear();
-                    changed = true;
-                }
 
-                if (project.DimensionBindings.Remove(name))
-                    changed = true;
+                project.DimensionBindings.Remove(name);
             }
 
             Clear("FaceToFace", () => p.FaceToFace = 0);
@@ -112,10 +107,8 @@ namespace Plant3DCatalogComposer.Services
 
             foreach (string name in new[] { "L", "CEL", "T" })
             {
-                if (p.CustomDimensions.Remove(name))
-                    changed = true;
-                if (project.DimensionBindings.Remove(name))
-                    changed = true;
+                p.CustomDimensions.Remove(name);
+                project.DimensionBindings.Remove(name);
             }
 
             project.LegacyEnvelopeDimsPruned = true;
