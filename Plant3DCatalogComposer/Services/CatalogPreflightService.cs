@@ -27,6 +27,12 @@ namespace Plant3DCatalogComposer.Services
             return result;
         }
 
+        public static ValidationResult ValidateForGenerate(ValveProject project)
+        {
+            var result = new ValidationResult();
+            return result;
+        }
+
         public static ValidationResult ValidateForExcelPublish(ValveProject project)
         {
             var result = new ValidationResult();
@@ -92,19 +98,6 @@ namespace Plant3DCatalogComposer.Services
                     result.AddWarning(
                         "Face-to-face (L) not set — export will use placeholder L per DN. "
                         + "Set Dimensions → FaceToFace before Publish for accurate catalog.");
-                }
-            }
-
-            foreach (PrimitiveNode node in project.Parts.Where(p =>
-                         p.Kind == SceneNodeKind.Catalog && !string.IsNullOrEmpty(p.CatalogPartId)))
-            {
-                string partId = node.CatalogPartId!;
-                if (CatalogPortTemplates.TryBuildFlatCatalogImport(partId) == null &&
-                    CatalogPortTemplates.TryResolveLibraryClassName(partId) == null)
-                {
-                    result.AddWarning(
-                        $"Nested catalog '{partId}' — could not resolve library class from catalog_entry.py " +
-                        $"(check deploy.json parts folder).");
                 }
             }
 

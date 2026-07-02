@@ -27,8 +27,9 @@ namespace Plant3DCatalogComposer.Services
             }
 
             string partsRoot = ProjectPaths.ResolvePartsDir();
-            string partDir = Path.Combine(partsRoot, partId);
-            if (!Directory.Exists(partDir) || !File.Exists(Path.Combine(partDir, "catalog_entry.py")))
+            // Custom composite parts live under parts/CUSTOM/<id>; native under parts/<id>.
+            string? partDir = CatalogPartsDiscovery.ResolveCatalogPartDirectory(partsRoot, partId);
+            if (partDir == null)
             {
                 return new CatalogPartRegistrationResult
                 {

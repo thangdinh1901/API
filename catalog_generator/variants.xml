@@ -1,52 +1,50 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <MsgList xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
 	<ToolTipLongColl>
-		<Data id="CUST_BLD_FLRF_CL150_L">Blind flange raised face ASME B16.5 Class 150</Data>
-		<Data id="CUST_ELBOW_45_LR_BW_SCH40_L">ASME B16.9 45 deg LR butt weld elbow</Data>
-		<Data id="CUST_ELBOW_45_SW_CL3000_L">ASME B16.11 Class 3000 socket weld 45 deg elbow</Data>
-		<Data id="CUST_ELBOW_90_LR_BW_SCH40_L">ASME B16.9 90 deg long radius butt weld elbow</Data>
-		<Data id="CUST_ELBOW_90_SR_BW_SCH40_L">ASME B16.9 90 deg short radius butt weld elbow</Data>
-		<Data id="CUST_ELBOW_90_SW_CL3000_L">ASME B16.11 Class 3000 socket weld 90 deg elbow</Data>
-		<Data id="CUST_GATEVALVE_DN50_150_L">GATEVALVE_DN50_150</Data>
+		<Data id="CUST_BEND_3D_JACOB_L">BEND_3D_JACOB</Data>
+		<Data id="CUST_BLIND_FLANGE_CL150_RF_L">BLIND FLANGE FL RF CL150 CS ASTM A105N ASME B16.5</Data>
+		<Data id="CUST_ELBOW_45_3000_SW_L">ELBOW 45 SW CL3000 ASTM A105N ASME B16.11</Data>
+		<Data id="CUST_ELBOW_45_SCH40_BW_L">ELBOW 45 BV SCH40 ASTM A234-WPB ASME B16.9</Data>
+		<Data id="CUST_ELBOW_90_3000_SW_L">ELBOW 90 SW CL3000 ASTM A105N ASME B16.11</Data>
+		<Data id="CUST_ELBOW_90_SCH40_BW_L">ELBOW 90 BV SCH40 ASTM A234-WPB ASME B16.9</Data>
+		<Data id="CUST_FLANGE_LJ_RF_CL150_L">FLANGE LJ_RF_CL150</Data>
+		<Data id="CUST_FLANGE_SO_CL150_RF_L">FLANGE SO FL RF CL150 CS ASTM A105N ASME B16.5</Data>
+		<Data id="CUST_FLANGE_SW_CL150_RF_L">FLANGE SW FL RF CL150 CS ASTM A105N ASME B16.5</Data>
+		<Data id="CUST_FLANGE_WN_CL150_RF_L">FLANGE WN FL RF CL150 CS ASTM A105N ASME B16.5</Data>
 		<Data id="CUST_GSK_FF_CL150_L">Full-face FF gasket with lap-joint stud bolts ASME B16.5 Class 150 (visual)</Data>
 		<Data id="CUST_GSK_RF_CL150_L">RF gasket with stud bolts ASME B16.5 Class 150 (visual)</Data>
-		<Data id="CUST_LJ_RING_CL150_RF_L">Lap-joint backing ring flat face ASME B16.5 Class 150</Data>
-		<Data id="CUST_REDUCER_CONC_BW_SCH40_L">ASME B16.9 concentric butt weld reducer</Data>
-		<Data id="CUST_REDUCER_ECC_BW_SCH40_L">ASME B16.9 eccentric butt weld reducer (flat bottom)</Data>
-		<Data id="CUST_SO_FLRF_CL150_L">Slip-on flange raised face ASME B16.5 Class 150</Data>
-		<Data id="CUST_STUBEND_LJ_A_BW_SCH40_L">ASME B16.9 Type A long pattern (standard) lap-joint stub end Sch-40</Data>
-		<Data id="CUST_STUBEND_LJ_A_SH_BW_SCH40_L">ASME B16.9 Type A short-pattern lap-joint stub end Sch-40</Data>
-		<Data id="CUST_TEE_EQ_BW_SCH40_L">ASME B16.9 equal butt weld tee</Data>
-		<Data id="CUST_TEE_EQ_SW_CL3000_L">ASME B16.11 Class 3000 socket weld equal tee</Data>
-		<Data id="CUST_TEE_REDUCE_BW_SCH40_L">ASME B16.9 reducing butt weld tee</Data>
-		<Data id="CUST_TEE_REDUCE_SW_CL3000_L">ASME B16.11 Class 3000 reducing socket weld tee</Data>
-		<Data id="CUST_TEST_BEND_3D_L">TEST_BEND_3D</Data>
-		<Data id="CUST_THANG_TEST_L">THANG_TEST</Data>
-		<Data id="CUST_WN_FLRF_CL150_L">Weld neck flange raised face ASME B16.5 Class 150</Data>
+		<Data id="CUST_PIPE_SCH40_BV_L">PIPE BV SCH40 CS ASTM A53-B ASME B36.10</Data>
+		<Data id="CUST_PIPE_SCH80_PL_L">PIPE PL SCH80 CS ASTM A106-B ASME B36.10</Data>
+		<Data id="CUST_REDUCER_CONC_STD_BW_L">REDUCER CONC BV CS SCHSTD ASTM A234-WPB ASME B16.9</Data>
+		<Data id="CUST_REDUCER_ECC_STD_BW_L">REDUCER ECC BV CS SCHSTD ASTM A234-WPB ASME B16.9</Data>
+		<Data id="CUST_STUB_END_LONG_SCH40_BW_L">STUB END_LONG_SCH40_BW</Data>
+		<Data id="CUST_TEE_EQUAL_3000_SW_L">TEE EQUAL SW CL3000 CS ASTM A105N ASME B16.11</Data>
+		<Data id="CUST_TEE_EQUAL_SCH40_BW_L">TEE EQUAL BV CS SCH40 ASTM A234-WPB ASME B16.9</Data>
+		<Data id="CUST_TEE_RED_3000_SW_L">TEE RED SW CL3000 ASTM A105N ASME B16.11</Data>
+		<Data id="CUST_TEE_RED_SCH40_BW_L">TEE RED BV SCH40 ASTM A234-WPB ASME B16.9</Data>
 	</ToolTipLongColl>
 	<ToolTipShortColl>
-		<Data id="CUST_BLD_FLRF_CL150">BLD FLRF CL150</Data>
-		<Data id="CUST_ELBOW_45_LR_BW_SCH40">Elbow 45 LR BW</Data>
-		<Data id="CUST_ELBOW_45_SW_CL3000">Elbow 45 SW</Data>
-		<Data id="CUST_ELBOW_90_LR_BW_SCH40">Elbow 90 LR BW</Data>
-		<Data id="CUST_ELBOW_90_SR_BW_SCH40">Elbow 90 SR BW</Data>
-		<Data id="CUST_ELBOW_90_SW_CL3000">Elbow 90 SW</Data>
-		<Data id="CUST_GATEVALVE_DN50_150">GATEVALVE_DN50_150</Data>
+		<Data id="CUST_BEND_3D_JACOB">BEND_3D_JACOB</Data>
+		<Data id="CUST_BLIND_FLANGE_CL150_RF">BLIND FLANGE</Data>
+		<Data id="CUST_ELBOW_45_3000_SW">ELBOW 45</Data>
+		<Data id="CUST_ELBOW_45_SCH40_BW">ELBOW 45</Data>
+		<Data id="CUST_ELBOW_90_3000_SW">ELBOW 90</Data>
+		<Data id="CUST_ELBOW_90_SCH40_BW">ELBOW 90</Data>
+		<Data id="CUST_FLANGE_LJ_RF_CL150">FLANGE LJ</Data>
+		<Data id="CUST_FLANGE_SO_CL150_RF">FLANGE SO</Data>
+		<Data id="CUST_FLANGE_SW_CL150_RF">FLANGE SW</Data>
+		<Data id="CUST_FLANGE_WN_CL150_RF">FLANGE WN</Data>
 		<Data id="CUST_GSK_FF_CL150">GSK FF CL150 + studs</Data>
 		<Data id="CUST_GSK_RF_CL150">GSK RF CL150 + studs</Data>
-		<Data id="CUST_LJ_RING_CL150_RF">LJ Ring CL150 FF</Data>
-		<Data id="CUST_REDUCER_CONC_BW_SCH40">Reducer Conc BW</Data>
-		<Data id="CUST_REDUCER_ECC_BW_SCH40">Reducer Ecc BW</Data>
-		<Data id="CUST_SO_FLRF_CL150">SO FLRF CL150</Data>
-		<Data id="CUST_STUBEND_LJ_A_BW_SCH40">Stub End LJ A BW</Data>
-		<Data id="CUST_STUBEND_LJ_A_SH_BW_SCH40">Stub End LJ A SH BW</Data>
-		<Data id="CUST_TEE_EQ_BW_SCH40">Tee Equal BW</Data>
-		<Data id="CUST_TEE_EQ_SW_CL3000">Tee Equal SW</Data>
-		<Data id="CUST_TEE_REDUCE_BW_SCH40">Tee Reduce BW</Data>
-		<Data id="CUST_TEE_REDUCE_SW_CL3000">Tee Reduce SW</Data>
-		<Data id="CUST_TEST_BEND_3D">TEST_BEND_3D</Data>
-		<Data id="CUST_THANG_TEST">THANG_TEST</Data>
-		<Data id="CUST_WN_FLRF_CL150">WN FLRF CL150</Data>
+		<Data id="CUST_PIPE_SCH40_BV">PIPE</Data>
+		<Data id="CUST_PIPE_SCH80_PL">PIPE</Data>
+		<Data id="CUST_REDUCER_CONC_STD_BW">REDUCER CONC</Data>
+		<Data id="CUST_REDUCER_ECC_STD_BW">REDUCER ECC</Data>
+		<Data id="CUST_STUB_END_LONG_SCH40_BW">STUB-END LONG</Data>
+		<Data id="CUST_TEE_EQUAL_3000_SW">TEE EQUAL</Data>
+		<Data id="CUST_TEE_EQUAL_SCH40_BW">TEE EQUAL</Data>
+		<Data id="CUST_TEE_RED_3000_SW">TEE RED</Data>
+		<Data id="CUST_TEE_RED_SCH40_BW">TEE RED</Data>
 	</ToolTipShortColl>
 	<ParamGroups>
 	</ParamGroups>

@@ -1,0 +1,53 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>Plant3DLineVisibility</RootNamespace>
+    <AssemblyName>Plant3DLineVisibility</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <!-- Override if AutoCAD is installed elsewhere: dotnet build -p:AcadDir="..." -->
+    <AcadDir Condition="'$(AcadDir)' == ''">C:\Program Files\Autodesk\AutoCAD 2026</AcadDir>
+  </PropertyGroup>
+
+  <!-- Standard AutoCAD .NET references -->
+  <ItemGroup>
+    <Reference Include="AcCoreMgd">
+      <HintPath>$(AcadDir)\AcCoreMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AcDbMgd">
+      <HintPath>$(AcadDir)\AcDbMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AcMgd">
+      <HintPath>$(AcadDir)\AcMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="AdWindows">
+      <HintPath>$(AcadDir)\AdWindows.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <!-- Plant 3D specific references -->
+  <ItemGroup>
+    <Reference Include="PnPProjectManagerMgd">
+      <HintPath>$(AcadDir)\PLNT3D\PnPProjectManagerMgd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="PnPDataLinks">
+      <HintPath>$(AcadDir)\PnPDataLinks.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="PnPDataObjects">
+      <HintPath>$(AcadDir)\PnPDataObjects.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

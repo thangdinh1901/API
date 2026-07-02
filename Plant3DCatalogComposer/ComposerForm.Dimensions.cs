@@ -37,6 +37,7 @@ namespace Plant3DCatalogComposer
             tabDimensions.AutoScroll = true;
             tabDimensions.Padding = new Padding(8);
             tabDimensions.Resize += (_, _) => RelayoutDimensionsTab();
+            tabDimensions.Enter += (_, _) => RefreshDimensionsTabFromDocument();
 
             _lblDimCatalogHint = new Label
             {
@@ -77,7 +78,18 @@ namespace Plant3DCatalogComposer
                 RowHeadersVisible = false,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
                 ReadOnly = false,
+                Tag = "light",
             };
+            // Dimension table stays light (white cells, black text) for readability,
+            // regardless of the dark palette theme.
+            _dgvDimensions.EnableHeadersVisualStyles = false;
+            _dgvDimensions.BackgroundColor = Color.White;
+            _dgvDimensions.DefaultCellStyle.BackColor = Color.White;
+            _dgvDimensions.DefaultCellStyle.ForeColor = Color.Black;
+            _dgvDimensions.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0, 120, 215);
+            _dgvDimensions.DefaultCellStyle.SelectionForeColor = Color.White;
+            _dgvDimensions.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(230, 230, 230);
+            _dgvDimensions.ColumnHeadersDefaultCellStyle.ForeColor = Color.Black;
             _dgvDimensions.Columns.Add(new DataGridViewTextBoxColumn
             {
                 HeaderText = "Name",
@@ -240,10 +252,44 @@ namespace Plant3DCatalogComposer
             }
         }
 
+        /// <summary>Reload from the on-disk scene when the Dimensions tab gains focus, so
+        /// native-seed rows reflect any Catalog parts inserted from the Scene tab in the
+        /// meantime (LoadDimensionFields otherwise only runs on document open / Generate Code).</summary>
+        private void RefreshDimensionsTabFromDocument()
+        {
+            try
+            {
+                string? dwg = DrawingContext.GetActiveDrawingPath();
+                if (dwg == null)
+                    return;
+
+                ValveProject project = DocumentStore.LoadOrCreate(
+                    dwg, Path.GetFileNameWithoutExtension(dwg));
+
+                // One-time cleanup: drop FaceToFace/BodyOD/ElbowCenterToFace/L/CEL/T rows left
+                // over from the old auto-seed path (removed — envelope dims are now user-declared).
+                bool pruned = CatalogProjectService.PruneStaleAutoSuggestedDimensions(project);
+
+                // Persist the sync so stale native-seed keys (from deleted/renamed/retyped nodes)
+                // are pruned on disk, not just in the grid.
+                bool synced = CatalogNativeDimensionSeedService.Sync(project);
+                if (pruned || synced)
+                    DocumentStore.Save(dwg, project);
+
+                LoadDimensionFields(project);
+            }
+            catch (Exception ex)
+            {
+                ShowError(ex);
+            }
+        }
+
         private void LoadDimensionFields(ValveProject project)
         {
             if (_dgvDimensions == null)
                 return;
+
+            CatalogNativeDimensionSeedService.Sync(project);
 
             UpdateDimensionCatalogContext(project);
 
@@ -256,11 +302,24 @@ namespace Plant3DCatalogComposer
             {
                 double value = ProjectDimensionService.GetValue(project, name);
                 string valueText = value > 0 ? FormatDimension(value) : "";
-                _dgvDimensions.Rows.Add(name, valueText);
+                int idx = _dgvDimensions.Rows.Add(name, valueText);
+                if (CatalogNativeDimensionSeedService.IsNativeSeedName(name))
+                    MarkRowAsNativeSeed(_dgvDimensions.Rows[idx]);
             }
 
             if (_lblDimStatus != null && _dgvDimensions.Rows.Count == 0)
                 _lblDimStatus.Text = "No dimensions yet — Apply Part Family or Add a row.";
+        }
+
+        /// <summary>Native-seed rows (name has a dot, e.g. "ELBO_001.R") are recomputed from the
+        /// scene on every load — read-only so the user cannot hand-edit a value that will be
+        /// silently overwritten, and greyed to distinguish from declared/pick dimensions.</summary>
+        private static void MarkRowAsNativeSeed(DataGridViewRow row)
+        {
+            row.Cells[ColDimName].ReadOnly = true;
+            row.Cells[ColDimValue].ReadOnly = true;
+            row.DefaultCellStyle.BackColor = Color.FromArgb(240, 240, 240);
+            row.DefaultCellStyle.ForeColor = Color.FromArgb(90, 90, 90);
         }
 
         private void UpdateDimensionCatalogContext(ValveProject project)
@@ -454,6 +513,7 @@ namespace Plant3DCatalogComposer
                     dwg, Path.GetFileNameWithoutExtension(dwg));
 
                 ProjectDimensionService.ApplyToProject(project, rows, _dimensionBindings);
+                CatalogNativeDimensionSeedService.Sync(project);
                 if (save)
                     DocumentStore.Save(dwg, project);
 
@@ -483,6 +543,7 @@ namespace Plant3DCatalogComposer
                     dwg, Path.GetFileNameWithoutExtension(dwg));
 
                 ProjectDimensionService.ApplyToProject(project, rows, _dimensionBindings);
+                CatalogNativeDimensionSeedService.Sync(project);
                 CatalogExportPrepareService.PrepareSceneForExport(project);
                 DocumentStore.Save(dwg, project);
                 RefreshSceneTree();
@@ -523,6 +584,12 @@ namespace Plant3DCatalogComposer
 
                 string name = row.Cells[ColDimName].Value?.ToString() ?? "";
                 string valueText = row.Cells[ColDimValue].Value?.ToString() ?? "";
+
+                // Native-seed rows (e.g. "ELBO_001.R") are recomputed by
+                // CatalogNativeDimensionSeedService.Sync on every load/save — never carried
+                // through the manual-row pipeline, which rejects '.' in names.
+                if (CatalogNativeDimensionSeedService.IsNativeSeedName(name))
+                    continue;
 
                 if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(valueText))
                     continue;

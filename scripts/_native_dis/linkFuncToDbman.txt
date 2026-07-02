@@ -1,0 +1,4 @@
+# [primitiv] linkFuncToDbman('func',)
+  RESUME             0
+  LOAD_CONST         None
+  RETURN_VALUE       

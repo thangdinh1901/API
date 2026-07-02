@@ -72,8 +72,24 @@ namespace Plant3DCatalogComposer.Services
         /// only re-scored when a candidate file's size/write-time changes, so UI refreshes do not
         /// repeatedly open the 30-sheet workbook (the main palette lag source).
         /// </summary>
+        /// <summary>Drop the cached best-template choice (call after the configured path changes).</summary>
+        public static void InvalidateTemplateCache()
+        {
+            lock (TemplatePathCacheLock)
+            {
+                _cachedBestPath = null;
+                _cachedStamp = "";
+            }
+        }
+
         public static string ResolveTemplatePath()
         {
+            // A user-configured template (e.g. CATA_NUI.xlsx) takes precedence over the bundled
+            // Resources workbook so a real validated catalog can act as the standard template.
+            string? configured = CatalogTemplateSettings.ResolveConfiguredTemplatePath();
+            if (configured != null)
+                return configured;
+
             var candidates = new List<string>();
             if (ProjectPaths.TryResolveApiRoot() != null)
                 candidates.Add(DevTemplatePath());
@@ -153,6 +169,10 @@ namespace Plant3DCatalogComposer.Services
             IReadOnlyList<string>? partIdFilter = null)
         {
             string templatePath = ResolveTemplatePath();
+            // External template = a user-chosen workbook (Browse → template.json), e.g. CATA_NUI.xlsx.
+            // Treated as READ-ONLY structure: only fill size rows into sheets that already exist —
+            // no sheet cloning, pruning, or static valve/stud/pipe injection.
+            bool externalTemplate = CatalogTemplateSettings.ResolveConfiguredTemplatePath() != null;
             IReadOnlyList<CatalogExcelPartRow> parts = CatalogExcelPartResolver.DiscoverExportParts();
             if (partIdFilter is { Count: > 0 })
             {
@@ -179,7 +199,23 @@ namespace Plant3DCatalogComposer.Services
 
             foreach (CatalogExcelPartRow row in parts)
             {
-                IXLWorksheet? sheet = FindTemplateSheet(workbook, row.Part.Id);
+                IXLWorksheet? sheet = null;
+
+                // "Excel from" (ExcelCloneSourcePartId) drives template selection when set: the part
+                // publishes onto a clone of that source sheet — the part name need NOT match any
+                // sheet. Clone is in-memory only (Export SaveAs to a separate output); the source
+                // template file is never modified. Parts with no "Excel from" (the 18 native
+                // fittings) fall back to matching a sheet by their own id.
+                if (!string.IsNullOrWhiteSpace(row.Part.ExcelCloneSourcePartId))
+                {
+                    sheet = CatalogExcelTemplateService.TryClonePartSheetInWorkbook(
+                        workbook,
+                        row.Part.Id,
+                        row.Part.ExcelCloneSourcePartId);
+                }
+
+                sheet ??= FindTemplateSheet(workbook, row.Part.Id);
+
                 if (sheet == null)
                 {
                     skipped.Add(row.Part.Id);
@@ -192,12 +228,12 @@ namespace Plant3DCatalogComposer.Services
                 Guid familyId = ResolveFamilyId(metadata, row.Part.Id);
                 IReadOnlyList<CatalogExcelSizeVariant> sizes = CatalogExcelSizeCatalog.BuildSizes(row.Part);
 
-                int written = WriteSizeRows(sheet, row, metadata, familyId, scriptPath, sizes, project);
+                int written = WriteSizeRows(sheet, row, metadata, familyId, scriptPath, sizes, project, warnings);
                 totalRows += written;
                 filledSheets.Add(sheet.Name);
             }
 
-            foreach (CustomPartDefinition part in CustomPartCatalog.InsertableParts)
+            foreach (CustomPartDefinition part in CustomPartCatalog.ExportableParts)
             {
                 if (parts.All(p => !p.Part.Id.Equals(part.Id, StringComparison.OrdinalIgnoreCase))
                     && !skipped.Contains(part.Id, StringComparer.OrdinalIgnoreCase))
@@ -217,28 +253,28 @@ namespace Plant3DCatalogComposer.Services
                 };
             }
 
-            // Always drop unfilled clone-source/template sheets (e.g. VALVE_FL_CL150, VALVE_FL_RICH).
-            // They keep two title rows + a placeholder seed row and would make Build Catalog fail
-            // ("Invalid Custom Script path", "ContentGeometryParamDefinition=ContentGeometryParamDefinition").
-            // Single-part publish also drops the static support sheets; full / multi-part keeps them.
+            // Prune always runs — it only trims the in-memory EXPORT workbook (never the source
+            // template file), so "only this part" publishes just the filled sheet(s). External
+            // template only skips the static valve/stud/pipe INJECTION below (that would add sheets
+            // the CATA_NUI-style workbook doesn't own).
             bool singlePart = partIdFilter is { Count: 1 };
             int removedSheets = PruneUnexportedPartSheets(
                 workbook,
                 filledSheets,
-                keepStaticSupportSheets: !singlePart);
+                keepStaticSupportSheets: !singlePart && !externalTemplate);
             if (removedSheets > 0)
             {
                 warnings.Add(
                     singlePart
                         ? $"Workbook trimmed to {filledSheets.Count} part sheet(s) only."
-                        : $"Removed {removedSheets} unused clone-template sheet(s) from workbook.");
+                        : $"Removed {removedSheets} unused sheet(s) from the export workbook.");
             }
 
             if (singlePart)
                 RemoveCatalogDataFlagSheet(workbook);
 
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath) ?? ".");
-            if (partIdFilter is not { Count: 1 })
+            if (!externalTemplate && partIdFilter is not { Count: 1 })
                 FillStaticTemplateSheets(workbook, warnings);
             workbook.SaveAs(outputPath);
 
@@ -260,12 +296,8 @@ namespace Plant3DCatalogComposer.Services
             };
         }
 
-        private static IXLWorksheet? FindTemplateSheet(XLWorkbook workbook, string partId)
-        {
-            string prefix = partId + ",";
-            return workbook.Worksheets
-                .FirstOrDefault(w => w.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-        }
+        private static IXLWorksheet? FindTemplateSheet(XLWorkbook workbook, string partId) =>
+            CatalogExcelTemplateService.FindSheetByPartPrefixOrNormalizedKey(workbook, partId);
 
         /// <summary>
         /// Single-part publish loads the full template — drop unfilled part sheets so Spec Editor
@@ -593,7 +625,8 @@ namespace Plant3DCatalogComposer.Services
             Guid familyId,
             string scriptPath,
             IReadOnlyList<CatalogExcelSizeVariant> sizes,
-            ValveProject? project = null)
+            ValveProject? project,
+            List<string> warnings)
         {
             HeaderRowSnapshot headerSnapshot = SnapshotMachineHeaderRow(sheet);
             ClearPublishedDataRows(sheet);
@@ -605,9 +638,11 @@ namespace Plant3DCatalogComposer.Services
             bool hasL = header.ContainsKey("L");
             bool hasD1 = header.ContainsKey("D1");
 
-            string familyDesc = IsUsableFamilyLongDesc(metadata.FamilyLongDesc)
-                ? metadata.FamilyLongDesc
-                : row.FamilyLongDesc;
+            string familyDesc = !string.IsNullOrWhiteSpace(row.FamilyLongDesc)
+                ? row.FamilyLongDesc
+                : IsUsableFamilyLongDesc(metadata.FamilyLongDesc)
+                    ? metadata.FamilyLongDesc
+                    : row.ShortDescription;
             string material = string.IsNullOrWhiteSpace(metadata.Material) ? row.Material : metadata.Material;
             CatalogExcelIsoMetadata iso = CatalogExcelIsoMetadata.Resolve(row.Part);
             string paramDef = !string.IsNullOrWhiteSpace(metadata.ContentGeometryParamDefinition)
@@ -619,6 +654,10 @@ namespace Plant3DCatalogComposer.Services
 
             foreach (CatalogExcelSizeVariant size in sizes)
             {
+                CatalogExcelPortExportPlan portPlan = CatalogExcelPortExportPlanner.Build(header, row, size, project);
+                if (!string.IsNullOrWhiteSpace(portPlan.Warning))
+                    warnings.Add($"{row.Part.Id}: {portPlan.Warning}");
+
                 WriteSizeRow(
                     sheet,
                     header,
@@ -632,7 +671,8 @@ namespace Plant3DCatalogComposer.Services
                     paramDef,
                     familyDesc,
                     material,
-                    project);
+                    project,
+                    portPlan);
                 rowIndex++;
                 written++;
             }
@@ -690,13 +730,17 @@ namespace Plant3DCatalogComposer.Services
             string paramDef,
             string familyDesc,
             string material,
-            ValveProject? project = null)
+            ValveProject? project,
+            CatalogExcelPortExportPlan portPlan)
         {
             int dn = size.Dn;
             double od = PipeSizeCatalog.OdSch40Mm(dn);
 
             Set(sheet, header, rowIndex, "Sizes", BuildCatalogSizesLabel(row.Part.Id, size));
             Set(sheet, header, rowIndex, "DN", dn);
+
+            if (header.ContainsKey("Previews"))
+                Set(sheet, header, rowIndex, "Previews", "Preview");
 
             Set(sheet, header, rowIndex, "ShapeName", row.Part.CatalogFunctionName);
             Set(sheet, header, rowIndex, "ScriptPath", scriptPath);
@@ -738,20 +782,22 @@ namespace Plant3DCatalogComposer.Services
                 WriteValveGeometryFromProject(sheet, header, rowIndex, row, dn, paramDef, project);
             }
 
-            WritePorts(sheet, header, rowIndex, row, size, dn, od);
+            WritePorts(sheet, header, rowIndex, row, size, dn, od, portPlan);
+
+            WriteElbowRoutingGeometry(sheet, header, rowIndex, row, dn);
 
             Set(sheet, header, rowIndex, "ShortDescription", row.ShortDescription);
             Set(sheet, header, rowIndex, "PartFamilyLongDesc", familyDesc);
             Set(sheet, header, rowIndex, "PartSizeLongDesc", BuildPartSizeLongDesc(row.ShortDescription, size));
             Set(sheet, header, rowIndex, "PartFamilyId", familyId.ToString("D"));
             Set(sheet, header, rowIndex, "CatalogPartFamilyId", familyId.ToString("D"));
-            Set(sheet, header, rowIndex, "ConnectionPortCount", row.PortCount.ToString(CultureInfo.InvariantCulture));
+            Set(sheet, header, rowIndex, "ConnectionPortCount", portPlan.ConnectionPortCount.ToString(CultureInfo.InvariantCulture));
             Set(sheet, header, rowIndex, "PartCategory", row.PartCategory);
             Set(sheet, header, rowIndex, "PnPClassName", row.PnPClassName);
             Set(sheet, header, rowIndex, "Material", material);
             ApplyIsoMetadata(sheet, header, rowIndex, iso, metadata);
 
-            WritePressureAndSchedule(sheet, header, rowIndex, row, dn, ResolveEffectivePortLayout(header, row));
+            WritePressureAndSchedule(sheet, header, rowIndex, row, dn, portPlan);
         }
 
         private static void WritePorts(
@@ -761,74 +807,21 @@ namespace Plant3DCatalogComposer.Services
             CatalogExcelPartRow row,
             CatalogExcelSizeVariant size,
             int dn,
-            double od)
-        {
-            CatalogExcelPortLayout layout = ResolveEffectivePortLayout(header, row);
-            foreach (PortWriteSpec port in EnumeratePorts(row, size, dn, od, layout))
-                WritePortColumns(sheet, header, rowIndex, port, row);
-        }
-
-        private static CatalogExcelPortLayout ResolveEffectivePortLayout(
-            Dictionary<string, int> header,
-            CatalogExcelPartRow row)
-        {
-            if (row.PortLayout is CatalogExcelPortLayout.DualFlange
-                or CatalogExcelPortLayout.DualPortBv
-                or CatalogExcelPortLayout.TriplePortBv)
-            {
-                return row.PortLayout;
-            }
-
-            // Valve / dual-port clone sheets use EndType_S1/S2 — not EndType_S-ALL (blind flange).
-            bool sheetUsesDualPorts = header.ContainsKey("EndType_S1")
-                && header.ContainsKey("EndType_S2")
-                && !header.ContainsKey("EndType_S-ALL");
-
-            if (sheetUsesDualPorts
-                && (row.Part.Group.Equals("Valve", StringComparison.OrdinalIgnoreCase) || row.PortCount >= 2))
-            {
-                return CatalogExcelPortLayout.DualFlange;
-            }
-
-            return row.PortLayout;
-        }
-
-        private static IEnumerable<PortWriteSpec> EnumeratePorts(
-            CatalogExcelPartRow row,
-            CatalogExcelSizeVariant size,
-            int dn,
             double od,
-            CatalogExcelPortLayout layout)
+            CatalogExcelPortExportPlan plan)
         {
             string partId = row.Part.Id;
             int? dn2 = size.Dn2;
-            int smallDn = dn2 ?? dn;
-            double smallOd = PipeSizeCatalog.OdSch40Mm(smallDn);
+            int portIndex = 0;
 
-            Guid RecordId(int portIndex) =>
-                CatalogExcelPartResolver.StableSizeRecordId(partId, dn, dn2, portIndex);
-
-            switch (layout)
+            foreach ((CatalogExcelLogicalPort logical, string suffix) in plan.SheetPorts)
             {
-                case CatalogExcelPortLayout.DualFlange:
-                    yield return new PortWriteSpec(row.Port1, "S1", dn, od, RecordId(1));
-                    yield return new PortWriteSpec(row.Port2, "S2", dn, od, RecordId(2));
-                    yield break;
-
-                case CatalogExcelPortLayout.DualPortBv:
-                    yield return new PortWriteSpec(row.Port1, "S1", dn, od, RecordId(1));
-                    yield return new PortWriteSpec(row.Port2, "S2", smallDn, smallOd, RecordId(2));
-                    yield break;
-
-                case CatalogExcelPortLayout.TriplePortBv:
-                    yield return new PortWriteSpec(row.Port1, "S1", dn, od, RecordId(1));
-                    yield return new PortWriteSpec(row.Port2, "S2", dn, od, RecordId(2));
-                    yield return new PortWriteSpec((row.FittingEndType, "S3"), "S3", smallDn, smallOd, RecordId(3));
-                    yield break;
-
-                default:
-                    yield return new PortWriteSpec(row.Port1, "S-ALL", dn, od, RecordId(1));
-                    yield break;
+                portIndex++;
+                int portDn = CatalogExcelPortExportPlanner.ResolvePortDn(plan, suffix, row, size, dn, od);
+                double portOd = PipeSizeCatalog.OdSch40Mm(portDn);
+                Guid recordId = CatalogExcelPartResolver.StableSizeRecordId(partId, dn, dn2, portIndex);
+                var spec = new PortWriteSpec((logical.EndType, logical.PortName), suffix, portDn, portOd, recordId);
+                WritePortColumns(sheet, header, rowIndex, spec, row, plan);
             }
         }
 
@@ -884,38 +877,41 @@ namespace Plant3DCatalogComposer.Services
             int rowIndex,
             CatalogExcelPartRow row,
             int dn,
-            CatalogExcelPortLayout layout)
+            CatalogExcelPortExportPlan plan)
         {
+            string pressureClass = plan.PressureClass;
+            CatalogExcelPortLayout layout = plan.EffectiveLayout;
+
             if (CatalogLapJointIds.IsLjStubOrCollar(row.Part.Id))
             {
-                WriteStubEndPortExtras(sheet, header, rowIndex, row, dn);
+                WriteStubEndPortExtras(sheet, header, rowIndex, row, dn, pressureClass);
                 return;
             }
 
             if (row.Part.Id.StartsWith("LJ_RING_", StringComparison.OrdinalIgnoreCase))
             {
-                WriteLjRingPortExtras(sheet, header, rowIndex, row, dn);
+                WriteLjRingPortExtras(sheet, header, rowIndex, row, dn, pressureClass);
                 return;
             }
 
             switch (layout)
             {
                 case CatalogExcelPortLayout.DualFlange:
-                    SetFlangePortExtras(sheet, header, rowIndex, row.PressureClass, "S1", "S2");
+                    SetFlangePortExtras(sheet, header, rowIndex, pressureClass, "S1", "S2");
                     return;
 
                 case CatalogExcelPortLayout.DualPortBv:
-                    WriteBvPortExtras(sheet, header, rowIndex, row, "S1", "S2");
+                    WriteBvPortExtras(sheet, header, rowIndex, row, pressureClass, "S1", "S2");
                     return;
 
                 case CatalogExcelPortLayout.TriplePortBv:
-                    WriteBvPortExtras(sheet, header, rowIndex, row, "S1", "S2", "S3");
+                    WriteBvPortExtras(sheet, header, rowIndex, row, pressureClass, "S1", "S2", "S3");
                     return;
             }
 
             bool isBwFitting = IsBwFitting(row);
             if (header.ContainsKey("PressureClass_S-ALL") && !isBwFitting)
-                Set(sheet, header, rowIndex, "PressureClass_S-ALL", row.PressureClass);
+                Set(sheet, header, rowIndex, "PressureClass_S-ALL", pressureClass);
 
             if (isBwFitting && !string.IsNullOrEmpty(row.PipeSchedule))
                 Set(sheet, header, rowIndex, "Schedule_S-ALL", row.PipeSchedule);
@@ -934,9 +930,10 @@ namespace Plant3DCatalogComposer.Services
             Dictionary<string, int> header,
             int rowIndex,
             CatalogExcelPartRow row,
-            int dn)
+            int dn,
+            string pressureClass)
         {
-            SetFlangePortExtras(sheet, header, rowIndex, row.PressureClass, "S1");
+            SetFlangePortExtras(sheet, header, rowIndex, pressureClass, "S1");
             foreach (string suffix in new[] { "S1", "S2" })
             {
                 if (CatalogLjRingCl150Table.TryGet(dn, out CatalogLjRingCl150Table.LjRingDims lj))
@@ -959,7 +956,8 @@ namespace Plant3DCatalogComposer.Services
             Dictionary<string, int> header,
             int rowIndex,
             CatalogExcelPartRow row,
-            int dn)
+            int dn,
+            string pressureClass)
         {
             string lapWall = "0";
             if (CatalogStubEndTable.TryGet(
@@ -971,7 +969,7 @@ namespace Plant3DCatalogComposer.Services
             foreach (string suffix in new[] { "S1", "S2" })
             {
                 if (header.ContainsKey($"PressureClass_{suffix}"))
-                    Set(sheet, header, rowIndex, $"PressureClass_{suffix}", row.PressureClass);
+                    Set(sheet, header, rowIndex, $"PressureClass_{suffix}", pressureClass);
                 if (!string.IsNullOrEmpty(row.PipeSchedule))
                     Set(sheet, header, rowIndex, $"Schedule_{suffix}", row.PipeSchedule);
                 // S1 LAP = lap thickness; S2 BV = pipe end (no collar wall on weld port).
@@ -1001,13 +999,14 @@ namespace Plant3DCatalogComposer.Services
             Dictionary<string, int> header,
             int rowIndex,
             CatalogExcelPartRow row,
+            string pressureClass,
             params string[] suffixes)
         {
             bool isBwFitting = IsBwFitting(row);
             foreach (string suffix in suffixes)
             {
                 if (header.ContainsKey($"PressureClass_{suffix}"))
-                    Set(sheet, header, rowIndex, $"PressureClass_{suffix}", row.PressureClass);
+                    Set(sheet, header, rowIndex, $"PressureClass_{suffix}", pressureClass);
                 if (isBwFitting && !string.IsNullOrEmpty(row.PipeSchedule))
                     Set(sheet, header, rowIndex, $"Schedule_{suffix}", row.PipeSchedule);
                 SetPortLengthExtras(sheet, header, rowIndex, suffix);
@@ -1038,6 +1037,47 @@ namespace Plant3DCatalogComposer.Services
 
             string shortDesc = (shortDescription ?? string.Empty).Trim();
             return shortDesc.Length > 0 ? $"{shortDesc} {dnTag}" : dnTag;
+        }
+
+        /// <summary>
+        /// Native Plant 3D Elbow class requires PathAngle + CurveRadius (ISREMOVABLE=FALSE).
+        /// Cloning an ELBOW template sheet carries these columns; if they stay blank the catalog
+        /// part has no routing geometry and insert fails with "Can't find symbol for specified part"
+        /// (even though the custom script runs fine in Test Catalog).
+        /// </summary>
+        private static void WriteElbowRoutingGeometry(
+            IXLWorksheet sheet,
+            Dictionary<string, int> header,
+            int rowIndex,
+            CatalogExcelPartRow row,
+            int dn)
+        {
+            if (!header.ContainsKey("PathAngle") || !header.ContainsKey("CurveRadius"))
+                return;
+
+            double angle = ResolveElbowPathAngleDeg(row.Part);
+            double curveRadius = FittingDimensionService.ElbowCenterToFaceMm(
+                dn, FittingDimensionService.ConnectionStyle.ButtWeld);
+            if (curveRadius <= 0)
+                curveRadius = PipeSizeCatalog.OdSch40Mm(dn) * 1.5;
+
+            Set(sheet, header, rowIndex, "PathAngle", FormatOd(angle));
+            Set(sheet, header, rowIndex, "CurveRadius", FormatOd(curveRadius));
+            if (header.ContainsKey("SegmentCount"))
+                Set(sheet, header, rowIndex, "SegmentCount", "0");
+        }
+
+        /// <summary>Elbow turn angle (deg) inferred from part id / clone source / display name; default 90.</summary>
+        private static double ResolveElbowPathAngleDeg(CustomPartDefinition part)
+        {
+            string text = (part.Id + " " + part.ExcelCloneSourcePartId + " " + part.DisplayName)
+                .ToUpperInvariant();
+
+            if (System.Text.RegularExpressions.Regex.IsMatch(text, @"\b180\b") || text.Contains("_180_"))
+                return 180;
+            if (System.Text.RegularExpressions.Regex.IsMatch(text, @"\b45\b") || text.Contains("_45_"))
+                return 45;
+            return 90;
         }
 
         private static void WriteValveGeometryFromProject(
@@ -1135,7 +1175,8 @@ namespace Plant3DCatalogComposer.Services
             Dictionary<string, int> header,
             int rowIndex,
             PortWriteSpec port,
-            CatalogExcelPartRow row)
+            CatalogExcelPartRow row,
+            CatalogExcelPortExportPlan plan)
         {
             Set(sheet, header, rowIndex, $"SizeRecordId_{port.Suffix}", port.SizeRecordId.ToString("D"));
             Set(sheet, header, rowIndex, $"PortName_{port.Suffix}", port.Port.PortName);
@@ -1151,17 +1192,21 @@ namespace Plant3DCatalogComposer.Services
             if (port.Port.EndType.Equals("FL", StringComparison.OrdinalIgnoreCase)
                 || port.Port.EndType.Equals("SO", StringComparison.OrdinalIgnoreCase))
             {
-                Set(sheet, header, rowIndex, $"PressureClass_{port.Suffix}", row.PressureClass);
+                Set(sheet, header, rowIndex, $"PressureClass_{port.Suffix}", plan.PressureClass);
             }
 
             // RF on WN/BLD/gasket FL ports; LJ backing ring is FF; LAP/BV have no facing.
-            string? facing = ResolvePortFacing(row.Part, port.Port.EndType);
+            string? facing = ResolvePortFacing(row.Part, port.Port.EndType, plan.FlangeFacing);
             if (facing != null)
                 Set(sheet, header, rowIndex, $"Facing_{port.Suffix}", facing);
         }
 
-        private static string? ResolvePortFacing(CustomPartDefinition part, string endType)
+        private static string? ResolvePortFacing(CustomPartDefinition part, string endType, string? familyFacingOverride = null)
         {
+            if (endType.Equals("FL", StringComparison.OrdinalIgnoreCase)
+                && !string.IsNullOrWhiteSpace(familyFacingOverride))
+                return CatalogFlangeFacing.Normalize(familyFacingOverride);
+
             if (endType.Equals("FL", StringComparison.OrdinalIgnoreCase)
                 && !string.IsNullOrWhiteSpace(part.FlangeFacing))
                 return CatalogFlangeFacing.Normalize(part.FlangeFacing);

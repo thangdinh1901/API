@@ -13,17 +13,7 @@ namespace Plant3DCatalogComposer
 {
     public partial class ComposerForm : UserControl
     {
-        private static readonly Color TabPageBackColor = Color.FromArgb(255, 244, 224);
-
-        private static readonly Color[] TabHeaderColors =
-        {
-            Color.FromArgb(25, 118, 210),   // Catalog
-            Color.FromArgb(156, 39, 176),   // Dimensions
-            Color.FromArgb(46, 125, 50),      // Scene
-            Color.FromArgb(0, 151, 167),      // Port Manager
-            Color.FromArgb(230, 81, 0),       // Booleans
-            Color.FromArgb(94, 53, 177),      // Code
-        };
+        private static Color TabPageBackColor => ComposerTheme.Window;
 
         private readonly IReadOnlyList<CustomPartDefinition> _catalogPartChoices;
         private readonly IReadOnlyList<PrimitiveDefinition> _primitiveChoices;
@@ -90,10 +80,10 @@ namespace Plant3DCatalogComposer
             _toolTip.SetToolTip(btnGenerateCode,
                 "Apply Part Family, seed dimensions, export catalog files, register part.json + Excel template sheet");
             _toolTip.SetToolTip(btnDeployCatalog,
-                "Copy library to CustomScripts, clear __pycache__, PLANTREGISTERCUSTOMSCRIPTS.");
+                "Copy library to CustomScripts, clear __pycache__, register scripts (PLANTREGISTERCUSTOMSCRIPTS, wait).");
             _toolTip.SetToolTip(
                 btnPublishCatalog,
-                "Export Catalog Builder Excel (current part or all parts), then open Catalog Builder");
+                "Export Catalog Builder Excel, register scripts, then open Catalog Builder.");
             _toolTip.SetToolTip(
                 btnTestCatalog,
                 "Run deployed CUST_* on the current drawing (auto-runs after Deploy Catalog)");
@@ -170,7 +160,9 @@ namespace Plant3DCatalogComposer
 
         private void ConfigureForPaletteHost()
         {
-            BackColor = TabPageBackColor;
+            ComposerTheme.Refresh();
+            BackColor = ComposerTheme.Window;
+            ForeColor = ComposerTheme.Text;
             StyleTabColors();
         }
 
@@ -180,30 +172,84 @@ namespace Plant3DCatalogComposer
             tabMain.DrawItem += TabMain_DrawItem;
             tabMain.SelectedIndexChanged += (_, _) => tabMain.Invalidate();
             tabMain.Padding = new Point(10, 4);
-            tabMain.BackColor = TabPageBackColor;
+            tabMain.BackColor = ComposerTheme.Window;
 
             foreach (TabPage page in tabMain.TabPages)
             {
                 page.UseVisualStyleBackColor = false;
-                page.BackColor = TabPageBackColor;
-                ApplySheetBackColor(page);
+                page.BackColor = ComposerTheme.Window;
+                ApplyThemeToTree(page);
             }
         }
 
-        private static void ApplySheetBackColor(Control root)
+        /// <summary>Recursively theme every control so the palette matches the AutoCAD UI.</summary>
+        private static void ApplyThemeToTree(Control root)
         {
             foreach (Control child in root.Controls)
             {
-                if (child is GroupBox groupBox)
-                    groupBox.BackColor = TabPageBackColor;
-                else if (child is Panel or Label or RadioButton or CheckBox)
+                switch (child)
                 {
-                    child.BackColor = TabPageBackColor;
+                    case TextBox tb:
+                        tb.BackColor = ComposerTheme.Field;
+                        tb.ForeColor = ComposerTheme.Text;
+                        tb.BorderStyle = BorderStyle.FixedSingle;
+                        break;
+                    case ComboBox cb:
+                        cb.BackColor = ComposerTheme.Field;
+                        cb.ForeColor = ComposerTheme.Text;
+                        cb.FlatStyle = FlatStyle.Flat;
+                        break;
+                    case DataGridView dgv:
+                        StyleGrid(dgv);
+                        break;
+                    case Button btn when btn.Tag as string == "accent":
+                        // Accent buttons keep their own colours (styled elsewhere).
+                        break;
+                    case Button btn:
+                        btn.FlatStyle = FlatStyle.Flat;
+                        btn.FlatAppearance.BorderColor = ComposerTheme.Border;
+                        btn.BackColor = ComposerTheme.GroupBackground;
+                        btn.ForeColor = ComposerTheme.Text;
+                        break;
+                    case GroupBox gb:
+                        gb.BackColor = ComposerTheme.GroupBackground;
+                        gb.ForeColor = ComposerTheme.Text;
+                        break;
+                    case Label lbl:
+                        lbl.BackColor = Color.Transparent;
+                        lbl.ForeColor = lbl.ForeColor == SystemColors.GrayText
+                            ? ComposerTheme.SubtleText
+                            : ComposerTheme.Text;
+                        break;
+                    case Panel or CheckBox or RadioButton:
+                        child.BackColor = ComposerTheme.Window;
+                        child.ForeColor = ComposerTheme.Text;
+                        break;
                 }
 
                 if (child.HasChildren)
-                    ApplySheetBackColor(child);
+                    ApplyThemeToTree(child);
             }
+        }
+
+        private static void StyleGrid(DataGridView dgv)
+        {
+            // Grids tagged "light" keep their own white/black styling for readability.
+            if (dgv.Tag as string == "light")
+                return;
+
+            dgv.EnableHeadersVisualStyles = false;
+            dgv.BackgroundColor = ComposerTheme.Window;
+            dgv.GridColor = ComposerTheme.Border;
+            dgv.BorderStyle = BorderStyle.None;
+            dgv.DefaultCellStyle.BackColor = ComposerTheme.Field;
+            dgv.DefaultCellStyle.ForeColor = ComposerTheme.Text;
+            dgv.DefaultCellStyle.SelectionBackColor = ComposerTheme.Accent;
+            dgv.DefaultCellStyle.SelectionForeColor = ComposerTheme.AccentText;
+            dgv.ColumnHeadersDefaultCellStyle.BackColor = ComposerTheme.GroupBackground;
+            dgv.ColumnHeadersDefaultCellStyle.ForeColor = ComposerTheme.Text;
+            dgv.RowHeadersDefaultCellStyle.BackColor = ComposerTheme.GroupBackground;
+            dgv.RowHeadersDefaultCellStyle.ForeColor = ComposerTheme.Text;
         }
 
         private void TabMain_DrawItem(object? sender, DrawItemEventArgs e)
@@ -213,9 +259,8 @@ namespace Plant3DCatalogComposer
 
             TabPage page = tabMain.TabPages[e.Index];
             bool selected = tabMain.SelectedIndex == e.Index;
-            Color header = TabHeaderColors[e.Index % TabHeaderColors.Length];
-            Color fill = selected ? header : ControlPaint.LightLight(header);
-            Color text = selected ? Color.White : ControlPaint.Dark(header);
+            Color fill = selected ? ComposerTheme.Accent : ComposerTheme.GroupBackground;
+            Color text = selected ? ComposerTheme.AccentText : ComposerTheme.SubtleText;
 
             using var brush = new SolidBrush(fill);
             e.Graphics.FillRectangle(brush, e.Bounds);
@@ -353,6 +398,17 @@ namespace Plant3DCatalogComposer
             }
         }
 
+        private bool TryGetSelectedDn(ComboBox combo, out double dn)
+        {
+            dn = 0;
+            if (combo.SelectedItem is PipeSizeOption size)
+            {
+                dn = size.DnMm;
+                return true;
+            }
+            return false;
+        }
+
         // Insert box is self-contained: filter standard library parts by its own Category +
         // Pressure class. (It must NOT read the Part Family Class/Sch combo — that excluded
         // Flange/Fastener parts whenever Part Family was on a different class, e.g. valve CL3000.)
@@ -394,10 +450,15 @@ namespace Plant3DCatalogComposer
             if (cmbCatalogPart.SelectedItem is not CustomPartDefinition part)
                 return;
 
+            // Populate the DN combo with only the sizes this part has in its catalog
+            // sheet (part.json "sizes"). Empty → fall back to all pipe sizes. This stops
+            // the user from picking a DN the geometry has no data for (→ cubic fallback).
+            PopulateCatalogDnCombo(part);
+
             if (part.ParametricDN)
             {
-                cmbCatalogDN.Enabled = true;
-                if (cmbCatalogDN.SelectedItem == null)
+                cmbCatalogDN.Enabled = cmbCatalogDN.Items.Count > 0;
+                if (cmbCatalogDN.SelectedItem == null && cmbCatalogDN.Items.Count > 0)
                     SelectDnCombo(cmbCatalogDN, part.DefaultDN);
             }
             else
@@ -407,15 +468,24 @@ namespace Plant3DCatalogComposer
             }
         }
 
-        private bool TryGetSelectedDn(ComboBox combo, out double dn)
+        private void PopulateCatalogDnCombo(CustomPartDefinition part)
         {
-            dn = 0;
-            if (combo.SelectedItem is PipeSizeOption size)
+            cmbCatalogDN.BeginUpdate();
+            cmbCatalogDN.Items.Clear();
+            if (part.Sizes.Count > 0)
             {
-                dn = size.DnMm;
-                return true;
+                foreach (int dn in part.Sizes)
+                {
+                    PipeSizeOption? opt = PipeSizeCatalog.FindByDn(dn);
+                    cmbCatalogDN.Items.Add(opt ?? new PipeSizeOption(dn, dn.ToString(), dn));
+                }
             }
-            return false;
+            else
+            {
+                foreach (PipeSizeOption size in PipeSizeCatalog.NominalSizes)
+                    cmbCatalogDN.Items.Add(size);
+            }
+            cmbCatalogDN.EndUpdate();
         }
 
         private static void SelectDnCombo(ComboBox combo, double dn)
@@ -443,6 +513,45 @@ namespace Plant3DCatalogComposer
             }
         }
 
+        private void btnInsertPrimitive_Click(object sender, EventArgs e)
+        {
+            if (cmbPrimitive.SelectedItem is not PrimitiveDefinition primitive)
+            {
+                ShowWarning("Please select a primitive type.");
+                return;
+            }
+
+            try
+            {
+                string dwg = DrawingContext.RequireActiveDrawingPath();
+                ValveProject project = DocumentStore.LoadOrCreate(
+                    dwg, Path.GetFileNameWithoutExtension(dwg));
+
+                // Ensure DN (and the rest of the Part Family) is written to the project first, so
+                // primitives can be sized from DN — the user does not need a separate Apply step.
+                if (!TryApplyCatalogFamilyFromUi(project, refreshDesignDimensions: false, out string? familyError))
+                {
+                    ShowWarning(familyError ?? "Set DN in the Catalog tab before inserting primitives.");
+                    return;
+                }
+
+                Guid nodeId = Services.PrimitiveService.Insert(dwg, project, primitive);
+                _selectedNodeId = nodeId;
+                RefreshSceneTree();
+                SelectTreeNode(nodeId);
+                PrimitiveNode? inserted = project.FindNode(nodeId);
+                if (inserted != null)
+                    LoadNodeEditor(inserted);
+                lblSceneStatus.Text =
+                    $"Inserted {inserted?.Name ?? "primitive"} ({primitive.DisplayName}). Rebuild queued.";
+                TriggerRebuild(project, quiet: true);
+            }
+            catch (Exception ex)
+            {
+                ShowError(ex);
+            }
+        }
+
         private void btnInsertCatalogPart_Click(object sender, EventArgs e)
         {
             if (cmbCatalogPart.SelectedItem is not CustomPartDefinition part)
@@ -464,14 +573,18 @@ namespace Plant3DCatalogComposer
                 ValveProject project = DocumentStore.LoadOrCreate(
                     dwg, Path.GetFileNameWithoutExtension(dwg));
 
-                double projectDn = GetProjectDn(project);
-                if (projectDn <= 0)
+                // DN comes from the Standard Library Parts combo, independent of the
+                // Part Family / skeleton DN (the inserted native fitting is its own size).
+                double libraryDn = cmbCatalogDN.SelectedItem is PipeSizeOption dnOpt
+                    ? dnOpt.DnMm
+                    : part.DefaultDN;
+                if (part.ParametricDN && libraryDn <= 0)
                 {
-                    ShowWarning("Set DN in Catalog Project and click Apply.");
+                    ShowWarning("Select a DN in Standard Library Parts.");
                     return;
                 }
 
-                double? dn = part.ParametricDN ? projectDn : null;
+                double? dn = part.ParametricDN ? libraryDn : null;
                 Guid nodeId = CatalogPartService.Insert(dwg, project, part, dn);
                 _selectedNodeId = nodeId;
                 RefreshSceneTree();
@@ -483,7 +596,7 @@ namespace Plant3DCatalogComposer
                 var doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
                 if (doc != null)
                 {
-                    double previewDn = part.ParametricDN ? projectDn : part.DefaultDN;
+                    double previewDn = part.ParametricDN ? libraryDn : part.DefaultDN;
                     if (CatalogTestService.TryQueueLibraryPartPreview(doc, part, previewDn, project))
                     {
                         lblSceneStatus.Text =
@@ -503,36 +616,6 @@ namespace Plant3DCatalogComposer
                 }
 
                 lblStatus.Text = $"Scene: {project.Parts.Count} part(s).";
-            }
-            catch (Exception ex)
-            {
-                ShowError(ex);
-            }
-        }
-
-        private void btnInsertPrimitive_Click(object sender, EventArgs e)
-        {
-            if (cmbPrimitive.SelectedItem is not PrimitiveDefinition primitive)
-            {
-                ShowWarning("Please select a primitive type.");
-                return;
-            }
-
-            try
-            {
-                string dwg = DrawingContext.RequireActiveDrawingPath();
-                ValveProject project = DocumentStore.LoadOrCreate(
-                    dwg, Path.GetFileNameWithoutExtension(dwg));
-                Guid nodeId = Services.PrimitiveService.Insert(dwg, project, primitive);
-                _selectedNodeId = nodeId;
-                RefreshSceneTree();
-                SelectTreeNode(nodeId);
-                PrimitiveNode? inserted = project.FindNode(nodeId);
-                if (inserted != null)
-                    LoadNodeEditor(inserted);
-                lblSceneStatus.Text =
-                    $"Inserted {inserted?.Name ?? "primitive"} ({primitive.DisplayName}). Rebuild queued.";
-                TriggerRebuild(project, quiet: true);
             }
             catch (Exception ex)
             {
@@ -671,7 +754,17 @@ namespace Plant3DCatalogComposer
 
                 if (result.Success)
                 {
+                    Autodesk.AutoCAD.ApplicationServices.Document? doc =
+                        Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+                    CatalogScriptRegistrationResult registration =
+                        CatalogScriptRegistrationService.QueueRegister(doc);
+
                     string status = result.Message;
+                    if (registration.Success)
+                        status += Environment.NewLine + registration.Message;
+                    else
+                        ShowWarning(registration.Message);
+
                     if (PlantCatalogBuilderLaunchService.TryLaunch(result.OutputPath, out string launchMsg))
                         status += Environment.NewLine + launchMsg;
                     else
@@ -808,6 +901,24 @@ namespace Plant3DCatalogComposer
 
                 DocumentStore.Save(dwg, project);
 
+                ValidationResult generatePreflight = CatalogPreflightService.ValidateForGenerate(project);
+                if (!generatePreflight.IsValid)
+                {
+                    ShowWarning(string.Join(Environment.NewLine, generatePreflight.Errors));
+                    return;
+                }
+
+                if (generatePreflight.Warnings.Any()
+                    && MessageBox.Show(
+                        string.Join(Environment.NewLine + Environment.NewLine, generatePreflight.Warnings)
+                        + Environment.NewLine + Environment.NewLine + "Continue Generate Code?",
+                        "Plant 3D Catalog Composer",
+                        MessageBoxButtons.YesNo,
+                        MessageBoxIcon.Warning) != DialogResult.Yes)
+                {
+                    return;
+                }
+
                 CatalogProjectService.SeedDesignDimensionsIfEmpty(project);
                 CatalogExportPrepareService.PrepareSceneForExport(project);
                 DocumentStore.Save(dwg, project);
@@ -920,13 +1031,15 @@ namespace Plant3DCatalogComposer
 
         private static string ResolveCatalogExportDirectory(string dwg)
         {
+            // User-authored composite parts always land under parts/CUSTOM/<name>/ so they
+            // never collide with — or get pruned alongside — the native library parts.
             string? devParts = ProjectPaths.TryResolveDevPartsDir();
             if (devParts != null)
-                return devParts;
+                return EnsureCustomSubdir(devParts);
 
             string partsDir = ProjectPaths.ResolvePartsDir();
             if (Directory.Exists(partsDir))
-                return partsDir;
+                return EnsureCustomSubdir(partsDir);
 
             using var folderDialog = new FolderBrowserDialog
             {
@@ -938,6 +1051,13 @@ namespace Plant3DCatalogComposer
                 throw new OperationCanceledException("Export cancelled.");
 
             return folderDialog.SelectedPath;
+        }
+
+        private static string EnsureCustomSubdir(string partsRoot)
+        {
+            string customRoot = Path.Combine(partsRoot, CatalogPartsDiscovery.CustomFolderName);
+            Directory.CreateDirectory(customRoot);
+            return customRoot;
         }
 
         private static string ResolveCatalogExportInitialDirectory(string dwg)

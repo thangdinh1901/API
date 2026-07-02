@@ -81,7 +81,6 @@ namespace Plant3DCatalogComposer.Services
 
             PortTransformMath.SetWorldPosition(project, port, posX, posY, posZ);
             PortTransformMath.SetWorldDirection(project, port, dirX, dirY, dirZ);
-            FittingDimensionService.SyncProjectDimensions(project);
         }
 
         public static string ParentDisplayName(ValveProject project, ConnectionPort port)

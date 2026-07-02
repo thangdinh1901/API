@@ -1,0 +1,38 @@
+# CPB_CalcPts args=('oA', 'A', 'L1', 'L2', 'I1', 'I2', 'L21', 'L22', 'D', 'NL', 'NL1', 'NI') vars=('oA', 'A', 'L1', 'L2', 'I1', 'I2', 'L21', 'L22', 'D', 'NL', 'NL1', 'NI')
+# consts=['0', '1']
+   0 RESUME                 0
+   2 LOAD_GLOBAL            NULL + CPB_CalcPtsEx
+  14 LOAD_FAST              oA
+  16 LOAD_METHOD            pointAt
+  38 LOAD_CONST             0
+  40 PRECALL                1
+  44 CALL                   1
+  54 LOAD_FAST              oA
+  56 LOAD_METHOD            pointAt
+  78 LOAD_CONST             1
+  80 PRECALL                1
+  84 CALL                   1
+  94 LOAD_FAST              oA
+  96 LOAD_METHOD            directionAt
+ 118 LOAD_CONST             0
+ 120 PRECALL                1
+ 124 CALL                   1
+ 134 LOAD_FAST              oA
+ 136 LOAD_METHOD            directionAt
+ 158 LOAD_CONST             1
+ 160 PRECALL                1
+ 164 CALL                   1
+ 174 LOAD_FAST              A
+ 176 LOAD_FAST              L1
+ 178 LOAD_FAST              L2
+ 180 LOAD_FAST              I1
+ 182 LOAD_FAST              I2
+ 184 LOAD_FAST              L21
+ 186 LOAD_FAST              L22
+ 188 LOAD_FAST              D
+ 190 LOAD_FAST              NL
+ 192 LOAD_FAST              NL1
+ 194 LOAD_FAST              NI
+ 196 PRECALL                15
+ 200 CALL                   15
+ 210 RETURN_VALUE           

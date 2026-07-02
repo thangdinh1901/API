@@ -388,6 +388,13 @@ namespace Plant3DSkeletonManager.Core
         /// <summary>When true, connection ports are drawn as arrows in the drawing.</summary>
         public bool ShowPortMarkers { get; set; } = true;
 
+        /// <summary>One-time migration flag: legacy auto-seeded envelope dimensions (FaceToFace,
+        /// BodyOD, ElbowCenterToFace, …) have been pruned from this scene. Prevents re-pruning
+        /// dimensions the user later declares by hand.</summary>
+        [JsonPropertyName("legacyEnvelopeDimsPruned")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+        public bool LegacyEnvelopeDimsPruned { get; set; }
+
         public PrimitiveNode? FindNode(Guid id) => Parts.FirstOrDefault(n => n.Id == id);
 
         public ConnectionPort? FindPort(Guid id) => Ports.FirstOrDefault(p => p.Id == id);

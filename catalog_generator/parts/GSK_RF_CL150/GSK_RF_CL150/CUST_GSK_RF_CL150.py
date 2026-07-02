@@ -14,18 +14,15 @@ Nut bearing faces (part-local x):
   west  = -(rf_h + tf)     (west WN, RF tip at x = 0)
   east  = T + rf_h + tf    (east WN, RF tip at x = T)
   grip  = T + 2*(rf_h + tf)
-
-Use ``build_cl150_rf_joint()`` for hot-reload / preview so gasket local = world
-without an extra −T shift on the gasket alone (that caused a T nut misalignment).
 """
 
 import math
 
 import pipe_sizes
 import primitives as prim
+from cl150_rf_flange_dims import CL150_RF_FLANGE_DIMENSIONS, RAISED_FACE_HEIGHT
 from STUD_BOLTS import bolting_data
 from STUD_BOLTS.StudBolt import StudBolt
-from CUST_WN_FLRF_CL150 import WNFLRFCL150, RAISED_FACE_HEIGHT
 
 DEFAULT_GASKET_THICKNESS_MM = 1.5
 DEFAULT_STUD_THREAD_PROTRUSION = 3.0
@@ -42,38 +39,12 @@ def _joint_nut_bearings(t, rf_h, tf):
     return -half_flange, t + half_flange, t + 2.0 * half_flange
 
 
-def build_cl150_rf_joint(
-    s,
-    dn,
-    thickness=None,
-    pressure_class=150,
-    wn_color=50,
-    gsk_color=30,
-):
-    """WN | gasket+studs | WN along +X for visual stud-length check.
-
-    World/part frame (pipe toward +X):
-      west WN RF at x=0, gasket 0..T, east WN RF at x=T.
-    """
-    t = (
-        DEFAULT_GASKET_THICKNESS_MM
-        if thickness is None
-        else float(thickness)
-    )
-    joint = GSKRFCL150(
-        s, dn, thickness=t, pressure_class=pressure_class
-    ).set_color(gsk_color)
-    wn_w = WNFLRFCL150(s, dn).rotateY(180).set_color(wn_color)
-    wn_e = WNFLRFCL150(s, dn).move(x=t).set_color(wn_color)
-    return prim.ShapeAssembly(wn_w, joint, wn_e)
-
-
 class GSKRFCL150(prim.ShapeObject):
     """Ring gasket (OD=G, ID=B) plus a full stud set for visual joint check."""
 
     def __init__(self, s, size, thickness=None, pressure_class=150, *, add_ports=True):
         dn = pipe_sizes.resolve_dn(size)
-        if dn not in WNFLRFCL150.DIMENSIONS:
+        if dn not in CL150_RF_FLANGE_DIMENSIONS:
             raise ValueError(f"No CL150 RF gasket data for DN {dn}.")
 
         t = (
@@ -84,7 +55,7 @@ class GSKRFCL150(prim.ShapeObject):
         if t <= 0:
             raise ValueError(f"Gasket thickness must be > 0 (got {t}).")
 
-        fd = WNFLRFCL150.DIMENSIONS[dn]
+        fd = CL150_RF_FLANGE_DIMENSIONS[dn]
         rf_h = RAISED_FACE_HEIGHT
         tf = fd["tf"]
 

@@ -4,6 +4,7 @@
   "displayName": "Gasket RF + studs",
   "category": "Gasket",
   "group": "Gasket",
+  "notes": "Deploy-only custom part. Mate FL/RF CL150 ports with native Plant 3D WN/BLD/SO from Catalog Builder — no CUST_WN_* required.",
   "catalogParams": [
     { "name": "DN", "label": "DN", "useSkeletonDN": true, "default": 100 },
     { "name": "T", "label": "Thickness (mm)", "default": 1.5 }

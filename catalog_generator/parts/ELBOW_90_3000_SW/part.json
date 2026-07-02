@@ -1,0 +1,31 @@
+{
+  "role": "standard",
+  "id": "ELBOW_90_3000_SW",
+  "displayName": "ELBOW 90",
+  "category": "Fittings",
+  "group": "Elbow",
+  "notes": "NATIVE reconstruction of CPB_OFOF. Source sheet ELBOW 90_3000_SW.",
+  "catalogParams": [
+    {
+      "name": "DN",
+      "label": "DN",
+      "useSkeletonDN": true,
+      "default": 100
+    }
+  ],
+  "defaultDN": 15,
+  "pressureClass": "3000",
+  "parametricDN": true,
+  "primaryEndType": "FL",
+  "pnpClassName": "Elbow",
+  "shapeName": "CPB_OFOF",
+  "excelSheet": "ELBOW 90_3000_SW",
+  "sizes": [
+    15,
+    20,
+    25,
+    32,
+    40,
+    50
+  ]
+}

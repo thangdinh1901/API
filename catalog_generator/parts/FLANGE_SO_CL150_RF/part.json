@@ -1,0 +1,43 @@
+{
+  "role": "standard",
+  "id": "FLANGE_SO_CL150_RF",
+  "displayName": "FLANGE SO",
+  "category": "Flanges",
+  "group": "Flange",
+  "notes": "NATIVE reconstruction of CPFWR_F_SF. Source sheet FLANGE SO_CL150_RF.",
+  "catalogParams": [
+    {
+      "name": "DN",
+      "label": "DN",
+      "useSkeletonDN": true,
+      "default": 100
+    }
+  ],
+  "defaultDN": 100,
+  "pressureClass": "150",
+  "parametricDN": true,
+  "primaryEndType": "FL",
+  "pnpClassName": "Flange",
+  "shapeName": "CPFWR_F_SF",
+  "excelSheet": "FLANGE SO_CL150_RF",
+  "sizes": [
+    15,
+    20,
+    25,
+    32,
+    40,
+    50,
+    65,
+    80,
+    90,
+    100,
+    125,
+    150,
+    200,
+    250,
+    300,
+    350,
+    400,
+    450
+  ]
+}

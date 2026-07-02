@@ -19,6 +19,10 @@ GIT_ROOT = ROOT
 NATIVE_PIPE_SHEET = "PIPE_SCH40,BV,40"
 LEGACY_BAD_PIPE = "PIPE_SCH40,PL,150"
 NATIVE_SOURCE_REV = "365f732"
+# Truncated templates (e.g. after single-part publish saved over Resources/) break valve clone.
+MIN_EXPECTED_SHEETS = 20
+VALVE_CLONE_MARKER = "VALVE_FL_CL150,FL,150"
+FULL_TEMPLATE_REVS = ("HEAD", "ab30b54", NATIVE_SOURCE_REV)
 
 
 def _extract_template(rev: str, dest: Path) -> None:
@@ -62,6 +66,47 @@ def _clone_sheet_within(wb: openpyxl.Workbook, src_name: str, dest_name: str) ->
     return True
 
 
+def _needs_full_restore(wb: openpyxl.Workbook) -> bool:
+    if len(wb.sheetnames) < MIN_EXPECTED_SHEETS:
+        return True
+    return not any(
+        name.startswith("VALVE_FL_CL150,") for name in wb.sheetnames
+    )
+
+
+def restore_full_template_if_needed() -> bool:
+    """Replace a truncated CatalogBuilderTemplate.xlsx from git (HEAD / ab30b54 / 365f732)."""
+    if not TPL.is_file():
+        return False
+
+    wb = openpyxl.load_workbook(TPL, read_only=True)
+    needs = _needs_full_restore(wb)
+    wb.close()
+    if not needs:
+        return False
+
+    backup = TPL.with_suffix(".xlsx.truncated.bak")
+    shutil.copy2(TPL, backup)
+    print(f"WARN: template looks truncated ({TPL.name}) — backup at {backup.name}")
+
+    for rev in FULL_TEMPLATE_REVS:
+        try:
+            _extract_template(rev, TPL)
+        except subprocess.CalledProcessError:
+            continue
+        wb = openpyxl.load_workbook(TPL, read_only=True)
+        ok = not _needs_full_restore(wb)
+        sheet_count = len(wb.sheetnames)
+        wb.close()
+        if ok:
+            print(f"Restored full template from git {rev} ({sheet_count} sheets)")
+            return True
+
+    shutil.copy2(backup, TPL)
+    print("ERROR: could not restore full template from git")
+    return False
+
+
 def restore_native_support_sheets(wb: openpyxl.Workbook) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         src_path = Path(tmp) / "native_template.xlsx"
@@ -102,6 +147,9 @@ def restore_native_support_sheets(wb: openpyxl.Workbook) -> None:
 def main() -> int:
     if not TPL.is_file():
         raise SystemExit(f"Template not found: {TPL}")
+
+    restore_full_template_if_needed()
+
     backup = TPL.with_suffix(".xlsx.bak")
     if not backup.exists():
         shutil.copy2(TPL, backup)

@@ -57,32 +57,73 @@ namespace Plant3DCatalogComposer.Services
             if (string.IsNullOrEmpty(cloneId))
                 return Array.Empty<(string, double)>();
 
+            int dn = (int)Math.Round(project.Parameters.DN);
+            int? dn2 = project.Parameters.DN2 > 0 ? (int)Math.Round(project.Parameters.DN2) : null;
+            return SuggestCore(cloneId, project, dn, dn2, useProjectPorts: true);
+        }
+
+        /// <summary>Suggest geometry dims for a single inserted native (Catalog-kind) node, using
+        /// that node's own CatalogPartId and DN — independent of the composed project's DN/clone.
+        /// Returns ONLY original Excel column symbols (D, R, A, L1, …) — no internal aliases
+        /// (BodyOD, ElbowCenterToFace, …) — since these seed rows are re-exported under their
+        /// original template column names.</summary>
+        public static IReadOnlyList<(string Name, double ValueMm)> SuggestForNode(
+            ValveProject project,
+            PrimitiveNode node)
+        {
+            if (node.Kind != SceneNodeKind.Catalog || string.IsNullOrEmpty(node.CatalogPartId))
+                return Array.Empty<(string, double)>();
+
+            if (!node.Parameters.TryGetValue("DN", out ParamValue? dnParam) || dnParam.Value <= 0)
+                return Array.Empty<(string, double)>();
+
+            int dn = (int)Math.Round(dnParam.Value);
+            int? dn2 = node.Parameters.TryGetValue("DN2", out ParamValue? dn2Param) && dn2Param.Value > 0
+                ? (int)Math.Round(dn2Param.Value)
+                : null;
+
+            return SuggestCore(
+                node.CatalogPartId!, project, dn, dn2, useProjectPorts: false, originalSymbolsOnly: true);
+        }
+
+        private static IReadOnlyList<(string Name, double ValueMm)> SuggestCore(
+            string cloneId,
+            ValveProject project,
+            int dn,
+            int? dn2,
+            bool useProjectPorts,
+            bool originalSymbolsOnly = false)
+        {
             CustomPartDefinition? clone = CustomPartCatalog.FindById(cloneId);
             if (clone == null)
                 return Array.Empty<(string, double)>();
 
             var suggestions = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
 
-            MergeExcelGeometryRow(cloneId, project, suggestions);
-            MergeSizeVariant(clone, project, suggestions);
-            MergePartTypeTables(clone, project, suggestions);
+            MergeExcelGeometryRow(cloneId, dn, dn2, suggestions);
+            MergeSizeVariant(clone, dn, dn2, suggestions);
 
-            if (clone.Skeleton != null)
+            if (!originalSymbolsOnly)
             {
-                foreach (KeyValuePair<string, double> pair in clone.Skeleton)
+                MergePartTypeTables(clone, project, dn, useProjectPorts, suggestions);
+
+                if (clone.Skeleton != null)
                 {
-                    if (pair.Value > 0 && !CatalogTabParams.Contains(pair.Key))
-                        suggestions[pair.Key] = pair.Value;
+                    foreach (KeyValuePair<string, double> pair in clone.Skeleton)
+                    {
+                        if (pair.Value > 0 && !CatalogTabParams.Contains(pair.Key))
+                            suggestions[pair.Key] = pair.Value;
+                    }
                 }
-            }
 
-            foreach (CatalogPartParam param in clone.CatalogParams)
-            {
-                if (CatalogTabParams.Contains(param.Name) || param.UseSkeletonDN || param.UseSkeletonDN2)
-                    continue;
+                foreach (CatalogPartParam param in clone.CatalogParams)
+                {
+                    if (CatalogTabParams.Contains(param.Name) || param.UseSkeletonDN || param.UseSkeletonDN2)
+                        continue;
 
-                if (!suggestions.ContainsKey(param.Name) && param.Default > 0)
-                    suggestions[param.Name] = param.Default;
+                    if (!suggestions.ContainsKey(param.Name) && param.Default > 0)
+                        suggestions[param.Name] = param.Default;
+                }
             }
 
             return suggestions
@@ -114,29 +155,27 @@ namespace Plant3DCatalogComposer.Services
 
         private static void MergeExcelGeometryRow(
             string cloneSourcePartId,
-            ValveProject project,
+            int dn,
+            int? dn2,
             Dictionary<string, double> suggestions)
         {
             try
             {
                 using var workbook = new XLWorkbook(CatalogExcelTemplateService.ResolveTemplatePath());
-                IXLWorksheet? sheet = CatalogExcelTemplateService.FindSheetByPartPrefix(workbook, cloneSourcePartId);
+                IXLWorksheet? sheet = CatalogExcelTemplateService.FindSheetByPartPrefixOrNormalizedKey(
+                    workbook, cloneSourcePartId);
                 if (sheet == null)
                     return;
 
                 Dictionary<string, int> header = ReadHeaderMap(sheet, HeaderRow);
-                if (!header.ContainsKey("DN"))
+                string? sizeCol = ResolveSizeColumn(header);
+                if (sizeCol == null)
                     return;
-
-                int dn = (int)Math.Round(project.Parameters.DN);
-                int? dn2 = project.Parameters.DN2 > 0
-                    ? (int)Math.Round(project.Parameters.DN2)
-                    : null;
 
                 int lastRow = sheet.LastRowUsed()?.RowNumber() ?? DataStartRow;
                 for (int rowIndex = DataStartRow; rowIndex <= lastRow; rowIndex++)
                 {
-                    if (!TryReadInt(sheet, header, rowIndex, "DN", out int rowDn) || rowDn != dn)
+                    if (!TryReadInt(sheet, header, rowIndex, sizeCol, out int rowDn) || rowDn != dn)
                         continue;
 
                     if (dn2.HasValue && header.ContainsKey("DN2"))
@@ -166,12 +205,10 @@ namespace Plant3DCatalogComposer.Services
 
         private static void MergeSizeVariant(
             CustomPartDefinition clone,
-            ValveProject project,
+            int dn,
+            int? dn2,
             Dictionary<string, double> suggestions)
         {
-            int dn = (int)Math.Round(project.Parameters.DN);
-            int? dn2 = project.Parameters.DN2 > 0 ? (int)Math.Round(project.Parameters.DN2) : null;
-
             CatalogExcelSizeVariant? variant = CatalogExcelSizeCatalog.BuildSizes(clone)
                 .FirstOrDefault(v =>
                     v.Dn == dn
@@ -189,9 +226,10 @@ namespace Plant3DCatalogComposer.Services
         private static void MergePartTypeTables(
             CustomPartDefinition clone,
             ValveProject project,
+            int dn,
+            bool useProjectPorts,
             Dictionary<string, double> suggestions)
         {
-            int dn = (int)Math.Round(project.Parameters.DN);
             if (dn <= 0)
                 return;
 
@@ -203,7 +241,7 @@ namespace Plant3DCatalogComposer.Services
 
             if (FittingDimensionService.UsesPipeRunDimensions(catalogGroup))
             {
-                FittingDimensionService.ConnectionStyle style = InferConnectionStyle(project, clone);
+                FittingDimensionService.ConnectionStyle style = InferConnectionStyle(project, clone, useProjectPorts);
                 suggestions["BodyOD"] = FittingDimensionService.RunDiameterMm(dn);
                 suggestions["ElbowCenterToFace"] = ElbowCenterToFaceMm(dn, style, id);
                 return;
@@ -253,9 +291,10 @@ namespace Plant3DCatalogComposer.Services
 
         private static FittingDimensionService.ConnectionStyle InferConnectionStyle(
             ValveProject project,
-            CustomPartDefinition clone)
+            CustomPartDefinition clone,
+            bool useProjectPorts)
         {
-            if (project.Ports.Count > 0)
+            if (useProjectPorts && project.Ports.Count > 0)
                 return FittingDimensionService.InferConnectionStyle(project);
 
             string set = project.StandardSet ?? clone.StandardSet ?? "";
@@ -281,6 +320,20 @@ namespace Plant3DCatalogComposer.Services
             }
 
             return center;
+        }
+
+        /// <summary>The column that carries the nominal size per row. Legacy templates use "DN";
+        /// CATA_NUI-style sheets have no DN column and identify size via "Sizes" (e.g. "50") or
+        /// "NominalDiameter_S-ALL".</summary>
+        private static string? ResolveSizeColumn(Dictionary<string, int> header)
+        {
+            foreach (string candidate in new[] { "DN", "Sizes", "NominalDiameter_S-ALL" })
+            {
+                if (header.ContainsKey(candidate))
+                    return candidate;
+            }
+
+            return null;
         }
 
         private static IEnumerable<string> ParseGeometryParamNames(string paramDef)

@@ -1,0 +1,43 @@
+# [var_basic] getInsideDiameter('D', 'OF', 'Ever', 'mustCalc')
+  RESUME               0
+  LOAD_GLOBAL          NULL + getThickness
+  LOAD_FAST            D
+  LOAD_FAST            OF
+  LOAD_FAST            Ever
+  LOAD_FAST            mustCalc
+  PRECALL              4
+  CALL                 4
+  STORE_FAST           OF
+  LOAD_FAST            OF
+  LOAD_CONST           0.0
+  COMPARE_OP           >
+  POP_JUMP_FORWARD_IF_FALSE to 132
+  LOAD_FAST            D
+  LOAD_FAST            OF
+  LOAD_CONST           2.0
+  BINARY_OP            *
+  BINARY_OP            -
+  STORE_FAST           retVal
+  LOAD_FAST            retVal
+  LOAD_CONST           0.0
+  COMPARE_OP           <=
+  POP_JUMP_FORWARD_IF_FALSE to 130
+  LOAD_GLOBAL          NULL + getThickness
+  LOAD_FAST            D
+  LOAD_CONST           -1.0
+  LOAD_FAST            Ever
+  LOAD_FAST            mustCalc
+  PRECALL              4
+  CALL                 4
+  STORE_FAST           OF
+  LOAD_FAST            D
+  LOAD_FAST            OF
+  LOAD_CONST           2.0
+  BINARY_OP            *
+  BINARY_OP            -
+  STORE_FAST           retVal
+  JUMP_FORWARD         to 136
+  LOAD_CONST           0.0
+  STORE_FAST           retVal
+  LOAD_FAST            retVal
+  RETURN_VALUE         

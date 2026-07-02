@@ -291,7 +291,16 @@ namespace Plant3DCatalogComposer
 
                 if (result.Success)
                 {
+                    Document? doc = Application.DocumentManager.MdiActiveDocument;
+                    CatalogScriptRegistrationResult registration =
+                        CatalogScriptRegistrationService.QueueRegister(doc);
+
                     WriteStatus("P3DCOMPPUBLISH: " + result.Message);
+                    if (registration.Success)
+                        WriteStatus("P3DCOMPPUBLISH: " + registration.Message);
+                    else
+                        WriteStatus("P3DCOMPPUBLISH: " + registration.Message);
+
                     if (PlantCatalogBuilderLaunchService.TryLaunch(result.OutputPath, out string launchMsg))
                         WriteStatus("P3DCOMPPUBLISH: " + launchMsg);
                     else

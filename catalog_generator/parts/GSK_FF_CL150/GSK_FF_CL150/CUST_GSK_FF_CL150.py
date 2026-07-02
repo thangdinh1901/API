@@ -10,7 +10,7 @@ import math
 import lj_stud_bolts
 import pipe_sizes
 import primitives as prim
-from CUST_WN_FLRF_CL150 import WNFLRFCL150
+from cl150_rf_flange_dims import CL150_RF_FLANGE_DIMENSIONS
 from STUD_BOLTS.StudBolt import StudBolt
 
 DEFAULT_GASKET_THICKNESS_MM = 1.5
@@ -22,7 +22,7 @@ class GSKFFCL150(prim.ShapeObject):
 
     def __init__(self, s, size, thickness=None, pressure_class=150, *, add_ports=True):
         dn = pipe_sizes.resolve_dn(size)
-        if dn not in WNFLRFCL150.DIMENSIONS:
+        if dn not in CL150_RF_FLANGE_DIMENSIONS:
             raise ValueError(f"No CL150 FF gasket data for DN {dn}.")
 
         t = (
@@ -33,7 +33,7 @@ class GSKFFCL150(prim.ShapeObject):
         if t <= 0:
             raise ValueError(f"Gasket thickness must be > 0 (got {t}).")
 
-        fd = WNFLRFCL150.DIMENSIONS[dn]
+        fd = CL150_RF_FLANGE_DIMENSIONS[dn]
         ring_dims = pipe_sizes.lj_ring_cl150_dims_mm(dn)
         tf = ring_dims["tf"]
         stub_lap_t = pipe_sizes.stubend_lj_a_dims_mm(dn, "long")["T"]

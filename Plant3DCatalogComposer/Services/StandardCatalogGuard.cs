@@ -31,16 +31,11 @@ namespace Plant3DCatalogComposer.Services
             !string.IsNullOrWhiteSpace(directoryName)
             && directoryName.StartsWith("_", System.StringComparison.Ordinal);
 
-        /// <summary>Scene contains only insertable standard catalog part(s) — reference / test, not a custom export.</summary>
-        public static bool IsStandardReferenceScene(ValveProject project)
-        {
-            if (project.Parts.Count == 0)
-                return false;
-
-            return project.Parts.All(p =>
-                p.Kind == SceneNodeKind.Catalog
-                && IsProtectedStandardPart(p.CatalogPartId));
-        }
+        /// <summary>
+        /// Scenes are now built purely from primitives; there is no longer a "catalog node" that
+        /// could make a scene a standard reference. Always false.
+        /// </summary>
+        public static bool IsStandardReferenceScene(ValveProject project) => false;
 
         public static bool ShouldSkipSceneExport(ValveProject project) =>
             project.Parts.Count == 0 || IsStandardReferenceScene(project);
@@ -51,17 +46,7 @@ namespace Plant3DCatalogComposer.Services
                 || project.Operations.Count > 0
                 || project.Parts.Any(HasNonIdentityTransform));
 
-        public static string? TryGetSingleStandardPartId(ValveProject project)
-        {
-            if (project.Parts.Count != 1)
-                return null;
-
-            PrimitiveNode part = project.Parts[0];
-            if (part.Kind != SceneNodeKind.Catalog || string.IsNullOrEmpty(part.CatalogPartId))
-                return null;
-
-            return IsProtectedStandardPart(part.CatalogPartId) ? part.CatalogPartId : null;
-        }
+        public static string? TryGetSingleStandardPartId(ValveProject project) => null;
 
         public static string ResolveExportFolderName(string folderName, bool isStandardPortReference) =>
             isStandardPortReference

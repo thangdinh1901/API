@@ -1,0 +1,79 @@
+# [var_basic] CON_OF('s', 'D1', 'D2', 'L', 'OF', 'NOEXT', 'ID')
+  RESUME               0
+  LOAD_GLOBAL          NULL + getThickness
+  LOAD_FAST            D1
+  LOAD_FAST            OF
+  LOAD_CONST           1
+  KW_NAMES             ('D', 'OF', 'Ever')
+  PRECALL              3
+  CALL                 3
+  STORE_FAST           OF
+  LOAD_GLOBAL          NULL + getThickness
+  LOAD_FAST            D1
+  LOAD_FAST            OF
+  LOAD_CONST           1
+  LOAD_CONST           True
+  KW_NAMES             ('D', 'OF', 'Ever', 'mustCalc')
+  PRECALL              4
+  CALL                 4
+  STORE_FAST           sF
+  LOAD_FAST            D2
+  LOAD_CONST           0.0
+  COMPARE_OP           <=
+  POP_JUMP_FORWARD_IF_TRUE to 100
+  LOAD_FAST            D2
+  LOAD_FAST            D1
+  COMPARE_OP           <
+  POP_JUMP_FORWARD_IF_FALSE to 116
+  LOAD_FAST            D1
+  LOAD_FAST            sF
+  LOAD_CONST           2.0
+  BINARY_OP            *
+  BINARY_OP            +
+  STORE_FAST           D2
+  LOAD_FAST            D1
+  LOAD_CONST           2.0
+  BINARY_OP            /
+  STORE_FAST           R1
+  LOAD_FAST            D2
+  LOAD_CONST           2.0
+  BINARY_OP            /
+  STORE_FAST           R2
+  LOAD_FAST            NOEXT
+  POP_JUMP_FORWARD_IF_FALSE to 146
+  LOAD_CONST           0.0
+  STORE_FAST           expand
+  JUMP_FORWARD         to 150
+  LOAD_FAST            sF
+  STORE_FAST           expand
+  LOAD_FAST            OF
+  LOAD_CONST           0.0
+  COMPARE_OP           <=
+  POP_JUMP_FORWARD_IF_FALSE to 166
+  LOAD_CONST           0.0
+  STORE_FAST           R1
+  LOAD_GLOBAL          NULL + CYLINDER
+  LOAD_FAST            s
+  LOAD_FAST            R2
+  LOAD_FAST            L
+  LOAD_FAST            expand
+  BINARY_OP            +
+  LOAD_FAST            R1
+  KW_NAMES             ('R', 'H', 'O')
+  PRECALL              4
+  CALL                 4
+  LOAD_METHOD          rotateY
+  LOAD_CONST           90
+  PRECALL              1
+  CALL                 1
+  LOAD_METHOD          translate
+  LOAD_FAST            expand
+  UNARY_NEGATIVE       
+  LOAD_CONST           0.0
+  LOAD_CONST           0.0
+  BUILD_TUPLE          3
+  PRECALL              1
+  CALL                 1
+  STORE_FAST           o0
+  LOAD_CONST           None
+  RETURN_VALUE         

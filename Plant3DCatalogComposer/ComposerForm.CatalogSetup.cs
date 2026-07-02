@@ -17,14 +17,11 @@ namespace Plant3DCatalogComposer
         private ComboBox? _cmbProjectDn;
         private ComboBox? _cmbProjectDn2;
         private ComboBox? _cmbClassSch;
-        private TextBox? _txtTooltipShort;
-        private TextBox? _txtTooltipLong;
         private Label? _lblScriptPreview;
         private Label? _lblCatalogName;
         private Label? _lblCatalogDn;
         private Label? _lblCatalogDn2;
         private Label? _lblClassSch;
-        private Label? _lblCatalogTip;
         private Label? _lblPartCategory;
         private ComboBox? _cmbPartCategory;
         private Label? _lblPipingComponent;
@@ -38,29 +35,165 @@ namespace Plant3DCatalogComposer
         private int _partFamilyLoadDepth;
         private Label? _lblFlangeFacing;
         private ComboBox? _cmbFlangeFacing;
+        private Label? _lblTemplatePath;
+        private TextBox? _txtTemplatePath;
+        private Button? _btnBrowseTemplate;
+
+        /// <summary>Default standard metric catalog used as the template when none is configured.</summary>
+        private const string DefaultStandardTemplatePath =
+            @"d:\04. Projects\06. NUI\NUI\Spec Sheets\CATA_NUI.xlsx";
 
         private void InitializeCatalogSetupTab()
         {
-            HideDuplicateCatalogPartFields();
+            EnsureDefaultTemplateConfigured();
+            BuildTemplatePathControls();
+
+            LayoutStandardLibraryPartsGroup();
             BuildCatalogProjectPanel();
 
             grpSceneTools.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             grpSceneTools.Resize += (_, _) => LayoutSceneToolsButtons();
             tabSetup.Resize += (_, _) => RelayoutSetupTab();
+            grpCatalogParts.Resize += (_, _) =>
+            {
+                if (!_catalogLayoutSizing)
+                    LayoutStandardLibraryPartsGroup();
+            };
 
             StyleGroupBoxCaption(grpCatalogParts, "Standard Library Parts");
             tabSetup.Text = "Catalog";
             RelayoutSetupTab();
         }
 
-        private void HideDuplicateCatalogPartFields()
+        /// <summary>On first run, adopt the standard metric catalog (CATA_NUI.xlsx) as the template.</summary>
+        private static void EnsureDefaultTemplateConfigured()
         {
-            lblCatalogDN.Visible = false;
-            cmbCatalogDN.Visible = false;
-            lblCatalogPressureClass.Visible = false;
-            cmbCatalogPressureClass.Visible = false;
-            btnInsertCatalogPart.Location = new Point(10, 96);
-            grpCatalogParts.Height = 132;
+            if (!string.IsNullOrWhiteSpace(CatalogTemplateSettings.Load().TemplatePath))
+                return;
+
+            if (File.Exists(DefaultStandardTemplatePath))
+                CatalogTemplateSettings.Save(DefaultStandardTemplatePath);
+        }
+
+        private void BuildTemplatePathControls()
+        {
+            _lblTemplatePath = new Label { Text = "Template:" };
+            _txtTemplatePath = new TextBox
+            {
+                ReadOnly = true,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+            };
+            _btnBrowseTemplate = new Button
+            {
+                Text = "…",
+                Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            };
+            _btnBrowseTemplate.Click += (_, _) => OnBrowseTemplate();
+
+            _toolTip.SetToolTip(_txtTemplatePath,
+                "Catalog Builder Excel template / clone source (overrides bundled CatalogBuilderTemplate.xlsx)");
+            _toolTip.SetToolTip(_btnBrowseTemplate, "Choose the standard catalog Excel template");
+
+            grpCatalogParts.Controls.Add(_lblTemplatePath);
+            grpCatalogParts.Controls.Add(_txtTemplatePath);
+            grpCatalogParts.Controls.Add(_btnBrowseTemplate);
+
+            UpdateTemplatePathDisplay();
+        }
+
+        private void UpdateTemplatePathDisplay()
+        {
+            if (_txtTemplatePath == null)
+                return;
+
+            string? configured = CatalogTemplateSettings.Load().TemplatePath;
+            string display = string.IsNullOrWhiteSpace(configured)
+                ? "(bundled CatalogBuilderTemplate.xlsx)"
+                : configured!;
+            _txtTemplatePath.Text = display;
+            _toolTip.SetToolTip(_txtTemplatePath, display + "\n(overrides bundled CatalogBuilderTemplate.xlsx)");
+        }
+
+        private void OnBrowseTemplate()
+        {
+            string? current = CatalogTemplateSettings.Load().TemplatePath;
+            string initialDir = !string.IsNullOrWhiteSpace(current) && File.Exists(current)
+                ? Path.GetDirectoryName(current)!
+                : File.Exists(DefaultStandardTemplatePath)
+                    ? Path.GetDirectoryName(DefaultStandardTemplatePath)!
+                    : Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+
+            using var dialog = new OpenFileDialog
+            {
+                Title = "Select standard Catalog Builder Excel template",
+                Filter = "Excel workbook (*.xlsx)|*.xlsx",
+                InitialDirectory = initialDir,
+                FileName = current != null ? Path.GetFileName(current) : "",
+            };
+
+            if (dialog.ShowDialog() != DialogResult.OK)
+                return;
+
+            CatalogTemplateSettings.Save(dialog.FileName);
+            CatalogExcelTemplateService.InvalidateTemplateCache();
+            CatalogExcelExportService.InvalidateTemplateCache();
+
+            UpdateTemplatePathDisplay();
+            RefreshExcelCloneCombo();
+            lblStatus.Text = "Catalog template set: " + Path.GetFileName(dialog.FileName);
+        }
+
+        /// <summary>
+        /// Lays out the Standard Library Parts group: the insert combos (Category, Part, DN,
+        /// Pressure class) and Insert button on top, then the Catalog Template browse row below.
+        /// </summary>
+        private void LayoutStandardLibraryPartsGroup()
+        {
+            _catalogLayoutSizing = true;
+            try
+            {
+                const int pad = 10;
+                const int labelW = 72;
+                const int rowH = 30;
+                int innerW = Math.Max(160, grpCatalogParts.ClientSize.Width - pad * 2);
+                int fieldX = pad + labelW;
+                int fieldW = Math.Max(80, innerW - labelW);
+
+                int y = 22;
+
+                void Row(Label label, Control field)
+                {
+                    label.SetBounds(pad, y + 3, labelW, 20);
+                    field.SetBounds(fieldX, y, fieldW, 23);
+                    y += rowH;
+                }
+
+                Row(lblCatalogCategory, cmbCatalogCategory);
+                Row(lblCatalogPart, cmbCatalogPart);
+                Row(lblCatalogDN, cmbCatalogDN);
+                Row(lblCatalogPressureClass, cmbCatalogPressureClass);
+
+                btnInsertCatalogPart.SetBounds(pad, y, innerW, 30);
+                y += 30 + 16;
+
+                if (_lblTemplatePath != null && _txtTemplatePath != null && _btnBrowseTemplate != null)
+                {
+                    const int browseW = 30;
+                    _lblTemplatePath.SetBounds(pad, y + 2, labelW, 20);
+                    _txtTemplatePath.SetBounds(fieldX, y, Math.Max(40, fieldW - browseW - 4), 23);
+                    _btnBrowseTemplate.SetBounds(pad + innerW - browseW, y, browseW, 23);
+                    y += rowH;
+                }
+
+                int neededClient = y + pad;
+                int neededHeight = neededClient + grpCatalogParts.Padding.Vertical + 20;
+                if (grpCatalogParts.Height != neededHeight)
+                    grpCatalogParts.Height = neededHeight;
+            }
+            finally
+            {
+                _catalogLayoutSizing = false;
+            }
         }
 
         private void BuildCatalogProjectPanel()
@@ -128,18 +261,6 @@ namespace Plant3DCatalogComposer
             _toolTip.SetToolTip(_cmbClassSch, "Pressure class or pipe schedule (depends on Category / Component / Prim. End)");
             RefreshClassSchCombo();
 
-            _lblCatalogTip = new Label { Text = "Tooltip:" };
-            _txtTooltipShort = new TextBox
-            {
-                Anchor = AnchorStyles.Top | AnchorStyles.Left,
-            };
-            _txtTooltipLong = new TextBox
-            {
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-            };
-            _toolTip.SetToolTip(_txtTooltipShort, "TooltipShort (@activate)");
-            _toolTip.SetToolTip(_txtTooltipLong, "TooltipLong (@activate)");
-
             _lblPartCategory = new Label { Text = "Category:" };
             _cmbPartCategory = new ComboBox
             {
@@ -201,7 +322,7 @@ namespace Plant3DCatalogComposer
             RefreshExcelCloneCombo();
             RefreshFacingCombo();
             UpdateFacingFieldState();
-            _toolTip.SetToolTip(_cmbExcelClone, "Excel clone template — suggested from Category, Component, End type, and Class/Sch");
+            _toolTip.SetToolTip(_cmbExcelClone, "Excel clone template — suggested from Category, Component, and Class/Sch (End type not used)");
 
             _grpCatalogProject.Controls.AddRange(new Control[]
             {
@@ -213,7 +334,6 @@ namespace Plant3DCatalogComposer
                 _lblCatalogDn, _cmbProjectDn,
                 _lblCatalogDn2, _cmbProjectDn2,
                 _lblClassSch, _cmbClassSch,
-                _lblCatalogTip, _txtTooltipShort, _txtTooltipLong,
                 _lblShortDescription, _txtShortDescription,
                 _lblExcelClone, _cmbExcelClone,
             });
@@ -243,10 +363,11 @@ namespace Plant3DCatalogComposer
 
             grpCatalogParts.Width = contentWidth;
             grpCatalogParts.Location = new Point(margin, y);
+            LayoutStandardLibraryPartsGroup();
             y = grpCatalogParts.Bottom + margin;
 
             grpSceneTools.Width = contentWidth;
-            grpSceneTools.Height = 120;
+            grpSceneTools.Height = 112;
             grpSceneTools.Location = new Point(margin, y);
             LayoutSceneToolsButtons();
             LayoutCatalogProjectFields();
@@ -257,10 +378,10 @@ namespace Plant3DCatalogComposer
         {
             const int pad = 10;
             const int gap = 8;
-            const int row1 = 22;
-            const int row2 = 54;
-            const int row3 = 86;
-            const int btnH = 28;
+            const int row1 = 18;
+            const int row2 = 48;
+            const int row3 = 78;
+            const int btnH = 26;
 
             int inner = Math.Max(120, grpSceneTools.ClientSize.Width - pad * 2);
             int colW = Math.Max(60, (inner - gap) / 2);
@@ -298,8 +419,6 @@ namespace Plant3DCatalogComposer
 
                 LoadPartFamilyFields(project);
 
-                _txtTooltipShort!.Text = project.TooltipShort ?? "";
-                _txtTooltipLong!.Text = project.TooltipLong ?? "";
                 UpdateScriptPreviewLabel(project);
                 RefreshCatalogPartList();
                 LayoutCatalogProjectFields();
@@ -692,7 +811,12 @@ namespace Plant3DCatalogComposer
         {
             CatalogPartLibrarySyncService.SyncFromDisk();
             RefreshCatalogPartList();
-            RefreshExcelCloneCombo();
+
+            // Preserve the user's current "Excel from" choice across the refresh — otherwise
+            // rebuilding the combo re-selects the inferred default (e.g. a Socket-Weld elbow),
+            // silently overriding a Butt-Weld selection right before Generate/Deploy reads it.
+            string? currentClone = _cmbExcelClone?.SelectedItem as string;
+            RefreshExcelCloneCombo(currentClone);
         }
 
         private void UpdateFacingFieldState()
@@ -800,8 +924,8 @@ namespace Plant3DCatalogComposer
                 dn2,
                 classSch.PressureClass,
                 classSch.PipeSchedule,
-                _txtTooltipShort?.Text ?? "",
-                _txtTooltipLong?.Text ?? "",
+                "",
+                "",
                 category,
                 pipingComponent,
                 primaryEnd,

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage
+    SchemaVersion="1.0"
+    AppVersion="1.0.0"
+    ProductCode="{B8A3F2E1-4C7D-4E9F-A1B2-3C4D5E6F7A8B}"
+    Name="Plant3DLineVisibility"
+    Description="Show/hide piping objects by Line Number"
+    Author=""
+    Icon="./Contents/icon.ico">
+
+  <CompanyDetails Name="" />
+
+  <Components>
+    <RuntimeRequirements
+        OS="Win64"
+        Platform="AutoCAD*"
+        SeriesMin="R24.5"
+        SeriesMax="R25.0" />
+
+    <ComponentEntry
+        AppName="Plant3DLineVisibility"
+        Version="1.0.0"
+        ModuleName="./Contents/Plant3DLineVisibility.dll"
+        AppDescription="Plant 3D Line Visibility Manager"
+        LoadOnAutoCADStartup="True"
+        LoadOnCommandInvocation="False">
+      <Commands>
+        <Command Global="P3DLINEVIS" Local="P3DLINEVIS" />
+        <Command Global="P3DLINESHOWALL" Local="P3DLINESHOWALL" />
+      </Commands>
+    </ComponentEntry>
+  </Components>
+
+</ApplicationPackage>

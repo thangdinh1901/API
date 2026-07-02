@@ -62,13 +62,16 @@
     </Content>
   </ItemGroup>
 
-  <!-- Keep valve/pipe template sheets in Resources before every build. -->
-  <Target Name="RefreshCatalogBuilderTemplate" BeforeTargets="BeforeBuild">
+  <!-- CatalogBuilderTemplate.xlsx now mirrors CATA_NUI.xlsx structure and is a tracked static
+       asset. The old RefreshCatalogBuilderTemplate target (which restored the legacy valve/pipe
+       template from git on every build) is intentionally disabled so it no longer overwrites the
+       CATA_NUI-based template. To update the bundled template, replace the file directly. -->
+  <!-- <Target Name="RefreshCatalogBuilderTemplate" BeforeTargets="BeforeBuild">
     <Exec WorkingDirectory="$(MSBuildProjectDirectory)\.."
           Command="python scripts/add_static_support_template_sheets.py"
           IgnoreExitCode="false"
           Condition="Exists('$(MSBuildProjectDirectory)\..\scripts\add_static_support_template_sheets.py')" />
-  </Target>
+  </Target> -->
 
   <!-- After Release/Debug build, copy DLL to ApplicationPlugins + CustomScripts (NETLOAD path). -->
   <Target Name="DeployPlant3DCatalogComposer" AfterTargets="Build" Condition="'$(SkipComposerDeploy)' != 'true'">

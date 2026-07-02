@@ -1,0 +1,38 @@
+# CPFLR  args=('s', 'L', 'D1', 'D2', 'ID')  allvars=('s', 'L', 'D1', 'D2', 'ID', 'kw', 'o0')
+# consts=['2.0', "('R', 'H', 'O')", '90', '(0.0, 0.0, 0.0)', '(-1.0, 0.0, 0.0)', '0.0', '(1.0, 0.0, 0.0)']
+   0 RESUME                   0
+   2 LOAD_GLOBAL              NULL + CYLINDER
+  14 LOAD_FAST                s
+  16 LOAD_FAST                D1
+  18 LOAD_CONST               2.0
+  20 BINARY_OP                /
+  24 LOAD_FAST                L
+  26 LOAD_FAST                D2
+  28 LOAD_CONST               2.0
+  30 BINARY_OP                /
+  34 KW_NAMES                 ('R', 'H', 'O')
+  36 PRECALL                  4
+  40 CALL                     4
+  50 LOAD_METHOD              rotateY
+  72 LOAD_CONST               90
+  74 PRECALL                  1
+  78 CALL                     1
+  88 STORE_FAST               o0
+  90 LOAD_FAST                s
+  92 LOAD_METHOD              setPoint
+ 114 LOAD_CONST               (0.0, 0.0, 0.0)
+ 116 LOAD_CONST               (-1.0, 0.0, 0.0)
+ 118 LOAD_CONST               0.0
+ 120 PRECALL                  3
+ 124 CALL                     3
+ 134 POP_TOP                  
+ 136 LOAD_FAST                s
+ 138 LOAD_METHOD              setPoint
+ 160 LOAD_CONST               (0.0, 0.0, 0.0)
+ 162 LOAD_CONST               (1.0, 0.0, 0.0)
+ 164 LOAD_CONST               0.0
+ 166 PRECALL                  3
+ 170 CALL                     3
+ 180 POP_TOP                  
+ 182 LOAD_CONST               None
+ 184 RETURN_VALUE             

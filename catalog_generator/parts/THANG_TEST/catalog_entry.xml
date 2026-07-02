@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<ArrayOfScript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
-	<Script Name="CUST_THANG_TEST" LDesId="CUST_THANG_TEST_L" SDesId="CUST_THANG_TEST" ConnPortNum="2" LengthUnit="mm" >
-		<Params>
-			<Param Name="DN" LDesId="CUST_THANG_TEST.DN" SDesId="CUST_THANG_TEST.DN" Type="INT" Ask4Dist="false" Value="50" />
-		</Params>
-	</Script>
-</ArrayOfScript>

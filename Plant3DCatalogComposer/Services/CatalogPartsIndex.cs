@@ -14,12 +14,9 @@ namespace Plant3DCatalogComposer.Services
             if (!Directory.Exists(partsRoot))
                 return ids;
 
-            foreach (string partDir in Directory.EnumerateDirectories(partsRoot))
+            foreach (string partDir in CatalogPartsDiscovery.EnumerateActivePartDirectories(partsRoot))
             {
                 string partId = Path.GetFileName(partDir);
-                if (StandardCatalogGuard.IsSandboxDirectory(partId))
-                    continue;
-
                 if (File.Exists(Path.Combine(partDir, "part.json")))
                     ids.Add(partId);
             }
@@ -34,15 +31,17 @@ namespace Plant3DCatalogComposer.Services
             if (!Directory.Exists(partsRoot))
                 return active;
 
-            foreach (string partDir in Directory.EnumerateDirectories(partsRoot))
+            foreach (string partDir in CatalogPartsDiscovery.EnumerateActivePartDirectories(partsRoot))
             {
                 string partId = Path.GetFileName(partDir);
-                if (StandardCatalogGuard.IsSandboxDirectory(partId))
-                    continue;
-
                 if (File.Exists(Path.Combine(partDir, "catalog_entry.py")))
                     active.Add(partId);
             }
+
+            // Composite parts under parts/CUSTOM/<name>/ deploy as CUST_<name> too — count them
+            // as active so RemoveOrphanedCatalogParts never prunes freshly deployed custom parts.
+            foreach (string partDir in CatalogPartsDiscovery.EnumerateCustomPartDirectories(partsRoot))
+                active.Add(Path.GetFileName(partDir));
 
             return active;
         }

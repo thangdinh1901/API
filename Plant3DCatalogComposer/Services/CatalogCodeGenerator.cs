@@ -70,13 +70,15 @@ namespace Plant3DCatalogComposer.Services
                     : null;
                 ClassName = ResolveGeometryClassName(project, ScriptName, LibraryPartId, LibraryClassName);
                 AddPorts = ResolveAddPorts(project, LibraryPartId, LibraryReferenceOnly);
+                string? excelCloneId = ResolveExcelClonePartId(project, LibraryPartId);
                 PortCount = project.Ports.Count > 0
                     ? project.Ports.Count
                     : Math.Max(LibraryReferenceOnly ? CountLibraryPorts(LibraryPartId) : 0,
                         CatalogPortTemplates.CountPortsInAddPorts(AddPorts));
+                PortCount = ApplyValveCatalogPortDefaults(project, PortCount, excelCloneId);
                 if (PortCount == 0 && project.Parts.Count == 0)
                     PortCount = 1;
-                FirstPortEndtypes = ResolveFirstPortEndtypes(project, PortCount, LibraryPartId);
+                FirstPortEndtypes = ResolveFirstPortEndtypes(project, PortCount, LibraryPartId, excelCloneId);
                 Group = ResolveGroup(project, LibraryPartId, FirstPortEndtypes);
             }
 
@@ -92,20 +94,8 @@ namespace Plant3DCatalogComposer.Services
 
         private static bool IsLibraryReferenceOnly(ValveProject project, string? libraryPartId)
         {
-            if (libraryPartId == null || project.Ports.Count > 0 || project.Operations.Count > 0)
-                return false;
-
-            if (project.Parts.Count != 1)
-                return false;
-
-            PrimitiveNode part = project.Parts[0];
-            if (part.Kind != SceneNodeKind.Catalog)
-                return false;
-
-            if (HasNonIdentityTransform(part))
-                return false;
-
-            return CustomPartCatalog.FindById(libraryPartId) != null;
+            // Library-reference scenes required a single Catalog node; those no longer exist.
+            return false;
         }
 
         private static bool HasNonIdentityTransform(PrimitiveNode part)
@@ -127,13 +117,8 @@ namespace Plant3DCatalogComposer.Services
 
         private static string? TryGetSingleLibraryPartId(ValveProject project)
         {
-            if (project.Parts.Count != 1)
-                return null;
-
-            PrimitiveNode part = project.Parts[0];
-            return part.Kind == SceneNodeKind.Catalog && !string.IsNullOrEmpty(part.CatalogPartId)
-                ? part.CatalogPartId
-                : null;
+            // Catalog nodes no longer exist; scenes are built purely from primitives.
+            return null;
         }
 
         private static int CountLibraryPorts(string? libraryPartId)
@@ -145,15 +130,25 @@ namespace Plant3DCatalogComposer.Services
             return CatalogPortTemplates.CountPortsInAddPorts(addPorts);
         }
 
+        private static string? ResolveExcelClonePartId(ValveProject project, string? libraryPartId)
+        {
+            if (!string.IsNullOrWhiteSpace(project.ExcelCloneSourcePartId))
+                return project.ExcelCloneSourcePartId.Trim();
+
+            return libraryPartId;
+        }
+
+        private static int ApplyValveCatalogPortDefaults(ValveProject project, int portCount, string? excelCloneId)
+        {
+            if (project.Ports.Count > 0)
+                return portCount;
+
+            int minimum = CatalogValveExcelTemplates.MinimumConnectionPortCount(excelCloneId);
+            return minimum > 0 ? Math.Max(portCount, minimum) : portCount;
+        }
+
         private static string ResolveScriptName(ValveProject project)
         {
-            if (project.Parts.Count == 1 &&
-                project.Parts[0].Kind == SceneNodeKind.Catalog &&
-                !string.IsNullOrWhiteSpace(project.Parts[0].CatalogPartId))
-            {
-                return $"CUST_{project.Parts[0].CatalogPartId}";
-            }
-
             string baseName = string.IsNullOrWhiteSpace(project.ValveName)
                 ? "COMPOSER_PART"
                 : SanitizeId(project.ValveName);
@@ -176,13 +171,18 @@ namespace Plant3DCatalogComposer.Services
             return CatalogGroupResolver.Resolve(userGroup, project.Ports, firstPortEndtypes);
         }
 
-        private static string ResolveFirstPortEndtypes(ValveProject project, int portCount, string? libraryPartId)
+        private static string ResolveFirstPortEndtypes(
+            ValveProject project,
+            int portCount,
+            string? libraryPartId,
+            string? excelCloneId)
         {
             if (project.Ports.Count > 0)
                 return CatalogPortTemplates.InferFirstPortEndtypesFromProject(project);
 
-            if (!string.IsNullOrEmpty(libraryPartId))
-                return CatalogPortTemplates.InferFirstPortEndtypes(libraryPartId, portCount);
+            string? templateId = !string.IsNullOrEmpty(excelCloneId) ? excelCloneId : libraryPartId;
+            if (!string.IsNullOrEmpty(templateId))
+                return CatalogPortTemplates.InferFirstPortEndtypes(templateId, portCount);
 
             return CatalogPortTemplates.InferFirstPortEndtypesFromPrimaryEnd(project, portCount);
         }
@@ -561,7 +561,12 @@ __all__ = [""{ctx.LibraryClassName}""]";
             sb.AppendLine("    BoxWithFillet, CylinderChamfered, CylinderWithFillet, Fillet,");
             sb.AppendLine("    ShapeObject,");
             sb.AppendLine(")");
-            AppendCatalogPartImports(sb, ctx.Project);
+
+            // Import geometry classes for any inserted catalog (native library) parts so the
+            // composite can call them (e.g. FLANGE_WN_CL150_RF). Deployed flat to CustomScripts.
+            foreach ((string partId, string className) in CollectCatalogClassImports(ctx.Project))
+                sb.AppendLine($"from CUST_{partId} import {className}");
+
             sb.AppendLine();
             int defaultDn = DefaultCatalogDn(ctx.Project);
             IReadOnlyList<(string Name, double Value)> exportDims =
@@ -571,7 +576,10 @@ __all__ = [""{ctx.LibraryClassName}""]";
                 : ", " + string.Join(", ", exportDims.Select(d =>
                     $"{d.Name}={d.Value.ToString(CultureInfo.InvariantCulture)}"));
             sb.AppendLine($"class {ctx.ClassName}(ShapeObject):");
-            sb.AppendLine($"    def __init__(self, s, DN={defaultDn}{dimSig}, *, add_ports=True):");
+            // Accept **_ so the catalog_entry wrapper can forward legacy kwargs (BodyOD, L, D1, …)
+            // that this class does not declare, without raising "unexpected keyword argument". Only
+            // the declared design dimensions above drive geometry; extras are ignored for now.
+            sb.AppendLine($"    def __init__(self, s, DN={defaultDn}{dimSig}, *, add_ports=True, **_):");
             sb.AppendLine("        # --- geometry (scene graph) ---");
             sb.AppendLine(ctx.BuildBody);
             sb.AppendLine(@"        super().__init__(geom.obj if hasattr(geom, ""obj"") else geom)
@@ -582,18 +590,21 @@ __all__ = [""{ctx.LibraryClassName}""]";
             return sb.ToString();
         }
 
-        private static void AppendCatalogPartImports(StringBuilder sb, ValveProject project)
+        /// <summary>Distinct (partId, geometryClassName) for Catalog nodes so the composite imports them.</summary>
+        private static IEnumerable<(string PartId, string ClassName)> CollectCatalogClassImports(ValveProject project)
         {
-            foreach (string partId in project.Parts
-                         .Where(p => p.Kind == SceneNodeKind.Catalog && !string.IsNullOrEmpty(p.CatalogPartId))
-                         .Select(p => p.CatalogPartId!)
-                         .Distinct(StringComparer.OrdinalIgnoreCase))
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (PrimitiveNode part in project.Parts)
             {
-                string? flatImport = CatalogPortTemplates.TryBuildFlatCatalogImport(partId);
-                if (!string.IsNullOrEmpty(flatImport))
-                    sb.AppendLine(flatImport);
-                else
-                    sb.AppendLine($"from CUST_{partId} import CUST_{partId}");
+                if (part.Kind != SceneNodeKind.Catalog || string.IsNullOrEmpty(part.CatalogPartId))
+                    continue;
+                if (!seen.Add(part.CatalogPartId!))
+                    continue;
+
+                string? cls = CatalogPortTemplates.TryResolveLibraryClassName(part.CatalogPartId!);
+                if (string.IsNullOrEmpty(cls))
+                    cls = Regex.Replace(part.CatalogPartId!, @"[^A-Za-z0-9_]", "");
+                yield return (part.CatalogPartId!, cls);
             }
         }
 
@@ -603,21 +614,6 @@ __all__ = [""{ctx.LibraryClassName}""]";
             string? libraryPartId,
             string? libraryClassName)
         {
-            if (project.Ports.Count > 0 &&
-                libraryPartId != null &&
-                !string.IsNullOrEmpty(libraryClassName))
-            {
-                return libraryClassName + "Composer";
-            }
-
-            if (!project.Parts.Any(p => p.Kind != SceneNodeKind.Catalog) &&
-                project.Parts.Count(p => p.Kind == SceneNodeKind.Catalog) == 1 &&
-                libraryClassName != null &&
-                (project.Ports.Count > 0 || project.Operations.Count > 0 || project.Parts.Any(HasNonIdentityTransform)))
-            {
-                return libraryClassName + "Composer";
-            }
-
             return ToClassName(scriptName);
         }
 

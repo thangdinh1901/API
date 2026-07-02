@@ -95,7 +95,7 @@ namespace Plant3DCatalogComposer.Services
             var rows = new List<CatalogExcelPartRow>();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-            foreach (CustomPartDefinition part in CustomPartCatalog.InsertableParts)
+            foreach (CustomPartDefinition part in CustomPartCatalog.ExportableParts)
             {
                 if (seen.Add(part.Id))
                     TryAddPart(rows, part);

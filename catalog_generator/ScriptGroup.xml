@@ -1,39 +1,54 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <ScriptInfo>
 	<ScriptGroup>
-		<ScriptName>CUST_BLD_FLRF_CL150</ScriptName>
-		<Group>BlindFlange</Group>
-		<FirstPortEndtypes>FL</FirstPortEndtypes>
-	</ScriptGroup>
-	<ScriptGroup>
-		<ScriptName>CUST_ELBOW_45_LR_BW_SCH40</ScriptName>
+		<ScriptName>CUST_BEND_3D_JACOB</ScriptName>
 		<Group>Fitting</Group>
-		<FirstPortEndtypes>BV,BV</FirstPortEndtypes>
-	</ScriptGroup>
-	<ScriptGroup>
-		<ScriptName>CUST_ELBOW_45_SW_CL3000</ScriptName>
-		<Group>Fitting</Group>
-		<FirstPortEndtypes>SW,SW</FirstPortEndtypes>
-	</ScriptGroup>
-	<ScriptGroup>
-		<ScriptName>CUST_ELBOW_90_LR_BW_SCH40</ScriptName>
-		<Group>Fitting</Group>
-		<FirstPortEndtypes>BV,BV</FirstPortEndtypes>
-	</ScriptGroup>
-	<ScriptGroup>
-		<ScriptName>CUST_ELBOW_90_SR_BW_SCH40</ScriptName>
-		<Group>Fitting</Group>
-		<FirstPortEndtypes>BV,BV</FirstPortEndtypes>
-	</ScriptGroup>
-	<ScriptGroup>
-		<ScriptName>CUST_ELBOW_90_SW_CL3000</ScriptName>
-		<Group>Fitting</Group>
-		<FirstPortEndtypes>SW,SW</FirstPortEndtypes>
-	</ScriptGroup>
-	<ScriptGroup>
-		<ScriptName>CUST_GATEVALVE_DN50_150</ScriptName>
-		<Group>Valve</Group>
 		<FirstPortEndtypes>FL,FL</FirstPortEndtypes>
+	</ScriptGroup>
+	<ScriptGroup>
+		<ScriptName>CUST_BLIND_FLANGE_CL150_RF</ScriptName>
+		<Group>BlindFlange</Group>
+		<FirstPortEndtypes>FL,FL</FirstPortEndtypes>
+	</ScriptGroup>
+	<ScriptGroup>
+		<ScriptName>CUST_ELBOW_45_3000_SW</ScriptName>
+		<Group>Elbow</Group>
+		<FirstPortEndtypes>SW,SW</FirstPortEndtypes>
+	</ScriptGroup>
+	<ScriptGroup>
+		<ScriptName>CUST_ELBOW_45_SCH40_BW</ScriptName>
+		<Group>Elbow</Group>
+		<FirstPortEndtypes>BV,BV</FirstPortEndtypes>
+	</ScriptGroup>
+	<ScriptGroup>
+		<ScriptName>CUST_ELBOW_90_3000_SW</ScriptName>
+		<Group>Elbow</Group>
+		<FirstPortEndtypes>SW,SW</FirstPortEndtypes>
+	</ScriptGroup>
+	<ScriptGroup>
+		<ScriptName>CUST_ELBOW_90_SCH40_BW</ScriptName>
+		<Group>Elbow</Group>
+		<FirstPortEndtypes>BV,BV</FirstPortEndtypes>
+	</ScriptGroup>
+	<ScriptGroup>
+		<ScriptName>CUST_FLANGE_LJ_RF_CL150</ScriptName>
+		<Group>Flange</Group>
+		<FirstPortEndtypes>FL,LAP</FirstPortEndtypes>
+	</ScriptGroup>
+	<ScriptGroup>
+		<ScriptName>CUST_FLANGE_SO_CL150_RF</ScriptName>
+		<Group>Flange</Group>
+		<FirstPortEndtypes>FL,SO</FirstPortEndtypes>
+	</ScriptGroup>
+	<ScriptGroup>
+		<ScriptName>CUST_FLANGE_SW_CL150_RF</ScriptName>
+		<Group>Flange</Group>
+		<FirstPortEndtypes>FL,SW</FirstPortEndtypes>
+	</ScriptGroup>
+	<ScriptGroup>
+		<ScriptName>CUST_FLANGE_WN_CL150_RF</ScriptName>
+		<Group>Flange</Group>
+		<FirstPortEndtypes>FL,BV</FirstPortEndtypes>
 	</ScriptGroup>
 	<ScriptGroup>
 		<ScriptName>CUST_GSK_FF_CL150</ScriptName>
@@ -46,68 +61,48 @@
 		<FirstPortEndtypes>FL,FL</FirstPortEndtypes>
 	</ScriptGroup>
 	<ScriptGroup>
-		<ScriptName>CUST_LJ_RING_CL150_RF</ScriptName>
-		<Group>Flange</Group>
-		<FirstPortEndtypes>FL,LAP</FirstPortEndtypes>
-	</ScriptGroup>
-	<ScriptGroup>
-		<ScriptName>CUST_REDUCER_CONC_BW_SCH40</ScriptName>
-		<Group>Fitting</Group>
+		<ScriptName>CUST_PIPE_SCH40_BV</ScriptName>
+		<Group>Pipe</Group>
 		<FirstPortEndtypes>BV,BV</FirstPortEndtypes>
 	</ScriptGroup>
 	<ScriptGroup>
-		<ScriptName>CUST_REDUCER_ECC_BW_SCH40</ScriptName>
-		<Group>Fitting</Group>
+		<ScriptName>CUST_PIPE_SCH80_PL</ScriptName>
+		<Group>Pipe</Group>
+		<FirstPortEndtypes>PL,PL</FirstPortEndtypes>
+	</ScriptGroup>
+	<ScriptGroup>
+		<ScriptName>CUST_REDUCER_CONC_STD_BW</ScriptName>
+		<Group>Reducer</Group>
 		<FirstPortEndtypes>BV,BV</FirstPortEndtypes>
 	</ScriptGroup>
 	<ScriptGroup>
-		<ScriptName>CUST_SO_FLRF_CL150</ScriptName>
-		<Group>Flange</Group>
-		<FirstPortEndtypes>FL,SO</FirstPortEndtypes>
+		<ScriptName>CUST_REDUCER_ECC_STD_BW</ScriptName>
+		<Group>Reducer</Group>
+		<FirstPortEndtypes>BV,BV</FirstPortEndtypes>
 	</ScriptGroup>
 	<ScriptGroup>
-		<ScriptName>CUST_STUBEND_LJ_A_BW_SCH40</ScriptName>
-		<Group>Fastener</Group>
+		<ScriptName>CUST_STUB_END_LONG_SCH40_BW</ScriptName>
+		<Group>StubEnd</Group>
 		<FirstPortEndtypes>LAP,BV</FirstPortEndtypes>
 	</ScriptGroup>
 	<ScriptGroup>
-		<ScriptName>CUST_STUBEND_LJ_A_SH_BW_SCH40</ScriptName>
-		<Group>Fastener</Group>
-		<FirstPortEndtypes>LAP,BV</FirstPortEndtypes>
+		<ScriptName>CUST_TEE_EQUAL_3000_SW</ScriptName>
+		<Group>Tee</Group>
+		<FirstPortEndtypes>SW,SW</FirstPortEndtypes>
 	</ScriptGroup>
 	<ScriptGroup>
-		<ScriptName>CUST_TEE_EQ_BW_SCH40</ScriptName>
-		<Group>Fitting</Group>
-		<FirstPortEndtypes>BV,BV,BV</FirstPortEndtypes>
+		<ScriptName>CUST_TEE_EQUAL_SCH40_BW</ScriptName>
+		<Group>Tee</Group>
+		<FirstPortEndtypes>BV,BV</FirstPortEndtypes>
 	</ScriptGroup>
 	<ScriptGroup>
-		<ScriptName>CUST_TEE_EQ_SW_CL3000</ScriptName>
-		<Group>Fitting</Group>
-		<FirstPortEndtypes>SW,SW,SW</FirstPortEndtypes>
+		<ScriptName>CUST_TEE_RED_3000_SW</ScriptName>
+		<Group>Tee</Group>
+		<FirstPortEndtypes>SW,SW</FirstPortEndtypes>
 	</ScriptGroup>
 	<ScriptGroup>
-		<ScriptName>CUST_TEE_REDUCE_BW_SCH40</ScriptName>
-		<Group>Fitting</Group>
-		<FirstPortEndtypes>BV,BV,BV</FirstPortEndtypes>
-	</ScriptGroup>
-	<ScriptGroup>
-		<ScriptName>CUST_TEE_REDUCE_SW_CL3000</ScriptName>
-		<Group>Fitting</Group>
-		<FirstPortEndtypes>SW,SW,SW</FirstPortEndtypes>
-	</ScriptGroup>
-	<ScriptGroup>
-		<ScriptName>CUST_TEST_BEND_3D</ScriptName>
-		<Group>Fitting</Group>
-		<FirstPortEndtypes>FL,FL</FirstPortEndtypes>
-	</ScriptGroup>
-	<ScriptGroup>
-		<ScriptName>CUST_THANG_TEST</ScriptName>
-		<Group>Valve</Group>
-		<FirstPortEndtypes>FL,FL</FirstPortEndtypes>
-	</ScriptGroup>
-	<ScriptGroup>
-		<ScriptName>CUST_WN_FLRF_CL150</ScriptName>
-		<Group>Flange</Group>
-		<FirstPortEndtypes>FL,BV</FirstPortEndtypes>
+		<ScriptName>CUST_TEE_RED_SCH40_BW</ScriptName>
+		<Group>Tee</Group>
+		<FirstPortEndtypes>BV,BV</FirstPortEndtypes>
 	</ScriptGroup>
 </ScriptInfo>

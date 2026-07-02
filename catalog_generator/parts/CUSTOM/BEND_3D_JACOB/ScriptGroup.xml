@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScriptInfo>
+	<ScriptGroup>
+		<ScriptName>CUST_BEND_3D_JACOB</ScriptName>
+		<Group>Fitting</Group>
+		<FirstPortEndtypes>FL,FL</FirstPortEndtypes>
+	</ScriptGroup>
+</ScriptInfo>

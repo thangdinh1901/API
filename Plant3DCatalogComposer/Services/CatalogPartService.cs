@@ -15,11 +15,8 @@ namespace Plant3DCatalogComposer.Services
             if (!part.IsStandardCatalog)
                 throw new InvalidOperationException($"'{part.DisplayName}' is not an insertable catalog part.");
 
-            if (dnOverride is > 0)
-            {
-                project.Parameters.DN = dnOverride.Value;
-            }
-
+            // dnOverride is the DN chosen in Standard Library Parts. It sizes THIS node
+            // only (via ResolveParamValue) — it must NOT overwrite the Part Family / skeleton DN.
             string prefix = ShortPrefix(part.Id);
             var node = new PrimitiveNode
             {

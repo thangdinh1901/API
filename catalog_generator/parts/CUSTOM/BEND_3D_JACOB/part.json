@@ -1,0 +1,23 @@
+{
+  "role": "standard",
+  "id": "BEND_3D_JACOB",
+  "displayName": "TRIAL 1ST",
+  "category": "Fittings",
+  "group": "Fitting",
+  "defaultDN": 100,
+  "pressureClass": "150",
+  "parametricDN": true,
+  "catalogParams": [
+    {
+      "name": "DN",
+      "label": "DN",
+      "useSkeletonDN": true,
+      "default": 100
+    }
+  ],
+  "primaryEndType": "FL",
+  "pnpClassName": "Elbow",
+  "shortDescription": "TRIAL 1ST",
+  "excelCloneSourcePartId": "ELBOW 90_SCH40_BW",
+  "flangeFacing": "RF"
+}

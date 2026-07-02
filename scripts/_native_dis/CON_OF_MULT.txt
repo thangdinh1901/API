@@ -1,0 +1,8 @@
+# [var_basic] CON_OF_MULT('Val',)
+  RESUME               0
+  LOAD_FAST            Val
+  LOAD_CONST           1.1
+  BINARY_OP            *
+  STORE_FAST           retVal
+  LOAD_FAST            retVal
+  RETURN_VALUE         

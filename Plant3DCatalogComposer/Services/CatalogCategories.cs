@@ -45,6 +45,8 @@ namespace Plant3DCatalogComposer.Services
             return raw switch
             {
                 "Flange" => Flanges,
+                "Pipes" => Pipe,
+                "Fitting" => Fittings,
                 "Gasket" => Fasteners,
                 "Buttwelded" or "Threaded" or "Socketwelded" => Fittings,
                 _ => Fittings,

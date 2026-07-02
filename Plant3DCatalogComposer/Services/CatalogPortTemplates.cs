@@ -34,7 +34,11 @@ namespace Plant3DCatalogComposer.Services
             if (string.IsNullOrWhiteSpace(catalogPartId))
                 return null;
 
-            string path = Path.Combine(PartsRoot, catalogPartId, "catalog_entry.py");
+            string? partDir = CatalogPartsDiscovery.ResolveCatalogPartDirectory(PartsRoot, catalogPartId);
+            if (partDir == null)
+                return null;
+
+            string path = Path.Combine(partDir, "catalog_entry.py");
             return File.Exists(path) ? File.ReadAllText(path) : null;
         }
 
@@ -73,7 +77,11 @@ namespace Plant3DCatalogComposer.Services
             if (string.IsNullOrWhiteSpace(catalogPartId))
                 return null;
 
-            string path = Path.Combine(PartsRoot, catalogPartId, "catalog_entry.xml");
+            string? partDir = CatalogPartsDiscovery.ResolveCatalogPartDirectory(PartsRoot, catalogPartId);
+            if (partDir == null)
+                return null;
+
+            string path = Path.Combine(partDir, "catalog_entry.xml");
             return File.Exists(path) ? File.ReadAllText(path) : null;
         }
 
@@ -98,6 +106,12 @@ namespace Plant3DCatalogComposer.Services
         {
             if (portCount <= 0)
                 return "FL";
+
+            if (!string.IsNullOrWhiteSpace(catalogPartId)
+                && CatalogValveExcelTemplates.IsValveTemplate(catalogPartId))
+            {
+                return CatalogValveExcelTemplates.InferFirstPortEndtypes(catalogPartId, portCount);
+            }
 
             if (!string.IsNullOrWhiteSpace(catalogPartId))
             {
@@ -232,12 +246,14 @@ namespace Plant3DCatalogComposer.Services
                 },
                 RegexOptions.Multiline);
 
+            // Map nested CUST_* calls to library class names when available.
             geometry = Regex.Replace(
                 geometry,
                 @"CUST_([A-Z0-9_]+)\(s,\s*DN=(\d+)(?:,\s*CEL=([\d.]+))?(?:,\s*preview=True)?\)",
                 m =>
                 {
-                    string? cls = TryResolveLibraryClassName(m.Groups[1].Value);
+                    string partId = m.Groups[1].Value;
+                    string? cls = CatalogPortTemplates.TryResolveLibraryClassName(partId);
                     if (cls == null)
                         return m.Value;
 
@@ -257,15 +273,15 @@ namespace Plant3DCatalogComposer.Services
 
         private static string? FindGeometryScript(string catalogPartId)
         {
-            string nested = Path.Combine(
-                PartsRoot,
-                catalogPartId,
-                catalogPartId,
-                $"CUST_{catalogPartId}.py");
+            string? partDir = CatalogPartsDiscovery.ResolveCatalogPartDirectory(PartsRoot, catalogPartId);
+            if (partDir == null)
+                return null;
+
+            string nested = Path.Combine(partDir, catalogPartId, $"CUST_{catalogPartId}.py");
             if (File.Exists(nested))
                 return nested;
 
-            string flat = Path.Combine(PartsRoot, catalogPartId, $"CUST_{catalogPartId}.py");
+            string flat = Path.Combine(partDir, $"CUST_{catalogPartId}.py");
             return File.Exists(flat) ? flat : null;
         }
     }

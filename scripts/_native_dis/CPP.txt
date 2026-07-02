@@ -1,0 +1,62 @@
+# CPP  args=('s', 'D', 'L', 'OF', 'ID')  allvars=('s', 'D', 'L', 'OF', 'ID', 'kw', 'DI', 'oTH')
+# consts=['0.0', "('D', 'OF')", '0', '2.0', "('R', 'H', 'O')", '90.0', '(0.0, 0.0, 0.0)', '(-1.0, 0.0, 0.0)', '(1.0, 0.0, 0.0)']
+   0 RESUME                   0
+   2 LOAD_FAST                L
+   4 LOAD_CONST               0.0
+   6 COMPARE_OP               ==
+  12 POP_JUMP_FORWARD_IF_FALSE to 28
+  14 LOAD_GLOBAL              defaultPipeLength
+  26 STORE_FAST               L
+  28 LOAD_GLOBAL              NULL + getInsideDiameter
+  40 LOAD_FAST                D
+  42 LOAD_FAST                OF
+  44 KW_NAMES                 ('D', 'OF')
+  46 PRECALL                  2
+  50 CALL                     2
+  60 STORE_FAST               DI
+  62 LOAD_FAST                L
+  64 LOAD_CONST               0
+  66 COMPARE_OP               >
+  72 POP_JUMP_FORWARD_IF_FALSE to 164
+  74 LOAD_GLOBAL              NULL + CYLINDER
+  86 LOAD_FAST                s
+  88 LOAD_FAST                D
+  90 LOAD_CONST               2.0
+  92 BINARY_OP                /
+  96 LOAD_FAST                L
+  98 LOAD_FAST                DI
+ 100 LOAD_CONST               2.0
+ 102 BINARY_OP                /
+ 106 KW_NAMES                 ('R', 'H', 'O')
+ 108 PRECALL                  4
+ 112 CALL                     4
+ 122 LOAD_METHOD              rotateY
+ 144 LOAD_CONST               90.0
+ 146 PRECALL                  1
+ 150 CALL                     1
+ 160 STORE_FAST               oTH
+ 162 JUMP_FORWARD             to 170
+ 164 LOAD_FAST                L
+ 166 UNARY_NEGATIVE           
+ 168 STORE_FAST               L
+ 170 LOAD_FAST                s
+ 172 LOAD_METHOD              setPoint
+ 194 LOAD_CONST               (0.0, 0.0, 0.0)
+ 196 LOAD_CONST               (-1.0, 0.0, 0.0)
+ 198 LOAD_CONST               0.0
+ 200 PRECALL                  3
+ 204 CALL                     3
+ 214 POP_TOP                  
+ 216 LOAD_FAST                s
+ 218 LOAD_METHOD              setPoint
+ 240 LOAD_FAST                L
+ 242 LOAD_CONST               0.0
+ 244 LOAD_CONST               0.0
+ 246 BUILD_TUPLE              3
+ 248 LOAD_CONST               (1.0, 0.0, 0.0)
+ 250 LOAD_CONST               0.0
+ 252 PRECALL                  3
+ 256 CALL                     3
+ 266 POP_TOP                  
+ 268 LOAD_CONST               None
+ 270 RETURN_VALUE             

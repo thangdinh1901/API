@@ -45,10 +45,7 @@ namespace Plant3DCatalogComposer.Services
             bool erasePreviewGeometry = true)
         {
             string registerBlock = registerScripts
-                ? "(setq _p3d_cmdecho (getvar \"CMDECHO\")) (setvar \"CMDECHO\" 0) " +
-                  "(command-s \"_.PLANTREGISTERCUSTOMSCRIPTS\") " +
-                  "(while (> (getvar \"CMDACTIVE\") 0) (progn)) " +
-                  "(setvar \"CMDECHO\" _p3d_cmdecho) "
+                ? BuildRegisterBlock()
                 : "";
 
             // Erase preview bodies before catalog test (twice — old drawings may keep Plant preview solids).
@@ -64,5 +61,18 @@ namespace Plant3DCatalogComposer.Services
             _ = sequence;
             return WrapProgn(eraseBlock, registerBlock + testacpscriptInvoke);
         }
+
+        /// <summary>
+        /// Run PLANTREGISTERCUSTOMSCRIPTS and block until CMDACTIVE=0 so spec insert sees fresh symbols.
+        /// </summary>
+        public static string BuildRegisterCustomScripts() =>
+            WrapProgn("", BuildRegisterBlock());
+
+        private static string BuildRegisterBlock() =>
+            "(setq _p3d_cmdecho (getvar \"CMDECHO\")) (setvar \"CMDECHO\" 0) " +
+            "(command-s \"_.PLANTREGISTERCUSTOMSCRIPTS\") " +
+            "(while (> (getvar \"CMDACTIVE\") 0) (progn)) " +
+            "(setvar \"CMDECHO\" _p3d_cmdecho) " +
+            "(princ \"\\nP3D Composer: PLANTREGISTERCUSTOMSCRIPTS finished.\") ";
     }
 }

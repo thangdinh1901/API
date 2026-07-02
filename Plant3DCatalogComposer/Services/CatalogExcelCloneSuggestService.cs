@@ -52,6 +52,12 @@ namespace Plant3DCatalogComposer.Services
             string component = pipingComponent?.Trim() ?? "";
             string end = Plant3DEndTypes.NormalizeCode(primaryEndType);
 
+            // A user-configured catalog (e.g. CATA_NUI.xlsx) is a curated workbook whose sheet names
+            // do not follow the legacy "{PartId},{End},{Class}" convention. Trust every curated sheet
+            // and surface it filtered only by Component / Class-Sch (Primary End is intentionally ignored).
+            if (CatalogTemplateSettings.ResolveConfiguredTemplatePath() != null)
+                return ListFromConfiguredTemplate(category, component, pressureClass, pipeSchedule);
+
             // Valves: always offer the canonical valve clone templates (best end/class match first).
             // The physical sheet is imported on demand by EnsurePartSheet, so the dropdown does not
             // depend on whether the workbook already contains VALVE_* sheets.
@@ -61,22 +67,95 @@ namespace Plant3DCatalogComposer.Services
             IEnumerable<string> candidates = SafeListAllTemplates()
                 .Where(id => IsKnownCloneSource(id, category));
 
-            // Exact match: family + end + class/schedule.
+            // Primary End type is intentionally NOT used to filter the "Excel from:" list — the
+            // dropdown is constrained only by Category / Component and the explicit Class/Sch field.
+            // (end is still used below for ranking the default selection.)
             var matched = candidates
-                .Where(id => CatalogPartFamilySuggestService.TemplateMatchesPartFamily(id, category, component, end))
-                .Where(id => CatalogPartFamilySuggestService.TemplateMatchesClassSchedule(id, end, pressureClass, pipeSchedule))
+                .Where(id => CatalogPartFamilySuggestService.TemplateMatchesPartFamily(id, category, component, ""))
+                .Where(id => CatalogPartFamilySuggestService.TemplateMatchesClassScheduleNoEnd(id, pressureClass, pipeSchedule))
                 .ToList();
 
             IReadOnlyList<string> ranked = RankMatches(category, component, end, pressureClass, pipeSchedule, matched);
             if (ranked.Count > 0)
                 return ranked;
 
-            // Relax class/schedule — still family + end matched.
+            // Relax class/schedule — still family matched (end-neutral).
             matched = candidates
-                .Where(id => CatalogPartFamilySuggestService.TemplateMatchesPartFamily(id, category, component, end))
+                .Where(id => CatalogPartFamilySuggestService.TemplateMatchesPartFamily(id, category, component, ""))
                 .ToList();
 
             return RankMatches(category, component, end, pressureClass, pipeSchedule, matched);
+        }
+
+        /// <summary>
+        /// Suggestion list for a user-configured catalog workbook. Every non-meta sheet is a valid
+        /// clone source; the list is narrowed by a loose Component/Category keyword and the explicit
+        /// Class/Sch, never by Primary End type. Falls back to the full list if a filter empties it.
+        /// </summary>
+        private static IReadOnlyList<string> ListFromConfiguredTemplate(
+            string category,
+            string component,
+            string? pressureClass,
+            string? pipeSchedule)
+        {
+            IReadOnlyList<string> all = SafeListAllTemplates();
+            if (all.Count == 0)
+                return all;
+
+            var byComponent = all
+                .Where(id => MatchesLooseComponent(id, category, component))
+                .ToList();
+            List<string> pool = byComponent.Count > 0 ? byComponent : all.ToList();
+
+            var byClass = pool
+                .Where(id => CatalogPartFamilySuggestService.TemplateMatchesClassScheduleNoEnd(
+                    id, pressureClass, pipeSchedule))
+                .ToList();
+            List<string> final = byClass.Count > 0 ? byClass : pool;
+
+            return final
+                .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        /// <summary>Keyword match tolerant of real catalog sheet names ("FLANGE WN_RF_CL150", "ELBOW 90_BV_SCH40").</summary>
+        private static bool MatchesLooseComponent(string templatePartId, string category, string component)
+        {
+            string id = (templatePartId ?? "").ToUpperInvariant();
+            string comp = component?.Trim() ?? "";
+
+            string[] componentKeywords = comp.ToUpperInvariant() switch
+            {
+                "ELBOW" => ["ELBOW", "BEND"],
+                "TEE" => ["TEE"],
+                "REDUCER" => ["REDUCER", "RED "],
+                "CROSS" => ["CROSS"],
+                "CAP" => ["CAP"],
+                "FLANGE" => ["FLANGE", "WN_", "WN "],
+                "BLINDFLANGE" => ["BLIND", "BLD"],
+                "GASKET" => ["GSK", "GASKET"],
+                "STUBEND" => ["STUBEND", "STUB"],
+                _ => [],
+            };
+            if (componentKeywords.Length > 0)
+                return componentKeywords.Any(k => id.Contains(k, StringComparison.Ordinal));
+
+            string[] categoryKeywords = category switch
+            {
+                _ when category.Equals(CatalogCategories.Flanges, StringComparison.OrdinalIgnoreCase)
+                    => ["FLANGE", "WN", "SO_", "BLD", "BLIND"],
+                _ when category.Equals(CatalogCategories.Fasteners, StringComparison.OrdinalIgnoreCase)
+                    => ["GSK", "GASKET", "STUD", "BOLT", "NUT", "STUBEND"],
+                _ when category.Equals(CatalogCategories.Pipe, StringComparison.OrdinalIgnoreCase)
+                    => ["PIPE"],
+                _ when category.Equals(CatalogCategories.Fittings, StringComparison.OrdinalIgnoreCase)
+                    => ["ELBOW", "TEE", "REDUCER", "CROSS", "CAP", "BEND"],
+                _ => [],
+            };
+            if (categoryKeywords.Length > 0)
+                return categoryKeywords.Any(k => id.Contains(k, StringComparison.Ordinal));
+
+            return true;
         }
 
         /// <summary>Best-matching valve clone first, then the remaining valve templates.</summary>

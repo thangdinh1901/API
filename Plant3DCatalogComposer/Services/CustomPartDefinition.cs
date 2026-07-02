@@ -44,6 +44,10 @@ namespace Plant3DCatalogComposer.Services
 
         public bool ParametricDN { get; init; } = true;
 
+        /// <summary>DN sizes present in the catalog sheet (part.json "sizes"). Drives the
+        /// insert DN combo so only real sizes can be picked (empty = all pipe sizes).</summary>
+        public IReadOnlyList<int> Sizes { get; init; } = [];
+
         public IReadOnlyDictionary<string, double>? Skeleton { get; init; }
 
         public IReadOnlyList<CatalogPartParam> CatalogParams { get; init; } = [];
@@ -59,5 +63,33 @@ namespace Plant3DCatalogComposer.Services
             || Role.Equals("catalog", System.StringComparison.OrdinalIgnoreCase);
 
         public bool IsCompositeTemplate => Role.Equals("composite", System.StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>
+        /// Copy with an overridden display name. Used when a configured catalog (e.g. CATA_NUI.xlsx)
+        /// drives the insert list: the entry shows the catalog part's name while inserting the
+        /// mapped local geometry for preview.
+        /// </summary>
+        public CustomPartDefinition WithDisplayName(string displayName) => new()
+        {
+            Role = Role,
+            Id = Id,
+            DisplayName = displayName,
+            Group = Group,
+            Category = Category,
+            DefaultDN = DefaultDN,
+            PressureClass = PressureClass,
+            PipeSchedule = PipeSchedule,
+            StandardSet = StandardSet,
+            ShortDescription = ShortDescription,
+            PnpClassName = PnpClassName,
+            PrimaryEndType = PrimaryEndType,
+            ExcelCloneSourcePartId = ExcelCloneSourcePartId,
+            FlangeFacing = FlangeFacing,
+            ParametricDN = ParametricDN,
+            Sizes = Sizes,
+            Skeleton = Skeleton,
+            CatalogParams = CatalogParams,
+            CatalogFrameRotation = CatalogFrameRotation,
+        };
     }
 }

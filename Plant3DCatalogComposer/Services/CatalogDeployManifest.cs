@@ -26,6 +26,8 @@ namespace Plant3DCatalogComposer.Services
         {
             "lj_stud_bolts.py",
             "CUST_GSK_FF_CL150.py",
+            "CUST_GSK_RF_CL150.py",
+            "CUST_WN_FLRF_CL150.py",
             "CUST_LJ_RING_CL150_RF.py",
             "stubend_geom.py",
             "pipe_sizes.py",
@@ -126,9 +128,9 @@ namespace Plant3DCatalogComposer.Services
 
     internal static class CatalogDeployGuidance
     {
-        public static string BuildSummary(int scriptCount, bool registerQueued) =>
-            registerQueued
-                ? $"Deployed {scriptCount} script(s)."
-                : $"Deployed {scriptCount} script(s). Run PLANTREGISTERCUSTOMSCRIPTS.";
+        public static string BuildSummary(int scriptCount, bool scriptsRegistered) =>
+            scriptsRegistered
+                ? $"Deployed {scriptCount} script(s); registering with Plant 3D in the background."
+                : $"Deployed {scriptCount} script(s) but script registration could not be queued — check Command line.";
     }
 }

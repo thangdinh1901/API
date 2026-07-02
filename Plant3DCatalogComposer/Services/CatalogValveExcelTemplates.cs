@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Plant3DSkeletonManager.Core;
 
 namespace Plant3DCatalogComposer.Services
@@ -77,6 +78,37 @@ namespace Plant3DCatalogComposer.Services
             }
 
             return true;
+        }
+
+        /// <summary>Minimum ConnPortNum / Ports metadata when Port Manager is empty.</summary>
+        public static int MinimumConnectionPortCount(string? templatePartId)
+        {
+            if (string.IsNullOrWhiteSpace(templatePartId))
+                return 0;
+
+            if (templatePartId.Equals(ThreeWay, StringComparison.OrdinalIgnoreCase))
+                return 3;
+
+            return IsValveTemplate(templatePartId) ? 2 : 0;
+        }
+
+        /// <summary>FirstPortEndtypes for valve Excel clone templates (no Port Manager).</summary>
+        public static string InferFirstPortEndtypes(string templatePartId, int portCount)
+        {
+            if (portCount <= 0)
+                return "FL";
+
+            string portEnd = templatePartId.ToUpperInvariant() switch
+            {
+                var id when id.Equals(BvCl150, StringComparison.Ordinal)
+                    || id.Equals(Angle, StringComparison.Ordinal) => "BV",
+                var id when id.Equals(SwCl3000, StringComparison.Ordinal) => "SW",
+                _ => "FL",
+            };
+
+            return portCount <= 1
+                ? portEnd
+                : string.Join(",", Enumerable.Repeat(portEnd, portCount));
         }
     }
 }

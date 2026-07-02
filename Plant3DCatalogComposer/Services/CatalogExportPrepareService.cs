@@ -30,6 +30,14 @@ namespace Plant3DCatalogComposer.Services
                     continue;
                 }
 
+                // Native-seed rows (e.g. "ELBO_001.R") are per-node reference values, not part
+                // parameters. Their names contain '.', which is illegal in a Python kwarg — letting
+                // them reach the generated def __init__(... ) produces a SyntaxError and Plant 3D
+                // falls back to a cube. They are consumed only via primitive expressions, so exclude
+                // them from the exported parameter signature.
+                if (CatalogNativeDimensionSeedService.IsNativeSeedName(name))
+                    continue;
+
                 list.Add((name, value));
             }
 

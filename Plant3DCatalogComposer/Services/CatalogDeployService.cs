@@ -84,7 +84,7 @@ namespace Plant3DCatalogComposer.Services
                     registerQueued: false,
                     plugin);
 
-                string message = CatalogDeployGuidance.BuildSummary(scriptCount, registerQueued: false);
+                string message = CatalogDeployGuidance.BuildSummary(scriptCount, scriptsRegistered: false);
                 if (removed > 0)
                     message = $"Removed {removed} orphaned catalog part(s).{Environment.NewLine}{message}";
 
@@ -110,22 +110,24 @@ namespace Plant3DCatalogComposer.Services
 
         /// <summary>
         /// Plant 3D compiles .py → .pyc and updates variant paths for Spec Editor.
-        /// Creates CustomScripts/__pycache__ automatically — do not copy or create it manually.
+        /// Queues the register command (non-blocking) so the Composer UI stays responsive;
+        /// registration finishes in the background before the manual .pcat/spec step.
         /// </summary>
-        public static bool TryQueueRegisterCustomScripts(
+        public static CatalogScriptRegistrationResult TryRegisterCustomScripts(
             Document? doc,
-            CatalogDeployResult deploy)
+            CatalogDeployResult? deploy = null)
         {
-            if (doc == null)
-                return false;
-
-            if (!string.IsNullOrEmpty(deploy.ManifestPath))
+            if (deploy != null && !string.IsNullOrEmpty(deploy.ManifestPath))
                 CatalogDeployManifestWriter.MarkRegisterQueued(deploy.ManifestPath);
 
-            doc.Editor.WriteMessage(
-                $"\nP3D Composer: deployed {deploy.ScriptCount} script(s).");
-            doc.SendStringToExecute("PLANTREGISTERCUSTOMSCRIPTS\n", true, false, false);
-            return true;
+            CatalogScriptRegistrationResult result = CatalogScriptRegistrationService.QueueRegister(doc);
+            if (doc != null && result.Success)
+            {
+                doc.Editor.WriteMessage(
+                    $"\nP3D Composer: {result.Message}");
+            }
+
+            return result;
         }
 
         /// <summary>Delete the regenerated scratch sandbox (_composer_exports) directly under a root.</summary>
@@ -305,13 +307,35 @@ namespace Plant3DCatalogComposer.Services
         private static int DeployCustomParts(string partsSrc, string customScripts)
         {
             int count = 0;
-            foreach (string partDir in Directory.EnumerateDirectories(partsSrc))
+            foreach (string partDir in CatalogPartsDiscovery.EnumerateActivePartDirectories(partsSrc))
             {
-                string partId = Path.GetFileName(partDir);
-                string entry = Path.Combine(partDir, "catalog_entry.py");
-                if (!File.Exists(entry))
-                    continue;
+                if (TryDeployPartDirectory(partDir, customScripts, out _))
+                    count++;
+            }
 
+            // User-authored composite parts under parts/CUSTOM/<name>/ deploy the same way.
+            foreach (string partDir in CatalogPartsDiscovery.EnumerateCustomPartDirectories(partsSrc))
+            {
+                if (TryDeployPartDirectory(partDir, customScripts, out _))
+                    count++;
+            }
+
+            return count;
+        }
+
+        private static bool TryDeployPartDirectory(string partDir, string customScripts, out string? error)
+        {
+            error = null;
+            string partId = Path.GetFileName(partDir);
+            string entry = Path.Combine(partDir, "catalog_entry.py");
+            if (!File.Exists(entry))
+            {
+                error = $"Missing catalog_entry.py for {partId}.";
+                return false;
+            }
+
+            try
+            {
                 string legacyFolder = Path.Combine(customScripts, partId);
                 if (Directory.Exists(legacyFolder))
                     Directory.Delete(legacyFolder, recursive: true);
@@ -329,10 +353,13 @@ namespace Plant3DCatalogComposer.Services
                 if (File.Exists(entryXml))
                     File.Copy(entryXml, Path.Combine(customScripts, $"CUST_{partId}.xml"), overwrite: true);
 
-                count++;
+                return true;
             }
-
-            return count;
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
         }
 
         internal static string MergeCatalogPartPy(string entryPath, string geometryPath)
@@ -429,10 +456,11 @@ namespace Plant3DCatalogComposer.Services
         private static int DeploySupportModules(string partsSrc, string customScripts)
         {
             int count = 0;
+            string? genSrc = Path.GetDirectoryName(partsSrc);
             foreach (string name in SupportModules)
             {
-                string src = Path.Combine(partsSrc, name);
-                if (!Directory.Exists(src))
+                string? src = ResolveSupportModuleSource(partsSrc, genSrc, name);
+                if (src == null)
                     continue;
 
                 string dst = Path.Combine(customScripts, name);
@@ -442,6 +470,26 @@ namespace Plant3DCatalogComposer.Services
             }
 
             return count;
+        }
+
+        /// <summary>
+        /// Support libraries (STUD_BOLTS, NUTS, …) are not CUST catalog scripts — deploy from
+        /// parts/ or catalog_generator/support/ fallback.
+        /// </summary>
+        private static string? ResolveSupportModuleSource(string partsSrc, string? genSrc, string name)
+        {
+            string underParts = Path.Combine(partsSrc, name);
+            if (Directory.Exists(underParts))
+                return underParts;
+
+            if (!string.IsNullOrEmpty(genSrc))
+            {
+                string underSupport = Path.Combine(genSrc, "support", name);
+                if (Directory.Exists(underSupport))
+                    return underSupport;
+            }
+
+            return null;
         }
 
         private static void DeployMetadata(string genSrc, string customScripts)
@@ -537,7 +585,7 @@ namespace Plant3DCatalogComposer.Services
         private static int DeploySharedFiles(string genSrc, string customScripts)
         {
             int count = 0;
-            foreach (string name in new[] { "pipe_sizes.py", "catalog_params.py", "sw_fitting_geom.py", "stubend_geom.py", "lj_stud_bolts.py" })
+            foreach (string name in new[] { "pipe_sizes.py", "catalog_params.py", "native_shapes.py", "sw_fitting_geom.py", "stubend_geom.py", "lj_stud_bolts.py", "cl150_rf_flange_dims.py" })
             {
                 string src = Path.Combine(genSrc, name);
                 if (!File.Exists(src))

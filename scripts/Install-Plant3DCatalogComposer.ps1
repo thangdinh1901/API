@@ -171,9 +171,15 @@ function Deploy-SupportModules {
     }
 
     foreach ($name in @('STUD_BOLTS', 'NUTS', 'STRUCTURAL_PROFILES')) {
-        $src = Join-Path $partsSrc $name
+        $src = Join-Path $partsSrc "ARCHIVED\$name"
         if (-not (Test-Path $src)) {
-            Write-Host "WARN: support module not in parts/ - skip $name"
+            $src = Join-Path $partsSrc $name
+        }
+        if (-not (Test-Path $src)) {
+            $src = Join-Path $GenSrc "support\$name"
+        }
+        if (-not (Test-Path $src)) {
+            Write-Host "WARN: support module not found (ARCHIVED/, parts/, support/) - skip $name"
             continue
         }
 
@@ -187,7 +193,8 @@ function Deploy-SupportModules {
             if (-not (Test-Path $parent)) { New-Item -ItemType Directory -Force -Path $parent | Out-Null }
             Copy-Item $_.FullName $target -Force
         }
-        Write-Host "Deployed support module: $name (from parts/$name, .py only)"
+        $relSrc = $src.Replace($partsSrc, 'parts').Replace($GenSrc, 'catalog_generator')
+        Write-Host "Deployed support module: $name (from $relSrc, .py only)"
     }
 }
 
@@ -341,8 +348,19 @@ function Remove-OrphanedCatalogParts {
     $active = @{}
     if (Test-Path $PartsSrc) {
         foreach ($partDir in Get-ChildItem $PartsSrc -Directory) {
+            if ($partDir.Name -eq 'ARCHIVED' -or $partDir.Name -eq 'CUSTOM' -or $partDir.Name.StartsWith('_')) { continue }
             $entry = Join-Path $partDir.FullName "catalog_entry.py"
             if (Test-Path $entry) { $active[$partDir.Name] = $true }
+        }
+
+        # Composite parts under parts/CUSTOM/<name>/ deploy as CUST_<name> too — mark active
+        # so they are never pruned as orphans.
+        $customRoot = Join-Path $PartsSrc 'CUSTOM'
+        if (Test-Path $customRoot) {
+            foreach ($partDir in Get-ChildItem $customRoot -Directory) {
+                $entry = Join-Path $partDir.FullName "catalog_entry.py"
+                if (Test-Path $entry) { $active[$partDir.Name] = $true }
+            }
         }
     }
 
@@ -423,6 +441,35 @@ function Remove-DeployedPartFolders {
     }
 }
 
+function Deploy-PartDirectory {
+    param(
+        [System.IO.DirectoryInfo]$PartDir,
+        [string]$CustomScripts
+    )
+
+    $partId = $PartDir.Name
+    $entry = Join-Path $PartDir.FullName "catalog_entry.py"
+    if (-not (Test-Path $entry)) { return $false }
+
+    $geometry = Join-Path $PartDir.FullName "$partId\CUST_$partId.py"
+    $destEntry = Join-Path $CustomScripts "CUST_$partId.py"
+    if (Test-Path $geometry) {
+        $merged = Merge-CatalogPartPy -EntryPath $entry -GeometryPath $geometry
+        Set-Content -Path $destEntry -Value $merged -Encoding UTF8
+    }
+    else {
+        Copy-Item $entry $destEntry -Force
+        Write-Host "WARN: no geometry for $partId - deployed entry only"
+    }
+
+    $entryXml = Join-Path $PartDir.FullName "catalog_entry.xml"
+    if (Test-Path $entryXml) {
+        Copy-Item $entryXml (Join-Path $CustomScripts "CUST_$partId.xml") -Force
+    }
+
+    return $true
+}
+
 function Deploy-CustomParts {
     param(
         [string]$PartsSrc,
@@ -443,26 +490,20 @@ function Deploy-CustomParts {
     $count = 0
     foreach ($partDir in Get-ChildItem $PartsSrc -Directory) {
         $partId = $partDir.Name
-        $entry = Join-Path $partDir.FullName "catalog_entry.py"
-        if (-not (Test-Path $entry)) { continue }
-
-        $geometry = Join-Path $partDir.FullName "$partId\CUST_$partId.py"
-        $destEntry = Join-Path $CustomScripts "CUST_$partId.py"
-        if (Test-Path $geometry) {
-            $merged = Merge-CatalogPartPy -EntryPath $entry -GeometryPath $geometry
-            Set-Content -Path $destEntry -Value $merged -Encoding UTF8
+        if ($partId -eq 'ARCHIVED' -or $partId -eq 'CUSTOM' -or $partId.StartsWith('_')) { continue }
+        if (Deploy-PartDirectory -PartDir $partDir -CustomScripts $CustomScripts) {
+            $count++
         }
-        else {
-            Copy-Item $entry $destEntry -Force
-            Write-Host "WARN: no geometry for $partId - deployed entry only"
-        }
+    }
 
-        $entryXml = Join-Path $partDir.FullName "catalog_entry.xml"
-        if (Test-Path $entryXml) {
-            Copy-Item $entryXml (Join-Path $CustomScripts "CUST_$partId.xml") -Force
+    # User-authored composite parts under parts/CUSTOM/<name>/ deploy the same way.
+    $customRoot = Join-Path $PartsSrc 'CUSTOM'
+    if (Test-Path $customRoot) {
+        foreach ($partDir in Get-ChildItem $customRoot -Directory) {
+            if (Deploy-PartDirectory -PartDir $partDir -CustomScripts $CustomScripts) {
+                $count++
+            }
         }
-
-        $count++
     }
 
     Write-Host "Deployed $count flat catalog part(s) from catalog_generator/parts"
@@ -478,6 +519,8 @@ function Write-DeployManifest {
     $keyFiles = @(
         'lj_stud_bolts.py',
         'CUST_GSK_FF_CL150.py',
+        'CUST_GSK_RF_CL150.py',
+        'CUST_WN_FLRF_CL150.py',
         'CUST_LJ_RING_CL150_RF.py',
         'stubend_geom.py',
         'pipe_sizes.py',
@@ -572,11 +615,15 @@ if (-not $SkipBuild) {
     } else {
         Write-Host "Building Plant3DCatalogComposer ($Configuration)..."
     }
-    $templateScript = Join-Path $root "scripts\add_static_support_template_sheets.py"
-    if (Test-Path $templateScript) {
-        Write-Host "Refreshing CatalogBuilderTemplate.xlsx (pipe + valve sheets)..."
-        python $templateScript
-    }
+    # Template refresh disabled: CatalogBuilderTemplate.xlsx now mirrors CATA_NUI structure and is
+    # a static asset. add_static_support_template_sheets.py would restore the legacy 32-sheet
+    # valve/pipe template (CATA_NUI has no VALVE sheet -> it triggers a full restore). To update the
+    # bundled template, replace the file directly.
+    # $templateScript = Join-Path $root "scripts\add_static_support_template_sheets.py"
+    # if (Test-Path $templateScript) {
+    #     Write-Host "Refreshing CatalogBuilderTemplate.xlsx (pipe + valve sheets)..."
+    #     python $templateScript
+    # }
     Push-Location (Join-Path $root "Plant3DCatalogComposer")
     dotnet build -c $Configuration -p:SkipComposerDeploy=true
     Pop-Location
@@ -639,6 +686,11 @@ if (Test-Path (Split-Path $customScripts -Parent)) {
     if (Test-Path $catalogParams) {
         Copy-Item $catalogParams (Join-Path $customScripts "catalog_params.py") -Force
         Write-Host "Deployed catalog_params.py"
+    }
+    $nativeShapes = Join-Path $genSrc "native_shapes.py"
+    if (Test-Path $nativeShapes) {
+        Copy-Item $nativeShapes (Join-Path $customScripts "native_shapes.py") -Force
+        Write-Host "Deployed native_shapes.py"
     }
     $swGeom = Join-Path $genSrc "sw_fitting_geom.py"
     if (Test-Path $swGeom) {

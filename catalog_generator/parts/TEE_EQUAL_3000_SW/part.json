@@ -1,0 +1,31 @@
+{
+  "role": "standard",
+  "id": "TEE_EQUAL_3000_SW",
+  "displayName": "TEE EQUAL",
+  "category": "Fittings",
+  "group": "Tee",
+  "notes": "NATIVE reconstruction of CPTS_OFOFOF. Source sheet TEE EQUAL_3000_SW.",
+  "catalogParams": [
+    {
+      "name": "DN",
+      "label": "DN",
+      "useSkeletonDN": true,
+      "default": 100
+    }
+  ],
+  "defaultDN": 15,
+  "pressureClass": "3000",
+  "parametricDN": true,
+  "primaryEndType": "FL",
+  "pnpClassName": "Tee",
+  "shapeName": "CPTS_OFOFOF",
+  "excelSheet": "TEE EQUAL_3000_SW",
+  "sizes": [
+    15,
+    20,
+    25,
+    32,
+    40,
+    50
+  ]
+}

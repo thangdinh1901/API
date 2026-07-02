@@ -1,0 +1,406 @@
+# CPB_CalcPtsEx args=('pA1o', 'pA2o', 'pD1', 'pD2', 'A', 'L1', 'L2', 'I1', 'I2', 'L21', 'L22', 'D', 'NL', 'NL1', 'NI')
+   0 RESUME                 0
+   2 LOAD_FAST              I1
+   4 POP_JUMP_FORWARD_IF_TRUE to 10
+   6 LOAD_CONST             0.0
+   8 STORE_FAST             I1
+  10 LOAD_FAST              I2
+  12 POP_JUMP_FORWARD_IF_TRUE to 18
+  14 LOAD_CONST             0.0
+  16 STORE_FAST             I2
+  18 LOAD_FAST              L21
+  20 POP_JUMP_FORWARD_IF_TRUE to 26
+  22 LOAD_CONST             0.0
+  24 STORE_FAST             L21
+  26 LOAD_FAST              L22
+  28 POP_JUMP_FORWARD_IF_TRUE to 34
+  30 LOAD_CONST             0.0
+  32 STORE_FAST             L22
+  34 LOAD_FAST              L1
+  36 POP_JUMP_FORWARD_IF_FALSE to 492
+  38 LOAD_FAST              L1
+  40 LOAD_FAST              pA1o
+  42 LOAD_METHOD            r
+  64 PRECALL                0
+  68 CALL                   0
+  78 BINARY_OP              -
+  82 LOAD_FAST              L21
+  84 BINARY_OP              -
+  88 STORE_FAST             H1
+  90 LOAD_FAST              pD1
+  92 LOAD_METHOD            theta
+ 114 PRECALL                0
+ 118 CALL                   0
+ 128 STORE_FAST             A1
+ 130 LOAD_GLOBAL            NULL + mTransform
+ 142 PRECALL                0
+ 146 CALL                   0
+ 156 LOAD_METHOD            rotateZ
+ 178 LOAD_FAST              A1
+ 180 PRECALL                1
+ 184 CALL                   1
+ 194 LOAD_GLOBAL            NULL + mPoint
+ 206 LOAD_FAST              L1
+ 208 LOAD_FAST              I1
+ 210 BINARY_OP              -
+ 214 LOAD_FAST              pA1o
+ 216 LOAD_METHOD            y
+ 238 PRECALL                0
+ 242 CALL                   0
+ 252 LOAD_FAST              pA1o
+ 254 LOAD_METHOD            z
+ 276 PRECALL                0
+ 280 CALL                   0
+ 290 PRECALL                3
+ 294 CALL                   3
+ 304 BINARY_OP              *
+ 308 STORE_FAST             pA1
+ 310 LOAD_GLOBAL            NULL + mTransform
+ 322 PRECALL                0
+ 326 CALL                   0
+ 336 LOAD_METHOD            rotateZ
+ 358 LOAD_FAST              A1
+ 360 PRECALL                1
+ 364 CALL                   1
+ 374 LOAD_GLOBAL            NULL + mPoint
+ 386 LOAD_FAST              L1
+ 388 LOAD_FAST              L21
+ 390 BINARY_OP              -
+ 394 LOAD_FAST              pA1o
+ 396 LOAD_METHOD            y
+ 418 PRECALL                0
+ 422 CALL                   0
+ 432 LOAD_FAST              pA1o
+ 434 LOAD_METHOD            z
+ 456 PRECALL                0
+ 460 CALL                   0
+ 470 PRECALL                3
+ 474 CALL                   3
+ 484 BINARY_OP              *
+ 488 STORE_FAST             pA3
+ 490 JUMP_FORWARD           to 548
+ 492 LOAD_CONST             0.0
+ 494 STORE_FAST             L1
+ 496 LOAD_FAST              pA1o
+ 498 LOAD_METHOD            r
+ 520 PRECALL                0
+ 524 CALL                   0
+ 534 STORE_FAST             H1
+ 536 LOAD_CONST             0.0
+ 538 STORE_FAST             A1
+ 540 LOAD_FAST              pA1o
+ 542 STORE_FAST             pA1
+ 544 LOAD_FAST              pA1o
+ 546 STORE_FAST             pA3
+ 548 LOAD_FAST              L2
+ 550 EXTENDED_ARG           256
+ 552 POP_JUMP_FORWARD_IF_FALSE to 1294
+ 554 LOAD_FAST              A
+ 556 LOAD_CONST             180.0
+ 558 COMPARE_OP             ==
+ 564 POP_JUMP_FORWARD_IF_FALSE to 984
+ 566 LOAD_FAST              L2
+ 568 LOAD_FAST              pA1o
+ 570 LOAD_METHOD            r
+ 592 PRECALL                0
+ 596 CALL                   0
+ 606 BINARY_OP              -
+ 610 LOAD_FAST              L22
+ 612 BINARY_OP              -
+ 616 STORE_FAST             H2
+ 618 LOAD_FAST              A1
+ 620 STORE_FAST             A2
+ 622 LOAD_GLOBAL            NULL + mTransform
+ 634 PRECALL                0
+ 638 CALL                   0
+ 648 LOAD_METHOD            rotateZ
+ 670 LOAD_FAST              A2
+ 672 PRECALL                1
+ 676 CALL                   1
+ 686 LOAD_GLOBAL            NULL + mPoint
+ 698 LOAD_FAST              L2
+ 700 LOAD_FAST              I2
+ 702 BINARY_OP              -
+ 706 LOAD_FAST              pA2o
+ 708 LOAD_METHOD            y
+ 730 PRECALL                0
+ 734 CALL                   0
+ 744 LOAD_FAST              pA2o
+ 746 LOAD_METHOD            z
+ 768 PRECALL                0
+ 772 CALL                   0
+ 782 PRECALL                3
+ 786 CALL                   3
+ 796 BINARY_OP              *
+ 800 STORE_FAST             pA2
+ 802 LOAD_GLOBAL            NULL + mTransform
+ 814 PRECALL                0
+ 818 CALL                   0
+ 828 LOAD_METHOD            rotateZ
+ 850 LOAD_FAST              A2
+ 852 PRECALL                1
+ 856 CALL                   1
+ 866 LOAD_GLOBAL            NULL + mPoint
+ 878 LOAD_FAST              L2
+ 880 LOAD_FAST              L22
+ 882 BINARY_OP              -
+ 886 LOAD_FAST              pA2o
+ 888 LOAD_METHOD            y
+ 910 PRECALL                0
+ 914 CALL                   0
+ 924 LOAD_FAST              pA2o
+ 926 LOAD_METHOD            z
+ 948 PRECALL                0
+ 952 CALL                   0
+ 962 PRECALL                3
+ 966 CALL                   3
+ 976 BINARY_OP              *
+ 980 STORE_FAST             pA4
+ 982 JUMP_FORWARD           to 1346
+ 984 LOAD_FAST              L2
+ 986 LOAD_FAST              pA2o
+ 988 LOAD_METHOD            r
+1010 PRECALL                0
+1014 CALL                   0
+1024 BINARY_OP              -
+1028 LOAD_FAST              L22
+1030 BINARY_OP              -
+1034 STORE_FAST             H2
+1036 LOAD_FAST              pD2
+1038 LOAD_METHOD            theta
+1060 PRECALL                0
+1064 CALL                   0
+1074 STORE_FAST             A2
+1076 LOAD_GLOBAL            NULL + mTransform
+1088 PRECALL                0
+1092 CALL                   0
+1102 LOAD_METHOD            rotateZ
+1124 LOAD_FAST              A2
+1126 PRECALL                1
+1130 CALL                   1
+1140 LOAD_GLOBAL            NULL + mPoint
+1152 LOAD_FAST              L2
+1154 LOAD_FAST              I2
+1156 BINARY_OP              -
+1160 LOAD_CONST             0
+1162 LOAD_CONST             0
+1164 PRECALL                3
+1168 CALL                   3
+1178 BINARY_OP              *
+1182 STORE_FAST             pA2
+1184 LOAD_GLOBAL            NULL + mTransform
+1196 PRECALL                0
+1200 CALL                   0
+1210 LOAD_METHOD            rotateZ
+1232 LOAD_FAST              A2
+1234 PRECALL                1
+1238 CALL                   1
+1248 LOAD_GLOBAL            NULL + mPoint
+1260 LOAD_FAST              L2
+1262 LOAD_FAST              L22
+1264 BINARY_OP              -
+1268 LOAD_CONST             0
+1270 LOAD_CONST             0
+1272 PRECALL                3
+1276 CALL                   3
+1286 BINARY_OP              *
+1290 STORE_FAST             pA4
+1292 JUMP_FORWARD           to 1346
+1294 LOAD_FAST              pA1o
+1296 LOAD_METHOD            r
+1318 PRECALL                0
+1322 CALL                   0
+1332 STORE_FAST             H2
+1334 LOAD_CONST             0.0
+1336 STORE_FAST             A2
+1338 LOAD_FAST              pA2o
+1340 STORE_FAST             pA2
+1342 LOAD_FAST              pA2o
+1344 STORE_FAST             pA4
+1346 LOAD_FAST              H1
+1348 LOAD_FAST              H2
+1350 LOAD_FAST              A1
+1352 LOAD_FAST              A2
+1354 LOAD_FAST              pA1
+1356 LOAD_FAST              pA2
+1358 LOAD_FAST              pD1
+1360 LOAD_FAST              pD2
+1362 LOAD_FAST              pA1o
+1364 LOAD_FAST              pA2o
+1366 LOAD_FAST              pA3
+1368 LOAD_FAST              pA4
+1370 BUILD_LIST             12
+1372 STORE_FAST             retVal
+1374 LOAD_CONST             None
+1376 STORE_FAST             pA5
+1378 LOAD_CONST             None
+1380 STORE_FAST             pD5
+1382 LOAD_CONST             None
+1384 STORE_FAST             pD6
+1386 LOAD_FAST              D
+1388 LOAD_CONST             0.0
+1390 COMPARE_OP             >
+1396 EXTENDED_ARG           256
+1398 POP_JUMP_FORWARD_IF_FALSE to 2306
+1400 LOAD_FAST              NL
+1402 LOAD_CONST             0.0
+1404 COMPARE_OP             <=
+1410 POP_JUMP_FORWARD_IF_FALSE to 1806
+1412 LOAD_FAST              D
+1414 LOAD_CONST             2.0
+1416 BINARY_OP              /
+1420 STORE_FAST             Rx
+1422 LOAD_FAST              A
+1424 LOAD_CONST             180.0
+1426 COMPARE_OP             ==
+1432 POP_JUMP_FORWARD_IF_FALSE to 1482
+1434 LOAD_FAST              pA1
+1436 LOAD_METHOD            x
+1458 PRECALL                0
+1462 CALL                   0
+1472 LOAD_FAST              Rx
+1474 BINARY_OP              +
+1478 STORE_FAST             NL
+1480 JUMP_FORWARD           to 1806
+1482 LOAD_GLOBAL            NULL + asDegrees
+1494 LOAD_FAST              pD2
+1496 LOAD_METHOD            theta
+1518 PRECALL                0
+1522 CALL                   0
+1532 PRECALL                1
+1536 CALL                   1
+1546 LOAD_CONST             90.0
+1548 BINARY_OP              +
+1552 STORE_FAST             A3
+1554 LOAD_GLOBAL            NULL + mTransform
+1566 PRECALL                0
+1570 CALL                   0
+1580 LOAD_METHOD            rotateZ
+1602 LOAD_GLOBAL            NULL + asRadiants
+1614 LOAD_FAST              A3
+1616 PRECALL                1
+1620 CALL                   1
+1630 PRECALL                1
+1634 CALL                   1
+1644 LOAD_GLOBAL            NULL + mPoint
+1656 LOAD_FAST              Rx
+1658 LOAD_CONST             0.0
+1660 LOAD_CONST             0.0
+1662 PRECALL                3
+1666 CALL                   3
+1676 BINARY_OP              *
+1680 STORE_FAST             pTMP
+1682 LOAD_FAST              pA1
+1684 LOAD_METHOD            x
+1706 PRECALL                0
+1710 CALL                   0
+1720 LOAD_FAST              pA2
+1722 LOAD_METHOD            x
+1744 PRECALL                0
+1748 CALL                   0
+1758 LOAD_FAST              pTMP
+1760 LOAD_METHOD            x
+1782 PRECALL                0
+1786 CALL                   0
+1796 BINARY_OP              +
+1800 BINARY_OP              -
+1804 STORE_FAST             NL
+1806 LOAD_GLOBAL            NULL + mTransform
+1818 PRECALL                0
+1822 CALL                   0
+1832 LOAD_METHOD            rotateZ
+1854 LOAD_CONST             180
+1856 PRECALL                1
+1860 CALL                   1
+1870 LOAD_GLOBAL            NULL + mPoint
+1882 LOAD_FAST              NL
+1884 LOAD_FAST              pA1
+1886 LOAD_METHOD            x
+1908 PRECALL                0
+1912 CALL                   0
+1922 BINARY_OP              -
+1926 LOAD_CONST             0.0
+1928 LOAD_CONST             0.0
+1930 PRECALL                3
+1934 CALL                   3
+1944 BINARY_OP              *
+1948 STORE_FAST             pA5
+1950 LOAD_GLOBAL            NULL + mPoint
+1962 LOAD_FAST              pA1
+1964 LOAD_METHOD            x
+1986 PRECALL                0
+1990 CALL                   0
+2000 LOAD_FAST              NL
+2002 BINARY_OP              -
+2006 LOAD_FAST              pA1o
+2008 LOAD_METHOD            y
+2030 PRECALL                0
+2034 CALL                   0
+2044 LOAD_FAST              pA1o
+2046 LOAD_METHOD            z
+2068 PRECALL                0
+2072 CALL                   0
+2082 PRECALL                3
+2086 CALL                   3
+2096 STORE_FAST             pA5
+2098 LOAD_GLOBAL            NULL + mVector
+2110 LOAD_CONST             -1
+2112 LOAD_CONST             0
+2114 LOAD_CONST             0
+2116 PRECALL                3
+2120 CALL                   3
+2130 STORE_FAST             pD5
+2132 LOAD_FAST              NL1
+2134 POP_JUMP_FORWARD_IF_FALSE to 2306
+2136 LOAD_GLOBAL            NULL + mPoint
+2148 LOAD_FAST              pA5
+2150 LOAD_METHOD            x
+2172 PRECALL                0
+2176 CALL                   0
+2186 LOAD_FAST              NI
+2188 BINARY_OP              -
+2192 LOAD_FAST              NL1
+2194 BINARY_OP              +
+2198 LOAD_FAST              pA5
+2200 LOAD_METHOD            y
+2222 PRECALL                0
+2226 CALL                   0
+2236 LOAD_FAST              pA5
+2238 LOAD_METHOD            z
+2260 PRECALL                0
+2264 CALL                   0
+2274 PRECALL                3
+2278 CALL                   3
+2288 STORE_FAST             pD6
+2290 LOAD_FAST              NL
+2292 LOAD_FAST              NL1
+2294 BINARY_OP              -
+2298 LOAD_FAST              NI
+2300 BINARY_OP              +
+2304 STORE_FAST             NL
+2306 LOAD_FAST              retVal
+2308 LOAD_METHOD            append
+2330 LOAD_FAST              NL
+2332 PRECALL                1
+2336 CALL                   1
+2346 POP_TOP                
+2348 LOAD_FAST              retVal
+2350 LOAD_METHOD            append
+2372 LOAD_FAST              pA5
+2374 PRECALL                1
+2378 CALL                   1
+2388 POP_TOP                
+2390 LOAD_FAST              retVal
+2392 LOAD_METHOD            append
+2414 LOAD_FAST              pD5
+2416 PRECALL                1
+2420 CALL                   1
+2430 POP_TOP                
+2432 LOAD_FAST              retVal
+2434 LOAD_METHOD            append
+2456 LOAD_FAST              pD6
+2458 PRECALL                1
+2462 CALL                   1
+2472 POP_TOP                
+2474 LOAD_FAST              retVal
+2476 RETURN_VALUE           

@@ -1,0 +1,30 @@
+{
+  "role": "standard",
+  "id": "TEE_RED_3000_SW",
+  "displayName": "TEE RED",
+  "category": "Fittings",
+  "group": "Tee",
+  "notes": "NATIVE reconstruction of CPTS_OFOFOF. Source sheet TEE RED_3000_SW.",
+  "catalogParams": [
+    {
+      "name": "DN",
+      "label": "DN",
+      "useSkeletonDN": true,
+      "default": 100
+    }
+  ],
+  "defaultDN": 20,
+  "pressureClass": "3000",
+  "parametricDN": true,
+  "primaryEndType": "SW",
+  "pnpClassName": "Tee",
+  "shapeName": "CPTS_OFOFOF",
+  "excelSheet": "TEE RED_3000_SW",
+  "sizes": [
+    20,
+    25,
+    32,
+    40,
+    50
+  ]
+}

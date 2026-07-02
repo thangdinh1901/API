@@ -1,0 +1,150 @@
+{
+  "role": "standard",
+  "id": "REDUCER_ECC_STD_BW",
+  "displayName": "REDUCER ECC",
+  "category": "Fittings",
+  "group": "Reducer",
+  "notes": "NATIVE reconstruction of CPJRE. Source sheet REDUCER ECC_STD_BW.",
+  "catalogParams": [
+    {
+      "name": "DN",
+      "label": "DN",
+      "useSkeletonDN": true,
+      "default": 100
+    },
+    {
+      "name": "DN2",
+      "label": "DN small",
+      "useSkeletonDN2": true,
+      "default": 80
+    }
+  ],
+  "defaultDN": 100,
+  "pressureClass": "150",
+  "parametricDN": true,
+  "primaryEndType": "BV",
+  "pnpClassName": "Reducer",
+  "shapeName": "CPJRE",
+  "excelSheet": "REDUCER ECC_STD_BW",
+  "sizes": [
+    20,
+    25,
+    32,
+    40,
+    50,
+    65,
+    80,
+    90,
+    100,
+    125,
+    150,
+    200,
+    250,
+    300,
+    350,
+    400,
+    450
+  ],
+  "sizesByDn": {
+    "20": [
+      15
+    ],
+    "25": [
+      15,
+      20
+    ],
+    "32": [
+      15,
+      20,
+      25
+    ],
+    "40": [
+      15,
+      20,
+      25,
+      32
+    ],
+    "50": [
+      20,
+      25,
+      32,
+      40
+    ],
+    "65": [
+      25,
+      32,
+      40,
+      50
+    ],
+    "80": [
+      32,
+      40,
+      50,
+      65
+    ],
+    "90": [
+      32,
+      40,
+      50,
+      65,
+      80
+    ],
+    "100": [
+      40,
+      50,
+      65,
+      80,
+      90
+    ],
+    "125": [
+      50,
+      65,
+      80,
+      90,
+      100
+    ],
+    "150": [
+      65,
+      80,
+      90,
+      100,
+      125
+    ],
+    "200": [
+      90,
+      100,
+      125,
+      150
+    ],
+    "250": [
+      100,
+      125,
+      150,
+      200
+    ],
+    "300": [
+      125,
+      150,
+      200,
+      250
+    ],
+    "350": [
+      150,
+      200,
+      250,
+      300
+    ],
+    "400": [
+      200,
+      250,
+      300,
+      350
+    ],
+    "450": [
+      250,
+      300,
+      350,
+      400
+    ]
+  }
+}

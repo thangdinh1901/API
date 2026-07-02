@@ -33,12 +33,11 @@ namespace Plant3DCatalogComposer.Services
                 return;
 
             var entries = new List<CatalogPartMetadata>();
-            foreach (string partDir in Directory.EnumerateDirectories(partsDir))
+            IEnumerable<string> partDirs = CatalogPartsDiscovery.EnumerateActivePartDirectories(partsDir)
+                .Concat(CatalogPartsDiscovery.EnumerateCustomPartDirectories(partsDir));
+            foreach (string partDir in partDirs)
             {
                 string partId = Path.GetFileName(partDir);
-                if (StandardCatalogGuard.IsSandboxDirectory(partId))
-                    continue;
-
                 string entryPy = Path.Combine(partDir, "catalog_entry.py");
                 if (!File.Exists(entryPy))
                     continue;

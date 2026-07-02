@@ -233,6 +233,44 @@ namespace Plant3DCatalogComposer.Services
             return MatchesComponent(id, component);
         }
 
+        /// <summary>
+        /// Class/Sch match that ignores Primary End type. Used by the "Excel from:" suggestion
+        /// list so the dropdown is not narrowed by end type — only Category / Component and the
+        /// explicit Class/Sch field constrain the options.
+        /// </summary>
+        public static bool TemplateMatchesClassScheduleNoEnd(
+            string templatePartId,
+            string? pressureClass,
+            string? pipeSchedule)
+        {
+            if (string.IsNullOrWhiteSpace(templatePartId))
+                return false;
+
+            string id = templatePartId.ToUpperInvariant();
+            string pc = NormalizePressureClassToken(pressureClass);
+            string sch = PipeScheduleCatalog.Normalize(pipeSchedule ?? "");
+
+            if (CatalogValveExcelTemplates.IsValveTemplate(id))
+            {
+                if (string.IsNullOrEmpty(pc))
+                    pc = "150";
+                if (id.Contains($"CL{pc}", StringComparison.Ordinal))
+                    return true;
+                return !id.Contains("CL150", StringComparison.Ordinal)
+                    && !id.Contains("CL3000", StringComparison.Ordinal);
+            }
+
+            bool hasClassToken = id.Contains("CL150", StringComparison.Ordinal)
+                || id.Contains("CL3000", StringComparison.Ordinal);
+            bool hasSchToken = id.Contains("SCH", StringComparison.Ordinal);
+
+            bool pcOk = string.IsNullOrEmpty(pc) || !hasClassToken
+                || id.Contains($"CL{pc}", StringComparison.Ordinal);
+            bool schOk = string.IsNullOrEmpty(sch) || !hasSchToken
+                || id.Contains($"SCH{sch}", StringComparison.Ordinal);
+            return pcOk && schOk;
+        }
+
         /// <summary>Match template part id to Class/Sch from Part Family (not script name).</summary>
         public static bool TemplateMatchesClassSchedule(
             string templatePartId,

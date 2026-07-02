@@ -14,6 +14,8 @@ namespace Plant3DCatalogComposer.Services
         public int ExportedFileCount { get; init; }
         public int DeployedScriptCount { get; init; }
         public bool RegisterQueued { get; init; }
+        public bool ScriptsRegistered { get; init; }
+        public string RegistrationMessage { get; init; } = string.Empty;
         public string PartFolder { get; init; } = string.Empty;
         public string? ManifestPath { get; init; }
         public bool PluginRestartRecommended { get; init; }
@@ -97,8 +99,15 @@ namespace Plant3DCatalogComposer.Services
                     };
                 }
 
-                bool registered = CatalogDeployService.TryQueueRegisterCustomScripts(doc, deploy);
-                string summary = CatalogDeployGuidance.BuildSummary(deploy.ScriptCount, registered);
+                CatalogScriptRegistrationResult registration =
+                    CatalogDeployService.TryRegisterCustomScripts(doc, deploy);
+                string summary = CatalogDeployGuidance.BuildSummary(
+                    deploy.ScriptCount,
+                    registration.Success);
+                if (!registration.Success)
+                    summary += Environment.NewLine + registration.Message;
+                else if (!string.IsNullOrWhiteSpace(registration.Message))
+                    summary += Environment.NewLine + registration.Message;
                 if (project.Parts.Count > 0)
                 {
                     string partSummary = string.Join(
@@ -117,7 +126,9 @@ namespace Plant3DCatalogComposer.Services
                     Preflight = preflight,
                     ExportedFileCount = exportedFileCount,
                     DeployedScriptCount = deploy.ScriptCount,
-                    RegisterQueued = registered,
+                    RegisterQueued = registration.Success,
+                    ScriptsRegistered = registration.Success,
+                    RegistrationMessage = registration.Message,
                     PartFolder = partFolder,
                     ManifestPath = deploy.ManifestPath,
                     PluginRestartRecommended = deploy.PluginDeploy?.RestartRecommended ?? false,

@@ -44,8 +44,6 @@ namespace Plant3DCatalogComposer
                 || _cmbProjectDn2 == null
                 || _lblCatalogDn2 == null
                 || _cmbClassSch == null
-                || _txtTooltipShort == null
-                || _txtTooltipLong == null
                 || _txtShortDescription == null
                 || _cmbExcelClone == null)
             {
@@ -53,9 +51,9 @@ namespace Plant3DCatalogComposer
             }
 
             const int rowH = 23;
-            const int rowGap = 30;
-            const int previewAfterName = 6;
-            const int afterPreviewGap = 12;
+            const int rowGap = 27;
+            const int previewAfterName = 4;
+            const int afterPreviewGap = 8;
 
             int valueW = Math.Max(
                 100,
@@ -108,18 +106,6 @@ namespace Plant3DCatalogComposer
 
             row += rowGap;
             PlaceRow(_lblClassSch, _cmbClassSch, row);
-
-            row += rowGap;
-            if (_lblCatalogTip != null)
-            {
-                _lblCatalogTip.AutoSize = false;
-                _lblCatalogTip.SetBounds(FieldLabelLeft, row, CatalogLabelWidth, rowH);
-                _lblCatalogTip.TextAlign = ContentAlignment.MiddleLeft;
-            }
-
-            int half = Math.Max(60, (valueW - 6) / 2);
-            _txtTooltipShort.SetBounds(CatalogValueLeft, row, half, rowH);
-            _txtTooltipLong.SetBounds(CatalogValueLeft + half + 6, row, valueW - half - 6, rowH);
 
             row += rowGap;
             PlaceRow(_lblShortDescription, _txtShortDescription, row);

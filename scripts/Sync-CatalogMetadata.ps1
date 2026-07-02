@@ -21,7 +21,13 @@ if (-not (Test-Path $partsDir)) {
 }
 
 $entries = @()
-foreach ($partDir in Get-ChildItem $partsDir -Directory) {
+$partDirs = @(Get-ChildItem $partsDir -Directory | Where-Object { $_.Name -ne 'CUSTOM' })
+$customDir = Join-Path $partsDir 'CUSTOM'
+if (Test-Path $customDir) {
+    $partDirs += @(Get-ChildItem $customDir -Directory)
+}
+
+foreach ($partDir in $partDirs) {
     $entryPy = Join-Path $partDir.FullName "catalog_entry.py"
     if (-not (Test-Path $entryPy)) { continue }
 

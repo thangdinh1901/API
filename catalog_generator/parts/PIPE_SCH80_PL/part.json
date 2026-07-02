@@ -1,0 +1,31 @@
+{
+  "role": "standard",
+  "id": "PIPE_SCH80_PL",
+  "displayName": "PIPE",
+  "category": "Pipes",
+  "group": "Pipe",
+  "notes": "NATIVE reconstruction of CPP. Source sheet PIPE_SCH80_PL.",
+  "catalogParams": [
+    {
+      "name": "DN",
+      "label": "DN",
+      "useSkeletonDN": true,
+      "default": 100
+    }
+  ],
+  "defaultDN": 15,
+  "pressureClass": "150",
+  "parametricDN": true,
+  "primaryEndType": "FL",
+  "pnpClassName": "Pipe",
+  "shapeName": "CPP",
+  "excelSheet": "PIPE_SCH80_PL",
+  "sizes": [
+    15,
+    20,
+    25,
+    32,
+    40,
+    50
+  ]
+}

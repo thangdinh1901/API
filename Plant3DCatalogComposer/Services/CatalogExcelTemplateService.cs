@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text;
 using ClosedXML.Excel;
 using Plant3DSkeletonManager.Core;
 
@@ -60,9 +62,9 @@ namespace Plant3DCatalogComposer.Services
 
             using var workbook = new XLWorkbook(path);
             var ids = workbook.Worksheets
-                .Select(w => w.Name)
-                .Where(n => n.Contains(',', StringComparison.Ordinal))
-                .Select(n => n.Split(',')[0].Trim())
+                .Select(w => DeriveSheetPartId(w.Name))
+                .Where(id => !string.IsNullOrEmpty(id))
+                .Select(id => id!)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
                 .ToList();
@@ -202,6 +204,30 @@ namespace Plant3DCatalogComposer.Services
             out string? sheetName,
             out string? error)
         {
+            if (TryEnsurePartSheetOnce(partId, cloneSourcePartId, out sheetName, out error))
+                return true;
+
+            // A user-configured template (e.g. CATA_NUI.xlsx) is authoritative — never run the
+            // bundled-template auto-repair against it.
+            if (CatalogTemplateSettings.ResolveConfiguredTemplatePath() != null)
+                return false;
+
+            if (!TryRefreshTemplateWorkbook(out string? refreshError))
+            {
+                if (!string.IsNullOrWhiteSpace(refreshError))
+                    error += $"\n\nAuto-repair failed: {refreshError}";
+                return false;
+            }
+
+            return TryEnsurePartSheetOnce(partId, cloneSourcePartId, out sheetName, out error);
+        }
+
+        private static bool TryEnsurePartSheetOnce(
+            string partId,
+            string cloneSourcePartId,
+            out string? sheetName,
+            out string? error)
+        {
             sheetName = null;
             error = null;
             partId = partId.Trim();
@@ -220,6 +246,12 @@ namespace Plant3DCatalogComposer.Services
             }
 
             string templatePath = ResolveTemplatePath();
+
+            // A user-configured catalog (e.g. CATA_NUI.xlsx) is the user's source of truth and must
+            // never be written to. Validate the clone source and compute the sheet name in-memory;
+            // the actual sheet is cloned on demand into the export workbook (Export()), not persisted.
+            bool readOnlyTemplate = CatalogTemplateSettings.ResolveConfiguredTemplatePath() != null;
+
             using var workbook = new XLWorkbook(templatePath);
 
             IXLWorksheet? existing = FindSheetByPartPrefix(workbook, partId);
@@ -232,7 +264,8 @@ namespace Plant3DCatalogComposer.Services
             IXLWorksheet? source = FindSheetByPartPrefix(workbook, cloneSourcePartId);
             if (source == null && TryImportCloneSourceSheet(workbook, cloneSourcePartId, templatePath))
             {
-                SaveTemplateWorkbook(workbook, templatePath);
+                if (!readOnlyTemplate)
+                    SaveTemplateWorkbook(workbook, templatePath);
                 source = FindSheetByPartPrefix(workbook, cloneSourcePartId);
             }
 
@@ -252,6 +285,13 @@ namespace Plant3DCatalogComposer.Services
                 return true;
             }
 
+            // Read-only configured template: return the computed name without modifying the file.
+            if (readOnlyTemplate)
+            {
+                sheetName = newName;
+                return true;
+            }
+
             source.CopyTo(newName);
             IXLWorksheet cloned = workbook.Worksheet(newName);
             ReplacePartTokens(cloned, cloneSourcePartId, partId);
@@ -260,8 +300,140 @@ namespace Plant3DCatalogComposer.Services
             return true;
         }
 
+        /// <summary>
+        /// Restore valve/pipe sheets via scripts/add_static_support_template_sheets.py when the
+        /// workbook was truncated (common after a mistaken single-part publish over Resources/).
+        /// </summary>
+        private static bool TryRefreshTemplateWorkbook(out string? error)
+        {
+            error = null;
+            string? apiRoot = ProjectPaths.TryResolveApiRoot();
+            if (apiRoot == null)
+            {
+                error = "deploy.json CatalogGenerator not set — cannot auto-repair template.";
+                return false;
+            }
+
+            string scriptPath = Path.Combine(apiRoot, "scripts", "add_static_support_template_sheets.py");
+            if (!File.Exists(scriptPath))
+            {
+                error = $"Repair script not found: {scriptPath}";
+                return false;
+            }
+
+            try
+            {
+                var psi = new ProcessStartInfo
+                {
+                    FileName = "python",
+                    Arguments = $"\"{scriptPath}\"",
+                    WorkingDirectory = apiRoot,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true,
+                };
+
+                using Process? proc = Process.Start(psi);
+                if (proc == null)
+                {
+                    error = "Could not start python.";
+                    return false;
+                }
+
+                if (!proc.WaitForExit(120_000))
+                {
+                    try { proc.Kill(entireProcessTree: true); } catch { /* ignore */ }
+                    error = "Template repair timed out.";
+                    return false;
+                }
+
+                string stderr = proc.StandardError.ReadToEnd();
+                if (proc.ExitCode != 0)
+                {
+                    error = string.IsNullOrWhiteSpace(stderr)
+                        ? $"Template repair exited with code {proc.ExitCode}."
+                        : stderr.Trim();
+                    return false;
+                }
+
+                InvalidateTemplateCache();
+                SyncRepairedTemplateToPlugin(apiRoot);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        private static void SyncRepairedTemplateToPlugin(string apiRoot)
+        {
+            string devPath = Path.Combine(
+                apiRoot,
+                "Plant3DCatalogComposer",
+                "Resources",
+                "CatalogBuilderTemplate.xlsx");
+            if (!File.Exists(devPath))
+                return;
+
+            string pluginPath = CatalogExcelExportService.PluginTemplatePath();
+            if (pluginPath.Equals(devPath, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(pluginPath)!);
+                File.Copy(devPath, pluginPath, overwrite: true);
+            }
+            catch
+            {
+                // optional — dev template is enough when deploy.json points at API repo
+            }
+        }
+
+        /// <summary>
+        /// Clone a part sheet inside an export workbook (does not persist to CatalogBuilderTemplate.xlsx).
+        /// </summary>
+        public static IXLWorksheet? TryClonePartSheetInWorkbook(
+            XLWorkbook workbook,
+            string partId,
+            string cloneSourcePartId)
+        {
+            partId = partId.Trim();
+            cloneSourcePartId = cloneSourcePartId.Trim();
+            if (string.IsNullOrEmpty(partId) || string.IsNullOrEmpty(cloneSourcePartId))
+                return null;
+
+            IXLWorksheet? existing = FindSheetByPartPrefix(workbook, partId);
+            if (existing != null)
+                return existing;
+
+            IXLWorksheet? source = FindSheetByPartPrefix(workbook, cloneSourcePartId);
+            if (source == null)
+                return null;
+
+            string newName = BuildSheetName(partId, source.Name, cloneSourcePartId);
+            if (workbook.Worksheets.Any(w => w.Name.Equals(newName, StringComparison.OrdinalIgnoreCase)))
+                return workbook.Worksheet(newName);
+
+            source.CopyTo(newName);
+            IXLWorksheet cloned = workbook.Worksheet(newName);
+            ReplacePartTokens(cloned, cloneSourcePartId, partId);
+            return cloned;
+        }
+
         private static void SaveTemplateWorkbook(XLWorkbook workbook, string templatePath)
         {
+            // Hard guard: never overwrite a user-configured read-only catalog template.
+            string? configured = CatalogTemplateSettings.ResolveConfiguredTemplatePath();
+            if (configured != null
+                && Path.GetFullPath(configured).Equals(Path.GetFullPath(templatePath), StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
             workbook.SaveAs(templatePath);
             InvalidateTemplateCache();
         }
@@ -269,6 +441,11 @@ namespace Plant3DCatalogComposer.Services
         /// <summary>Remove template sheets for parts no longer present under catalog_generator/parts.</summary>
         public static int RemoveOrphanedPartSheets(IReadOnlySet<string> activePartIds)
         {
+            // Never prune a user-configured catalog (e.g. CATA_NUI.xlsx) — it is read-only and its
+            // sheets are not 1:1 with catalog_generator/parts, so pruning would delete the user's data.
+            if (CatalogTemplateSettings.ResolveConfiguredTemplatePath() != null)
+                return 0;
+
             string templatePath = ResolveTemplatePath();
             using var workbook = new XLWorkbook(templatePath);
             var toRemove = new List<IXLWorksheet>();
@@ -292,22 +469,91 @@ namespace Plant3DCatalogComposer.Services
             return toRemove.Count;
         }
 
+        /// <summary>
+        /// Non-part / metadata sheets that should never be treated as a clone source or part sheet
+        /// (e.g. the "Catalog Data Flag" marker sheet in a published Catalog Builder workbook).
+        /// </summary>
+        private static bool IsMetaSheet(string sheetName)
+        {
+            string n = sheetName.Trim();
+            if (string.IsNullOrEmpty(n))
+                return true;
+
+            return n.Equals("Catalog Data Flag", StringComparison.OrdinalIgnoreCase)
+                || n.Equals("Catalog Data", StringComparison.OrdinalIgnoreCase)
+                || n.Equals("Settings", StringComparison.OrdinalIgnoreCase)
+                || n.StartsWith("Sheet", StringComparison.OrdinalIgnoreCase) && n.Length <= 7;
+        }
+
+        /// <summary>
+        /// Derive a clone-source part id from a sheet name. Supports both the legacy comma
+        /// convention ("{PartId},{End},{Class}") and plain sheet names used by real published
+        /// catalogs (e.g. "ELBOW 90_BV_SCH40", "GSK_RF_CL150"). Returns null for meta sheets.
+        /// </summary>
+        internal static string? DeriveSheetPartId(string sheetName)
+        {
+            if (IsMetaSheet(sheetName))
+                return null;
+
+            int comma = sheetName.IndexOf(',');
+            string id = comma > 0 ? sheetName[..comma].Trim() : sheetName.Trim();
+            return string.IsNullOrEmpty(id) ? null : id;
+        }
+
         private static bool TryParseSheetPartId(string sheetName, out string partId)
         {
-            partId = "";
-            int comma = sheetName.IndexOf(',');
-            if (comma <= 0)
-                return false;
-
-            partId = sheetName[..comma].Trim();
+            partId = DeriveSheetPartId(sheetName) ?? "";
             return !string.IsNullOrEmpty(partId);
         }
 
         internal static IXLWorksheet? FindSheetByPartPrefix(XLWorkbook workbook, string partId)
         {
-            string prefix = partId + ",";
-            return workbook.Worksheets
-                .FirstOrDefault(w => w.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
+            string trimmed = partId.Trim();
+            string prefix = trimmed + ",";
+
+            // Comma convention: "{PartId},..." — and exact match for plain catalog sheet names.
+            return workbook.Worksheets.FirstOrDefault(w =>
+                       w.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                   ?? workbook.Worksheets.FirstOrDefault(w =>
+                       w.Name.Trim().Equals(trimmed, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>Same match as <see cref="FindSheetByPartPrefix"/>, plus a normalised-key fallback
+        /// (letters/digits only, case-insensitive) for native library ids whose underscores don't
+        /// line up with the template's space-separated sheet names, e.g. id "ELBOW_90_SCH40_BW" vs.
+        /// sheet "ELBOW 90_SCH40_BW".</summary>
+        internal static IXLWorksheet? FindSheetByPartPrefixOrNormalizedKey(XLWorkbook workbook, string partId)
+        {
+            IXLWorksheet? exact = FindSheetByPartPrefix(workbook, partId);
+            if (exact != null)
+                return exact;
+
+            string target = NormalizeSheetKey(partId);
+            if (target.Length == 0)
+                return null;
+
+            return workbook.Worksheets.FirstOrDefault(w =>
+                NormalizeSheetKey(SheetNameKey(w.Name)).Equals(target, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>Sheet name up to the first comma (drops the legacy ",FL,150" style suffix).</summary>
+        private static string SheetNameKey(string sheetName)
+        {
+            int comma = sheetName.IndexOf(',');
+            return comma >= 0 ? sheetName[..comma] : sheetName;
+        }
+
+        /// <summary>Uppercase, alphanumerics only — folds spaces/underscores so ids and sheet names match.</summary>
+        private static string NormalizeSheetKey(string value)
+        {
+            var sb = new StringBuilder(value.Length);
+            foreach (char c in value)
+            {
+                if (char.IsLetterOrDigit(c))
+                    sb.Append(char.ToUpperInvariant(c));
+            }
+
+            return sb.ToString();
         }
 
         private static bool TryImportCloneSourceSheet(

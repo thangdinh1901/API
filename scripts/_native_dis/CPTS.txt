@@ -1,0 +1,599 @@
+# CPTS  args=('s', 'D1', 'D2', 'D3', 'L1', 'L2', 'L3', 'A', 'OF', 'ID')  allvars=('s', 'D1', 'D2', 'D3', 'L1', 'L2', 'L3', 'A', 'OF', 'ID', 'kw', 'I1', 'I2', 'I3', 'R1', 'R2', 'R3', 'Drill', 'O1', 'O2', 'O3', 'o0', 'o3', 'o1', 'o4', 'L4', 'o2', 'O4', 'o5', 'pP3', 'pD3')
+# consts=["'I1'", '0.0', "'I2'", "'I3'", '90.0', '2.0', '1', '-1', "('R', 'H', 'O')", '270', '0', "('R1', 'R2', 'H', 'E')", '90', '-90', '(-1, 0, 0)', '(1, 0, 0)']
+   0 RESUME                   0
+   2 NOP                      
+   4 LOAD_GLOBAL              NULL + float
+  16 LOAD_FAST                kw
+  18 LOAD_CONST               "I1"
+  20 BINARY_SUBSCR            
+  30 PRECALL                  1
+  34 CALL                     1
+  44 STORE_FAST               I1
+  46 JUMP_FORWARD             to 84
+  48 PUSH_EXC_INFO            
+  50 LOAD_GLOBAL              KeyError
+  62 CHECK_EXC_MATCH          
+  64 POP_JUMP_FORWARD_IF_FALSE to 76
+  66 POP_TOP                  
+  68 LOAD_CONST               0.0
+  70 STORE_FAST               I1
+  72 POP_EXCEPT               
+  74 JUMP_FORWARD             to 84
+  76 RERAISE                  0
+  78 COPY                     3
+  80 POP_EXCEPT               
+  82 RERAISE                  1
+  84 NOP                      
+  86 LOAD_GLOBAL              NULL + float
+  98 LOAD_FAST                kw
+ 100 LOAD_CONST               "I2"
+ 102 BINARY_SUBSCR            
+ 112 PRECALL                  1
+ 116 CALL                     1
+ 126 STORE_FAST               I2
+ 128 JUMP_FORWARD             to 166
+ 130 PUSH_EXC_INFO            
+ 132 LOAD_GLOBAL              KeyError
+ 144 CHECK_EXC_MATCH          
+ 146 POP_JUMP_FORWARD_IF_FALSE to 158
+ 148 POP_TOP                  
+ 150 LOAD_CONST               0.0
+ 152 STORE_FAST               I2
+ 154 POP_EXCEPT               
+ 156 JUMP_FORWARD             to 166
+ 158 RERAISE                  0
+ 160 COPY                     3
+ 162 POP_EXCEPT               
+ 164 RERAISE                  1
+ 166 NOP                      
+ 168 LOAD_GLOBAL              NULL + float
+ 180 LOAD_FAST                kw
+ 182 LOAD_CONST               "I3"
+ 184 BINARY_SUBSCR            
+ 194 PRECALL                  1
+ 198 CALL                     1
+ 208 STORE_FAST               I3
+ 210 JUMP_FORWARD             to 248
+ 212 PUSH_EXC_INFO            
+ 214 LOAD_GLOBAL              KeyError
+ 226 CHECK_EXC_MATCH          
+ 228 POP_JUMP_FORWARD_IF_FALSE to 240
+ 230 POP_TOP                  
+ 232 LOAD_CONST               0.0
+ 234 STORE_FAST               I3
+ 236 POP_EXCEPT               
+ 238 JUMP_FORWARD             to 248
+ 240 RERAISE                  0
+ 242 COPY                     3
+ 244 POP_EXCEPT               
+ 246 RERAISE                  1
+ 248 LOAD_FAST                D2
+ 250 LOAD_CONST               0.0
+ 252 COMPARE_OP               ==
+ 258 POP_JUMP_FORWARD_IF_FALSE to 264
+ 260 LOAD_FAST                D1
+ 262 STORE_FAST               D2
+ 264 LOAD_FAST                D3
+ 266 LOAD_CONST               0.0
+ 268 COMPARE_OP               ==
+ 274 POP_JUMP_FORWARD_IF_FALSE to 280
+ 276 LOAD_FAST                D1
+ 278 STORE_FAST               D3
+ 280 LOAD_FAST                L2
+ 282 LOAD_CONST               0.0
+ 284 COMPARE_OP               ==
+ 290 POP_JUMP_FORWARD_IF_FALSE to 296
+ 292 LOAD_FAST                L1
+ 294 STORE_FAST               L2
+ 296 LOAD_FAST                L3
+ 298 LOAD_CONST               0.0
+ 300 COMPARE_OP               ==
+ 306 POP_JUMP_FORWARD_IF_FALSE to 312
+ 308 LOAD_FAST                L1
+ 310 STORE_FAST               L3
+ 312 LOAD_FAST                A
+ 314 LOAD_CONST               0.0
+ 316 COMPARE_OP               ==
+ 322 POP_JUMP_FORWARD_IF_FALSE to 328
+ 324 LOAD_CONST               90.0
+ 326 STORE_FAST               A
+ 328 LOAD_FAST                D1
+ 330 LOAD_CONST               2.0
+ 332 BINARY_OP                /
+ 336 STORE_FAST               R1
+ 338 LOAD_FAST                D2
+ 340 LOAD_CONST               2.0
+ 342 BINARY_OP                /
+ 346 STORE_FAST               R2
+ 348 LOAD_FAST                D3
+ 350 LOAD_CONST               2.0
+ 352 BINARY_OP                /
+ 356 STORE_FAST               R3
+ 358 LOAD_CONST               1
+ 360 STORE_FAST               Drill
+ 362 LOAD_FAST                OF
+ 364 LOAD_CONST               0.0
+ 366 COMPARE_OP               >
+ 372 POP_JUMP_FORWARD_IF_FALSE to 568
+ 374 LOAD_FAST                D1
+ 376 LOAD_CONST               2.0
+ 378 BINARY_OP                /
+ 382 LOAD_FAST                OF
+ 384 BINARY_OP                -
+ 388 STORE_FAST               O1
+ 390 LOAD_FAST                O1
+ 392 LOAD_CONST               0.0
+ 394 COMPARE_OP               <=
+ 400 POP_JUMP_FORWARD_IF_FALSE to 438
+ 402 LOAD_GLOBAL              NULL + CON_OF_DIV
+ 414 LOAD_FAST                D1
+ 416 PRECALL                  1
+ 420 CALL                     1
+ 430 LOAD_CONST               2.0
+ 432 BINARY_OP                /
+ 436 STORE_FAST               O1
+ 438 LOAD_FAST                D2
+ 440 LOAD_CONST               2.0
+ 442 BINARY_OP                /
+ 446 LOAD_FAST                OF
+ 448 BINARY_OP                -
+ 452 STORE_FAST               O2
+ 454 LOAD_FAST                O2
+ 456 LOAD_CONST               0.0
+ 458 COMPARE_OP               <=
+ 464 POP_JUMP_FORWARD_IF_FALSE to 502
+ 466 LOAD_GLOBAL              NULL + CON_OF_DIV
+ 478 LOAD_FAST                D2
+ 480 PRECALL                  1
+ 484 CALL                     1
+ 494 LOAD_CONST               2.0
+ 496 BINARY_OP                /
+ 500 STORE_FAST               O2
+ 502 LOAD_FAST                D3
+ 504 LOAD_CONST               2.0
+ 506 BINARY_OP                /
+ 510 LOAD_FAST                OF
+ 512 BINARY_OP                -
+ 516 STORE_FAST               O3
+ 518 LOAD_FAST                O3
+ 520 LOAD_CONST               0.0
+ 522 COMPARE_OP               <=
+ 528 POP_JUMP_FORWARD_IF_FALSE to 566
+ 530 LOAD_GLOBAL              NULL + CON_OF_DIV
+ 542 LOAD_FAST                D3
+ 544 PRECALL                  1
+ 548 CALL                     1
+ 558 LOAD_CONST               2.0
+ 560 BINARY_OP                /
+ 564 STORE_FAST               O3
+ 566 JUMP_FORWARD             to 706
+ 568 LOAD_FAST                OF
+ 570 LOAD_CONST               -1
+ 572 COMPARE_OP               ==
+ 578 POP_JUMP_FORWARD_IF_FALSE to 690
+ 580 LOAD_GLOBAL              NULL + CON_OF_DIV
+ 592 LOAD_FAST                D1
+ 594 PRECALL                  1
+ 598 CALL                     1
+ 608 LOAD_CONST               2.0
+ 610 BINARY_OP                /
+ 614 STORE_FAST               O1
+ 616 LOAD_GLOBAL              NULL + CON_OF_DIV
+ 628 LOAD_FAST                D2
+ 630 PRECALL                  1
+ 634 CALL                     1
+ 644 LOAD_CONST               2.0
+ 646 BINARY_OP                /
+ 650 STORE_FAST               O2
+ 652 LOAD_GLOBAL              NULL + CON_OF_DIV
+ 664 LOAD_FAST                D3
+ 666 PRECALL                  1
+ 670 CALL                     1
+ 680 LOAD_CONST               2.0
+ 682 BINARY_OP                /
+ 686 STORE_FAST               O3
+ 688 JUMP_FORWARD             to 706
+ 690 LOAD_CONST               0.0
+ 692 STORE_FAST               O1
+ 694 LOAD_CONST               0.0
+ 696 STORE_FAST               O2
+ 698 LOAD_CONST               0.0
+ 700 STORE_FAST               O3
+ 702 LOAD_CONST               None
+ 704 STORE_FAST               Drill
+ 706 LOAD_FAST                D1
+ 708 LOAD_FAST                D2
+ 710 COMPARE_OP               ==
+ 716 POP_JUMP_FORWARD_IF_FALSE to 976
+ 718 LOAD_GLOBAL              NULL + CYLINDER
+ 730 LOAD_FAST                s
+ 732 LOAD_FAST                R1
+ 734 LOAD_FAST                L1
+ 736 LOAD_FAST                L2
+ 738 BINARY_OP                +
+ 742 LOAD_CONST               0.0
+ 744 KW_NAMES                 ('R', 'H', 'O')
+ 746 PRECALL                  4
+ 750 CALL                     4
+ 760 LOAD_METHOD              rotateY
+ 782 LOAD_CONST               270
+ 784 PRECALL                  1
+ 788 CALL                     1
+ 798 LOAD_METHOD              translate
+ 820 LOAD_FAST                L2
+ 822 LOAD_CONST               0
+ 824 LOAD_CONST               0
+ 826 BUILD_TUPLE              3
+ 828 PRECALL                  1
+ 832 CALL                     1
+ 842 STORE_FAST               o0
+ 844 LOAD_FAST                Drill
+ 846 POP_JUMP_FORWARD_IF_FALSE to 974
+ 848 LOAD_GLOBAL              NULL + CYLINDER
+ 860 LOAD_FAST                s
+ 862 LOAD_FAST                O1
+ 864 LOAD_FAST                L1
+ 866 LOAD_FAST                L2
+ 868 BINARY_OP                +
+ 872 LOAD_CONST               0.0
+ 874 KW_NAMES                 ('R', 'H', 'O')
+ 876 PRECALL                  4
+ 880 CALL                     4
+ 890 LOAD_METHOD              rotateY
+ 912 LOAD_CONST               270
+ 914 PRECALL                  1
+ 918 CALL                     1
+ 928 LOAD_METHOD              translate
+ 950 LOAD_FAST                L2
+ 952 LOAD_CONST               0
+ 954 LOAD_CONST               0
+ 956 BUILD_TUPLE              3
+ 958 PRECALL                  1
+ 962 CALL                     1
+ 972 STORE_FAST               o3
+ 974 JUMP_FORWARD             to 1240
+ 976 LOAD_GLOBAL              NULL + CONE
+ 988 LOAD_FAST                s
+ 990 LOAD_FAST                R1
+ 992 LOAD_FAST                R2
+ 994 LOAD_FAST                L1
+ 996 LOAD_FAST                L2
+ 998 BINARY_OP                +
+1002 LOAD_CONST               0.0
+1004 KW_NAMES                 ('R1', 'R2', 'H', 'E')
+1006 PRECALL                  5
+1010 CALL                     5
+1020 LOAD_METHOD              rotateY
+1042 LOAD_CONST               90
+1044 PRECALL                  1
+1048 CALL                     1
+1058 LOAD_METHOD              translate
+1080 LOAD_FAST                L1
+1082 UNARY_NEGATIVE           
+1084 LOAD_CONST               0
+1086 LOAD_CONST               0
+1088 BUILD_TUPLE              3
+1090 PRECALL                  1
+1094 CALL                     1
+1104 STORE_FAST               o0
+1106 LOAD_FAST                Drill
+1108 POP_JUMP_FORWARD_IF_FALSE to 1240
+1110 LOAD_GLOBAL              NULL + CONE
+1122 LOAD_FAST                s
+1124 LOAD_FAST                O1
+1126 LOAD_FAST                O2
+1128 LOAD_FAST                L1
+1130 LOAD_FAST                L2
+1132 BINARY_OP                +
+1136 LOAD_CONST               0.0
+1138 KW_NAMES                 ('R1', 'R2', 'H', 'E')
+1140 PRECALL                  5
+1144 CALL                     5
+1154 LOAD_METHOD              rotateY
+1176 LOAD_CONST               90
+1178 PRECALL                  1
+1182 CALL                     1
+1192 LOAD_METHOD              translate
+1214 LOAD_FAST                L1
+1216 UNARY_NEGATIVE           
+1218 LOAD_CONST               0
+1220 LOAD_CONST               0
+1222 BUILD_TUPLE              3
+1224 PRECALL                  1
+1228 CALL                     1
+1238 STORE_FAST               o3
+1240 LOAD_FAST                A
+1242 LOAD_CONST               90.0
+1244 BINARY_OP                -
+1248 STORE_FAST               A
+1250 LOAD_FAST                D3
+1252 LOAD_FAST                D1
+1254 COMPARE_OP               <=
+1260 POP_JUMP_FORWARD_IF_FALSE to 1510
+1262 LOAD_FAST                D3
+1264 LOAD_FAST                D2
+1266 COMPARE_OP               <=
+1272 POP_JUMP_FORWARD_IF_FALSE to 1510
+1274 LOAD_GLOBAL              NULL + CYLINDER
+1286 LOAD_FAST                s
+1288 LOAD_FAST                R3
+1290 LOAD_FAST                L3
+1292 LOAD_CONST               0.0
+1294 KW_NAMES                 ('R', 'H', 'O')
+1296 PRECALL                  4
+1300 CALL                     4
+1310 LOAD_METHOD              rotateX
+1332 LOAD_CONST               270
+1334 PRECALL                  1
+1338 CALL                     1
+1348 LOAD_METHOD              rotateZ
+1370 LOAD_FAST                A
+1372 PRECALL                  1
+1376 CALL                     1
+1386 STORE_FAST               o1
+1388 LOAD_FAST                Drill
+1390 POP_JUMP_FORWARD_IF_FALSE to 1506
+1392 LOAD_GLOBAL              NULL + CYLINDER
+1404 LOAD_FAST                s
+1406 LOAD_FAST                O3
+1408 LOAD_FAST                L3
+1410 LOAD_CONST               0.0
+1412 KW_NAMES                 ('R', 'H', 'O')
+1414 PRECALL                  4
+1418 CALL                     4
+1428 LOAD_METHOD              rotateX
+1450 LOAD_CONST               270
+1452 PRECALL                  1
+1456 CALL                     1
+1466 LOAD_METHOD              rotateZ
+1488 LOAD_FAST                A
+1490 PRECALL                  1
+1494 CALL                     1
+1504 STORE_FAST               o4
+1506 EXTENDED_ARG             256
+1508 JUMP_FORWARD             to 2304
+1510 LOAD_FAST                D1
+1512 LOAD_FAST                D2
+1514 COMPARE_OP               >
+1520 POP_JUMP_FORWARD_IF_FALSE to 1528
+1522 LOAD_FAST                D2
+1524 STORE_FAST               L4
+1526 JUMP_FORWARD             to 1532
+1528 LOAD_FAST                D1
+1530 STORE_FAST               L4
+1532 LOAD_FAST                L4
+1534 LOAD_CONST               2.0
+1536 BINARY_OP                /
+1540 STORE_FAST               L4
+1542 LOAD_GLOBAL              NULL + CYLINDER
+1554 LOAD_FAST                s
+1556 LOAD_FAST                D3
+1558 LOAD_CONST               2.0
+1560 BINARY_OP                /
+1564 LOAD_FAST                L3
+1566 LOAD_FAST                L4
+1568 BINARY_OP                -
+1572 LOAD_CONST               0.0
+1574 KW_NAMES                 ('R', 'H', 'O')
+1576 PRECALL                  4
+1580 CALL                     4
+1590 LOAD_METHOD              rotateX
+1612 LOAD_CONST               270
+1614 PRECALL                  1
+1618 CALL                     1
+1628 LOAD_METHOD              translate
+1650 LOAD_CONST               0
+1652 LOAD_FAST                L4
+1654 LOAD_CONST               0
+1656 BUILD_TUPLE              3
+1658 PRECALL                  1
+1662 CALL                     1
+1672 LOAD_METHOD              rotateZ
+1694 LOAD_FAST                A
+1696 PRECALL                  1
+1700 CALL                     1
+1710 STORE_FAST               o1
+1712 LOAD_GLOBAL              NULL + CONE
+1724 LOAD_FAST                s
+1726 LOAD_FAST                L4
+1728 LOAD_FAST                D3
+1730 LOAD_CONST               2.0
+1732 BINARY_OP                /
+1736 LOAD_FAST                L4
+1738 LOAD_CONST               0.0
+1740 KW_NAMES                 ('R1', 'R2', 'H', 'E')
+1742 PRECALL                  5
+1746 CALL                     5
+1756 LOAD_METHOD              rotateX
+1778 LOAD_CONST               -90
+1780 PRECALL                  1
+1784 CALL                     1
+1794 LOAD_METHOD              rotateZ
+1816 LOAD_FAST                A
+1818 PRECALL                  1
+1822 CALL                     1
+1832 STORE_FAST               o2
+1834 LOAD_FAST                o1
+1836 LOAD_METHOD              uniteWith
+1858 LOAD_FAST                o2
+1860 PRECALL                  1
+1864 CALL                     1
+1874 POP_TOP                  
+1876 LOAD_FAST                o2
+1878 LOAD_METHOD              erase
+1900 PRECALL                  0
+1904 CALL                     0
+1914 POP_TOP                  
+1916 LOAD_FAST                Drill
+1918 POP_JUMP_FORWARD_IF_FALSE to 2304
+1920 LOAD_FAST                D1
+1922 LOAD_FAST                D2
+1924 COMPARE_OP               >
+1930 POP_JUMP_FORWARD_IF_FALSE to 1938
+1932 LOAD_FAST                O2
+1934 STORE_FAST               O4
+1936 JUMP_FORWARD             to 1942
+1938 LOAD_FAST                O1
+1940 STORE_FAST               O4
+1942 LOAD_GLOBAL              NULL + CYLINDER
+1954 LOAD_FAST                s
+1956 LOAD_FAST                O3
+1958 LOAD_FAST                L3
+1960 LOAD_FAST                L4
+1962 BINARY_OP                -
+1966 LOAD_CONST               0.0
+1968 KW_NAMES                 ('R', 'H', 'O')
+1970 PRECALL                  4
+1974 CALL                     4
+1984 LOAD_METHOD              rotateX
+2006 LOAD_CONST               270
+2008 PRECALL                  1
+2012 CALL                     1
+2022 LOAD_METHOD              translate
+2044 LOAD_CONST               0
+2046 LOAD_FAST                L4
+2048 LOAD_CONST               0
+2050 BUILD_TUPLE              3
+2052 PRECALL                  1
+2056 CALL                     1
+2066 LOAD_METHOD              rotateZ
+2088 LOAD_FAST                A
+2090 PRECALL                  1
+2094 CALL                     1
+2104 STORE_FAST               o4
+2106 LOAD_GLOBAL              NULL + CONE
+2118 LOAD_FAST                s
+2120 LOAD_FAST                O4
+2122 LOAD_FAST                O3
+2124 LOAD_FAST                L4
+2126 LOAD_CONST               0.0
+2128 KW_NAMES                 ('R1', 'R2', 'H', 'E')
+2130 PRECALL                  5
+2134 CALL                     5
+2144 LOAD_METHOD              rotateX
+2166 LOAD_CONST               -90
+2168 PRECALL                  1
+2172 CALL                     1
+2182 LOAD_METHOD              rotateZ
+2204 LOAD_FAST                A
+2206 PRECALL                  1
+2210 CALL                     1
+2220 STORE_FAST               o5
+2222 LOAD_FAST                o4
+2224 LOAD_METHOD              uniteWith
+2246 LOAD_FAST                o5
+2248 PRECALL                  1
+2252 CALL                     1
+2262 POP_TOP                  
+2264 LOAD_FAST                o5
+2266 LOAD_METHOD              erase
+2288 PRECALL                  0
+2292 CALL                     0
+2302 POP_TOP                  
+2304 LOAD_FAST                o0
+2306 LOAD_METHOD              uniteWith
+2328 LOAD_FAST                o1
+2330 PRECALL                  1
+2334 CALL                     1
+2344 POP_TOP                  
+2346 LOAD_FAST                o1
+2348 LOAD_METHOD              erase
+2370 PRECALL                  0
+2374 CALL                     0
+2384 POP_TOP                  
+2386 LOAD_FAST                Drill
+2388 POP_JUMP_FORWARD_IF_FALSE to 2554
+2390 LOAD_FAST                o3
+2392 LOAD_METHOD              uniteWith
+2414 LOAD_FAST                o4
+2416 PRECALL                  1
+2420 CALL                     1
+2430 POP_TOP                  
+2432 LOAD_FAST                o4
+2434 LOAD_METHOD              erase
+2456 PRECALL                  0
+2460 CALL                     0
+2470 POP_TOP                  
+2472 LOAD_FAST                o0
+2474 LOAD_METHOD              subtractFrom
+2496 LOAD_FAST                o3
+2498 PRECALL                  1
+2502 CALL                     1
+2512 POP_TOP                  
+2514 LOAD_FAST                o3
+2516 LOAD_METHOD              erase
+2538 PRECALL                  0
+2542 CALL                     0
+2552 POP_TOP                  
+2554 LOAD_GLOBAL              NULL + mTransform
+2566 PRECALL                  0
+2570 CALL                     0
+2580 LOAD_METHOD              rotateZ
+2602 LOAD_GLOBAL              NULL + asRadiants
+2614 LOAD_FAST                A
+2616 PRECALL                  1
+2620 CALL                     1
+2630 PRECALL                  1
+2634 CALL                     1
+2644 LOAD_GLOBAL              NULL + mPoint
+2656 LOAD_CONST               0
+2658 LOAD_FAST                L3
+2660 LOAD_FAST                I3
+2662 BINARY_OP                +
+2666 LOAD_CONST               0
+2668 PRECALL                  3
+2672 CALL                     3
+2682 BINARY_OP                *
+2686 STORE_FAST               pP3
+2688 LOAD_GLOBAL              NULL + mTransform
+2700 PRECALL                  0
+2704 CALL                     0
+2714 LOAD_METHOD              rotateZ
+2736 LOAD_GLOBAL              NULL + asRadiants
+2748 LOAD_FAST                A
+2750 PRECALL                  1
+2754 CALL                     1
+2764 PRECALL                  1
+2768 CALL                     1
+2778 LOAD_GLOBAL              NULL + mVector
+2790 LOAD_CONST               0
+2792 LOAD_CONST               1
+2794 LOAD_CONST               0
+2796 PRECALL                  3
+2800 CALL                     3
+2810 BINARY_OP                *
+2814 STORE_FAST               pD3
+2816 LOAD_FAST                s
+2818 LOAD_METHOD              setPoint
+2840 LOAD_FAST                L1
+2842 UNARY_NEGATIVE           
+2844 LOAD_FAST                I1
+2846 BINARY_OP                -
+2850 LOAD_CONST               0
+2852 LOAD_CONST               0
+2854 BUILD_TUPLE              3
+2856 LOAD_CONST               (-1, 0, 0)
+2858 PRECALL                  2
+2862 CALL                     2
+2872 POP_TOP                  
+2874 LOAD_FAST                s
+2876 LOAD_METHOD              setPoint
+2898 LOAD_FAST                L2
+2900 LOAD_FAST                I2
+2902 BINARY_OP                +
+2906 LOAD_CONST               0
+2908 LOAD_CONST               0
+2910 BUILD_TUPLE              3
+2912 LOAD_CONST               (1, 0, 0)
+2914 PRECALL                  2
+2918 CALL                     2
+2928 POP_TOP                  
+2930 LOAD_FAST                s
+2932 LOAD_METHOD              setPoint
+2954 LOAD_FAST                pP3
+2956 LOAD_FAST                pD3
+2958 PRECALL                  2
+2962 CALL                     2
+2972 POP_TOP                  
+2974 LOAD_CONST               None
+2976 RETURN_VALUE             

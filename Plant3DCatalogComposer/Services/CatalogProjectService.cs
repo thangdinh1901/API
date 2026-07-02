@@ -69,8 +69,57 @@ namespace Plant3DCatalogComposer.Services
 
         public static void RefreshDesignDimensions(ValveProject project)
         {
-            FittingDimensionService.SyncProjectDimensions(project);
-            CatalogDimensionSuggestService.ApplySuggestions(project);
+            // Envelope dimensions (FaceToFace, BodyOD, ElbowCenterToFace, …) are now declared by the
+            // user with the +/- buttons and Pick, not auto-seeded from the Excel clone. Only the
+            // per-node native dimension rows (ELBO_001.R, FLAN_001.L, …) are seeded automatically.
+            CatalogNativeDimensionSeedService.Sync(project);
+        }
+
+        /// <summary>One-time migration for scenes saved while envelope dimensions (FaceToFace,
+        /// BodyOD, ElbowCenterToFace, BodyLength, BonnetHeight, StemDia, HandwheelOD, plus L/CEL/T)
+        /// were still auto-seeded from the Excel clone / port sync. That path also stamped a
+        /// "manual" DimensionBinding on each row, so we can't tell an auto-seeded row from a
+        /// hand-declared one by binding alone — hence a one-shot prune gated by
+        /// <see cref="ValveProject.LegacyEnvelopeDimsPruned"/>. After it runs once, anything the
+        /// user adds with + is preserved. Returns true if the project changed (caller should save).</summary>
+        public static bool PruneStaleAutoSuggestedDimensions(ValveProject project)
+        {
+            if (project.LegacyEnvelopeDimsPruned)
+                return false;
+
+            SkeletonParameters p = project.Parameters;
+            bool changed = false;
+
+            void Clear(string name, Action clear)
+            {
+                if (ProjectDimensionService.GetValue(project, name) > 0)
+                {
+                    clear();
+                    changed = true;
+                }
+
+                if (project.DimensionBindings.Remove(name))
+                    changed = true;
+            }
+
+            Clear("FaceToFace", () => p.FaceToFace = 0);
+            Clear("BodyOD", () => p.BodyOD = 0);
+            Clear("ElbowCenterToFace", () => p.ElbowCenterToFace = 0);
+            Clear("BodyLength", () => p.BodyLength = 0);
+            Clear("BonnetHeight", () => p.BonnetHeight = 0);
+            Clear("StemDia", () => p.StemDia = 0);
+            Clear("HandwheelOD", () => p.HandwheelOD = 0);
+
+            foreach (string name in new[] { "L", "CEL", "T" })
+            {
+                if (p.CustomDimensions.Remove(name))
+                    changed = true;
+                if (project.DimensionBindings.Remove(name))
+                    changed = true;
+            }
+
+            project.LegacyEnvelopeDimsPruned = true;
+            return true;
         }
 
         /// <summary>Pick / Apply / Scene bindings or saved dimension rows — do not overwrite on Generate.</summary>
@@ -87,13 +136,6 @@ namespace Plant3DCatalogComposer.Services
 
         public static string PreviewScriptName(ValveProject project)
         {
-            if (project.Parts.Count == 1 &&
-                project.Parts[0].Kind == SceneNodeKind.Catalog &&
-                !string.IsNullOrWhiteSpace(project.Parts[0].CatalogPartId))
-            {
-                return $"CUST_{project.Parts[0].CatalogPartId}";
-            }
-
             string baseName = string.IsNullOrWhiteSpace(project.ValveName)
                 ? "COMPOSER_PART"
                 : SanitizeCatalogName(project.ValveName);
